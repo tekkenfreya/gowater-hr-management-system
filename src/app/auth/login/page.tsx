@@ -4,9 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LoginCredentials } from '@/types/auth';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
     password: ''
@@ -20,24 +22,15 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // Mock authentication - accept any email/password combination
-      console.log('Login attempt:', credentials);
+      const result = await login(credentials.email, credentials.password);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login - store user session
-      localStorage.setItem('user', JSON.stringify({
-        email: credentials.email,
-        name: credentials.email.split('@')[0],
-        isLoggedIn: true
-      }));
-      
-      // Redirect to dashboard
-      router.push('/dashboard');
-      
+      if (result.success) {
+        router.push('/dashboard');
+      } else {
+        setError(result.error || 'Login failed. Please check your credentials.');
+      }
     } catch (err) {
-      setError('Login failed. Please check your credentials.');
+      setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -55,9 +48,14 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-1">
               Sign in
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-800">
               Please login to continue to your account.
             </p>
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+              <p className="font-medium text-blue-800">Default Admin Account:</p>
+              <p className="text-blue-700">Email: admin@gowater.com</p>
+              <p className="text-blue-700">Password: admin123</p>
+            </div>
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
@@ -122,7 +120,7 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <span className="text-gray-600">or</span>
+              <span className="text-gray-800">or</span>
             </div>
 
             <button
@@ -149,11 +147,8 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <p className="text-sm text-gray-600">
-                Have an account?{' '}
-                <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                  Sign in
-                </Link>
+              <p className="text-sm text-gray-800">
+                Need an account? Contact your administrator to create one for you.
               </p>
             </div>
           </form>

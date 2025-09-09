@@ -61,7 +61,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in-progress' | 'completed' | 'blocked';
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   timeSpent: number; // seconds
   isTimerRunning: boolean;
@@ -185,7 +185,7 @@ export interface ExcelExportData {
   };
   userId?: string;
   departmentId?: string;
-  data: any[];
+  data: unknown[];
   filename: string;
   generatedAt: Date;
   generatedBy: string;

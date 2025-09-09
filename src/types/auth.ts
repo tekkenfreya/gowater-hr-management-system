@@ -1,8 +1,8 @@
 export interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
-  role: string;
+  role: 'admin' | 'employee' | 'manager';
   department?: string;
 }
 
@@ -11,13 +11,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface SignUpData {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  name: string;
-  department?: string;
-}
 
 export interface AuthResponse {
   user: User;

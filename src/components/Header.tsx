@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { User } from '@/types/attendance';
+import { User } from '@/types/auth';
 
 interface HeaderProps {
   user: User | null;
@@ -14,34 +14,9 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const mockNotifications = [
-    {
-      id: 1,
-      title: 'Leave Request Approved',
-      message: 'Your annual leave request for Dec 25-26 has been approved',
-      time: '2 hours ago',
-      type: 'success',
-      unread: true
-    },
-    {
-      id: 2,
-      title: 'Time-in Reminder',
-      message: 'Don\'t forget to clock in when you start work',
-      time: '1 day ago',
-      type: 'info',
-      unread: false
-    },
-    {
-      id: 3,
-      title: 'Weekly Report Generated',
-      message: 'Your weekly attendance report is ready for download',
-      time: '3 days ago',
-      type: 'info',
-      unread: false
-    }
-  ];
-
-  const unreadCount = mockNotifications?.filter(n => n?.unread)?.length || 0;
+  // Database-driven notifications
+  const notifications: any[] = [];
+  const unreadCount = notifications?.filter(n => n?.unread)?.length || 0;
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
@@ -65,7 +40,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
           </button>
 
           {/* Current Time */}
-          <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-600">
+          <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-800">
             <ClockIcon className="w-4 h-4" />
             <span>{new Date().toLocaleString() || 'Loading...'}</span>
           </div>
@@ -84,7 +59,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
               placeholder="Search attendance, leaves..."
               className="w-64 px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-800" />
           </div>
         </div>
 
@@ -95,7 +70,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative p-2 text-gray-800 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <BellIcon />
               {unreadCount > 0 && (
@@ -117,7 +92,11 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                     <h3 className="font-medium text-gray-900">Notifications</h3>
                   </div>
                   <div className="max-h-64 overflow-y-auto">
-                    {mockNotifications.map((notification) => (
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-700">
+                        No notifications
+                      </div>
+                    ) : notifications.map((notification) => (
                       <div
                         key={notification.id}
                         className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
@@ -132,10 +111,10 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                             <p className="text-sm font-medium text-gray-900">
                               {notification.title}
                             </p>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm text-gray-800 mt-1">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-800 mt-1">
                               {notification.time}
                             </p>
                           </div>
@@ -174,7 +153,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                 <p className="text-sm font-medium text-gray-900">
                   {user?.name}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-800">
                   {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee'}
                 </p>
               </div>
@@ -198,7 +177,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">{user?.name}</p>
-                        <p className="text-sm text-gray-500">{user?.email}</p>
+                        <p className="text-sm text-gray-800">{user?.email}</p>
                       </div>
                     </div>
                   </div>
@@ -254,7 +233,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
             placeholder="Search..."
             className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-800" />
         </div>
       </div>
     </header>

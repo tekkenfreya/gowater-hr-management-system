@@ -3,79 +3,112 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { useAuth } from '@/hooks/useAuth';
 import { AttendanceRecord } from '@/types/attendance';
 
 export default function AttendancePage() {
+  const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'regularization'>('summary');
   const [selectedWeek, setSelectedWeek] = useState(new Date());
   const [checkingOut, setCheckingOut] = useState(false);
-
-  // Mock attendance data based on Zoho screenshot
-  const [currentAttendance, setCurrentAttendance] = useState({
-    isCheckedIn: false,
-    checkInTime: null as Date | null,
-    workHours: '00:24:50',
-    status: 'General [ 12:00 AM - 12:00 AM ]',
-    todayDate: new Date().toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })
-  });
-
-  // Mock weekly attendance data
-  const weeklyAttendance = [
-    { day: 'Sun', date: '31', isWeekend: true, status: 'Weekend', checkIn: null, checkOut: null, hours: '00:00', lateBy: null },
-    { day: 'Mon', date: '01', isWeekend: false, status: 'Late', checkIn: '10:49 PM', checkOut: null, hours: '07:42 AM', lateBy: '22:49' },
-    { day: 'Tue', date: '02', isWeekend: false, status: 'Present', checkIn: '09:58 PM', checkOut: null, hours: '09:08 AM', lateBy: '21:58' },
-    { day: 'Wed', date: '03', isWeekend: false, status: 'Present', checkIn: '10:30 PM', checkOut: null, hours: '00:24:50', lateBy: '22:30' },
-    { day: 'Thu', date: '04', isWeekend: false, status: 'Absent', checkIn: null, checkOut: null, hours: '00:00', lateBy: null },
-    { day: 'Fri', date: '05', isWeekend: false, status: 'Absent', checkIn: null, checkOut: null, hours: '00:00', lateBy: null },
-    { day: 'Sat', date: '06', isWeekend: true, status: 'Weekend', checkIn: null, checkOut: null, hours: '00:00', lateBy: null }
-  ];
-
-  const summaryStats = {
-    days: 7,
-    payableDays: 4,
-    present: 2,
-    onDuty: 0,
-    paidLeave: 0,
-    holidays: 0,
-    weekend: 2
-  };
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [todayAttendance, setTodayAttendance] = useState<any>(null);
+  const [weeklyAttendance, setWeeklyAttendance] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    } else {
-      window.location.href = '/auth/login';
+    if (user) {
+      fetchTodayAttendance();
+      fetchWeeklyAttendance();
     }
-  }, []);
+  }, [user]);
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    window.location.href = '/auth/login';
+  const fetchTodayAttendance = async () => {
+    try {
+      const response = await fetch('/api/attendance/today');
+      if (response.ok) {
+        const data = await response.json();
+        setTodayAttendance(data.attendance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch today attendance:', error);
+    }
+  };
+
+  const fetchWeeklyAttendance = async () => {
+    try {
+      const startDate = getWeekStartDate(selectedWeek);
+      const response = await fetch(`/api/attendance/weekly?startDate=${startDate}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWeeklyAttendance(data.weeklyAttendance);
+        setSummary(data.summary);
+      }
+    } catch (error) {
+      console.error('Failed to fetch weekly attendance:', error);
+    }
+    setLoading(false);
+  };
+
+  const getWeekStartDate = (date: Date): string => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff)).toISOString().split('T')[0];
+  };
+
+  const handleCheckIn = async () => {
+    setCheckingIn(true);
+    try {
+      const response = await fetch('/api/attendance/checkin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: '' }),
+      });
+
+      if (response.ok) {
+        await fetchTodayAttendance();
+        await fetchWeeklyAttendance();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to check in');
+      }
+    } catch (error) {
+      alert('Failed to check in. Please try again.');
+    }
+    setCheckingIn(false);
   };
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
-  const handleCheckOut = () => {
+  const handleCheckOut = async () => {
     setCheckingOut(true);
-    // Simulate checkout process
-    setTimeout(() => {
-      setCurrentAttendance(prev => ({
-        ...prev,
-        isCheckedIn: false,
-        checkInTime: null
-      }));
-      setCheckingOut(false);
-    }, 2000);
+    try {
+      const response = await fetch('/api/attendance/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: '' }),
+      });
+
+      if (response.ok) {
+        await fetchTodayAttendance();
+        await fetchWeeklyAttendance();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to check out');
+      }
+    } catch (error) {
+      alert('Failed to check out. Please try again.');
+    }
+    setCheckingOut(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -83,8 +116,8 @@ export default function AttendancePage() {
       case 'Present': return 'text-green-600';
       case 'Late': return 'text-orange-600';
       case 'Absent': return 'text-red-600';
-      case 'Weekend': return 'text-gray-500';
-      default: return 'text-gray-600';
+      case 'Weekend': return 'text-gray-800';
+      default: return 'text-gray-800';
     }
   };
 
@@ -118,7 +151,7 @@ export default function AttendancePage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
-              <p className="text-gray-600">Track your attendance and manage work hours</p>
+              <p className="text-gray-800">Track your attendance and manage work hours</p>
             </div>
             
             {/* Export Button */}
@@ -136,7 +169,7 @@ export default function AttendancePage() {
                 className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                   activeTab === 'summary' 
                     ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    : 'border-transparent text-gray-800 hover:text-gray-900'
                 }`}
               >
                 Attendance Summary
@@ -146,7 +179,7 @@ export default function AttendancePage() {
                 className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                   activeTab === 'regularization' 
                     ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    : 'border-transparent text-gray-800 hover:text-gray-900'
                 }`}
               >
                 Regularization
@@ -158,39 +191,79 @@ export default function AttendancePage() {
           <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 p-6">
             {activeTab === 'summary' && (
               <>
-                {/* Current Status Card - Matching Zoho Design */}
+                {/* Current Status Card - Real Data */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div>
-                        <p className="text-sm text-gray-600">{currentAttendance.todayDate}</p>
-                        <h3 className="font-medium text-gray-900">{currentAttendance.status}</h3>
-                        <p className="text-xs text-gray-500 mt-1">Add notes for check out</p>
+                        <p className="text-sm text-gray-800">
+                          {new Date().toLocaleDateString('en-US', { 
+                            weekday: 'long',
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                        <h3 className="font-medium text-gray-900">
+                          {todayAttendance?.status ? todayAttendance.status.charAt(0).toUpperCase() + todayAttendance.status.slice(1) : 'Not checked in'}
+                        </h3>
+                        <p className="text-xs text-gray-800 mt-1">
+                          {todayAttendance?.checkInTime 
+                            ? `Checked in at ${new Date(todayAttendance.checkInTime).toLocaleTimeString()}`
+                            : 'Ready to check in'
+                          }
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
-                        <div className="text-sm text-gray-600">
-                          <span className="text-red-500 font-medium">{currentAttendance.workHours}</span> Hrs
+                        <div className="text-sm text-gray-800">
+                          <span className="text-blue-500 font-medium">
+                            {todayAttendance?.totalHours ? todayAttendance.totalHours.toFixed(2) : '0.00'}
+                          </span> Hrs
                         </div>
                       </div>
-                      <button
-                        onClick={handleCheckOut}
-                        disabled={checkingOut}
-                        className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                      >
-                        {checkingOut ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Checking out...</span>
-                          </>
-                        ) : (
-                          <>
-                            <ClockIcon />
-                            <span>Check out</span>
-                          </>
-                        )}
-                      </button>
+                      {!todayAttendance?.checkInTime ? (
+                        <button
+                          onClick={handleCheckIn}
+                          disabled={checkingIn}
+                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                        >
+                          {checkingIn ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Checking in...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ClockIcon />
+                              <span>Check in</span>
+                            </>
+                          )}
+                        </button>
+                      ) : todayAttendance?.checkOutTime ? (
+                        <div className="text-green-600 font-medium px-6 py-2">
+                          ✓ Day Complete
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleCheckOut}
+                          disabled={checkingOut}
+                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                        >
+                          {checkingOut ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Checking out...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ClockIcon />
+                              <span>Check out</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -248,7 +321,7 @@ export default function AttendancePage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-gray-900">{day.day}</p>
-                            <p className="text-sm text-gray-600">{day.date}</p>
+                            <p className="text-sm text-gray-800">{day.date}</p>
                           </div>
                           {day.status === 'Weekend' && (
                             <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
@@ -287,12 +360,12 @@ export default function AttendancePage() {
                         )}
                         {!day.checkIn && day.status === 'Absent' && (
                           <div className="flex items-center justify-center py-2">
-                            <span className="text-sm text-gray-500">No attendance recorded</span>
+                            <span className="text-sm text-gray-800">No attendance recorded</span>
                           </div>
                         )}
                         {day.isWeekend && (
                           <div className="flex items-center justify-center py-2">
-                            <span className="text-sm text-gray-500">Weekend</span>
+                            <span className="text-sm text-gray-800">Weekend</span>
                           </div>
                         )}
                       </div>
@@ -302,39 +375,27 @@ export default function AttendancePage() {
 
                 {/* Summary Stats */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="grid grid-cols-7 gap-4 text-center">
+                  <div className="grid grid-cols-4 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">{summaryStats.days}</p>
-                      <p className="text-sm text-gray-600">Days</p>
+                      <p className="text-2xl font-bold text-gray-900">{summary.totalDays || 0}</p>
+                      <p className="text-sm text-gray-800">Total Days</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-blue-600">{summaryStats.payableDays}</p>
-                      <p className="text-sm text-gray-600">Payable Days</p>
+                      <p className="text-2xl font-bold text-green-600">{summary.presentDays || 0}</p>
+                      <p className="text-sm text-gray-800">Present</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-green-600">{summaryStats.present}</p>
-                      <p className="text-sm text-gray-600">Present</p>
+                      <p className="text-2xl font-bold text-red-600">{summary.absentDays || 0}</p>
+                      <p className="text-sm text-gray-800">Absent</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-purple-600">{summaryStats.onDuty}</p>
-                      <p className="text-sm text-gray-600">On Duty</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-orange-600">{summaryStats.paidLeave}</p>
-                      <p className="text-sm text-gray-600">Paid leave</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-cyan-600">{summaryStats.holidays}</p>
-                      <p className="text-sm text-gray-600">Holidays</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-gray-600">{summaryStats.weekend}</p>
-                      <p className="text-sm text-gray-600">Weekend</p>
+                      <p className="text-2xl font-bold text-blue-600">{summary.totalHours?.toFixed(1) || '0.0'}h</p>
+                      <p className="text-sm text-gray-800">Total Hours</p>
                     </div>
                   </div>
-                  <div className="mt-4 text-right">
-                    <p className="text-sm text-gray-600">
-                      {currentAttendance.status} • <span className="text-red-500">00:24:50 Hrs</span>
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-gray-800">
+                      Week Summary • {summary.lateDays || 0} late days
                     </p>
                   </div>
                 </div>
@@ -344,10 +405,10 @@ export default function AttendancePage() {
             {activeTab === 'regularization' && (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ClockIcon className="w-8 h-8 text-gray-400" />
+                  <ClockIcon className="w-8 h-8 text-gray-800" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Regularization Requests</h3>
-                <p className="text-gray-600 mb-6">Request regularization for missed punches or timing adjustments</p>
+                <p className="text-gray-800 mb-6">Request regularization for missed punches or timing adjustments</p>
                 <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200">
                   Request Regularization
                 </button>

@@ -203,7 +203,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
             <WhatsAppIcon />
           </div>
           <h4 className="text-lg font-medium text-gray-900 mb-2">Connect to WhatsApp</h4>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-800 mb-6">
             Connect your WhatsApp to send real attendance reports to your contacts or groups.
           </p>
           <button
@@ -222,7 +222,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
           <h4 className="text-lg font-medium text-gray-900 mb-2">Connecting to WhatsApp...</h4>
           {qrCode && (
             <div className="mt-6">
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-800 mb-4">
                 Scan this QR code with your WhatsApp mobile app:
               </p>
               <div className="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
@@ -232,7 +232,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
                   className="mx-auto"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-800 mt-2">
                 Open WhatsApp → Settings → Linked Devices → Link a Device
               </p>
             </div>
@@ -288,7 +288,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
                           )}
                         </p>
                         {contact.number && (
-                          <p className="text-xs text-gray-500">{contact.number}</p>
+                          <p className="text-xs text-gray-800">{contact.number}</p>
                         )}
                       </div>
                     </label>

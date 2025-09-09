@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User } from '@/types/attendance';
+import { User } from '@/types/auth';
 
 interface SidebarProps {
   user: User | null;
@@ -44,28 +44,14 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
       id: 'attendance',
       label: 'Attendance',
       icon: <ClockIcon />,
-      href: '/dashboard/attendance',
-      subItems: [
-        {
-          id: 'attendance-summary',
-          label: 'Summary',
-          icon: <CalendarIcon />,
-          href: '/dashboard/attendance'
-        },
-        {
-          id: 'regularization',
-          label: 'Regularization',
-          icon: <AdjustmentsIcon />,
-          href: '/dashboard/attendance/regularization'
-        }
-      ]
+      href: '/dashboard/attendance'
     },
     {
       id: 'leave',
       label: 'Leave Tracker',
       icon: <CalendarDaysIcon />,
       href: '/dashboard/leave',
-      badge: user?.role === 'supervisor' ? 3 : 0,
+      badge: user?.role === 'manager' ? 3 : 0,
       subItems: [
         {
           id: 'apply-leave',
@@ -79,7 +65,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
           icon: <HistoryIcon />,
           href: '/dashboard/leave/history'
         },
-        ...(user?.role === 'supervisor' ? [{
+        ...(user?.role === 'manager' ? [{
           id: 'leave-approvals',
           label: 'Approvals',
           icon: <CheckCircleIcon />,
@@ -87,19 +73,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
         }] : [])
       ]
     },
-    {
-      id: 'time-tracker',
-      label: 'Time Tracker',
-      icon: <TimeIcon />,
-      href: '/dashboard/time-tracker'
-    },
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      icon: <TaskIcon />,
-      href: '/dashboard/tasks'
-    },
-    ...(user?.role === 'supervisor' || user?.role === 'admin' ? [{
+    ...(user?.role === 'admin' ? [{
       id: 'team',
       label: 'Team',
       icon: <UsersIcon />,
@@ -131,6 +105,12 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
       icon: <FolderIcon />,
       href: '/dashboard/files'
     },
+    ...(user?.role === 'admin' ? [{
+      id: 'admin',
+      label: 'Admin Panel',
+      icon: <AdminIcon />,
+      href: '/dashboard/admin'
+    }] : []),
     {
       id: 'settings',
       label: 'Settings',
@@ -174,7 +154,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
             onClick={onToggle}
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
           >
-            <XIcon className="w-5 h-5 text-gray-500" />
+            <XIcon className="w-5 h-5 text-gray-800" />
           </button>
         </div>
 
@@ -191,7 +171,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {user?.name}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-gray-800 truncate">
                   {user?.department} • {user?.role}
                 </p>
               </div>
@@ -280,7 +260,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
                           flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors
                           ${isActive(subItem.href)
                             ? 'bg-blue-50 text-blue-700 font-medium'
-                            : 'text-gray-600 hover:bg-gray-50'
+                            : 'text-gray-800 hover:bg-gray-50'
                           }
                         `}
                       >
@@ -300,7 +280,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
         {/* Footer */}
         {!isCollapsed && (
           <div className="p-4 border-t border-gray-200">
-            <div className="text-xs text-gray-500 text-center">
+            <div className="text-xs text-gray-800 text-center">
               GoWater HR v2.0
               <br />
               © 2025 GoWater Solutions
@@ -438,6 +418,14 @@ function ChevronRightIcon({ className }: { className?: string }) {
   return (
     <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function AdminIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
     </svg>
   );
 }
