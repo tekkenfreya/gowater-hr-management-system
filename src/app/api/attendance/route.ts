@@ -73,6 +73,16 @@ export async function POST(request: NextRequest) {
       } else {
         return NextResponse.json({ error: result.error }, { status: 400 });
       }
+    } else if (action === 'delete') {
+      const result = await attendanceService.deleteTodayAttendance(userId);
+      
+      if (result.success) {
+        return NextResponse.json({ 
+          message: 'Today\'s attendance record deleted successfully'
+        });
+      } else {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

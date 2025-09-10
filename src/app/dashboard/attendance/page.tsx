@@ -111,6 +111,37 @@ export default function AttendancePage() {
     setCheckingOut(false);
   };
 
+  const handleDeleteAttendance = async () => {
+    if (!confirm('Are you sure you want to delete today\'s attendance record? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          notes: 'Testing - delete attendance from attendance page'
+        }),
+      });
+
+      if (response.ok) {
+        await fetchTodayAttendance();
+        await fetchWeeklyAttendance();
+        alert('Today\'s attendance record deleted successfully! You can now check in again.');
+      } else {
+        const data = await response.json();
+        alert(`Delete failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Delete attendance error:', error);
+      alert('Failed to delete attendance. Please try again.');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Present': return 'text-green-600';
@@ -154,11 +185,21 @@ export default function AttendancePage() {
               <p className="text-gray-800">Track your attendance and manage work hours</p>
             </div>
             
-            {/* Export Button */}
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-              <DownloadIcon />
-              <span>Export</span>
-            </button>
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={handleDeleteAttendance}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                title="Delete today's attendance record (for testing)"
+              >
+                <TrashIcon />
+                <span>Delete Today</span>
+              </button>
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                <DownloadIcon />
+                <span>Export</span>
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -246,23 +287,33 @@ export default function AttendancePage() {
                           ✓ Day Complete
                         </div>
                       ) : (
-                        <button
-                          onClick={handleCheckOut}
-                          disabled={checkingOut}
-                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                        >
-                          {checkingOut ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              <span>Checking out...</span>
-                            </>
-                          ) : (
-                            <>
-                              <ClockIcon />
-                              <span>Check out</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={handleCheckOut}
+                            disabled={checkingOut}
+                            className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                          >
+                            {checkingOut ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Checking out...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ClockIcon />
+                                <span>Check out</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={handleDeleteAttendance}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                            title="Delete today's attendance record (for testing)"
+                          >
+                            <TrashIcon />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -466,6 +517,14 @@ function ViewListIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
     </svg>
   );
 }

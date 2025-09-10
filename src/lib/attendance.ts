@@ -29,7 +29,7 @@ export class AttendanceService {
       // Check if already checked in today
       const existing = await this.db.get('attendance', { user_id: userId, date: today });
 
-      if (existing && existing.check_in_time) {
+      if (existing && existing.check_in_time && !existing.check_out_time) {
         return { success: false, error: 'Already checked in today' };
       }
 
@@ -172,6 +172,25 @@ export class AttendanceService {
         lateDays: 0,
         totalHours: 0
       };
+    }
+  }
+
+  async deleteTodayAttendance(userId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const existing = await this.db.get('attendance', { user_id: userId, date: today });
+      
+      if (!existing) {
+        return { success: false, error: 'No attendance record found for today' };
+      }
+
+      await this.db.delete('attendance', { id: existing.id });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Delete attendance error:', error);
+      return { success: false, error: 'Failed to delete attendance record' };
     }
   }
 }

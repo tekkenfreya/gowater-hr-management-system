@@ -12,6 +12,7 @@ export interface AuthUser {
   name: string;
   role: 'admin' | 'employee' | 'manager';
   department?: string;
+  employeeName?: string;
 }
 
 export interface LoginResult {
@@ -27,6 +28,7 @@ export interface CreateUserData {
   name: string;
   role?: 'admin' | 'employee' | 'manager';
   department?: string;
+  employeeName?: string;
 }
 
 export class AuthService {
@@ -75,7 +77,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        department: user.department
+        department: user.department,
+        employeeName: user.employee_name
       };
 
       const token = jwt.sign(
@@ -108,7 +111,8 @@ export class AuthService {
         password_hash: hashedPassword,
         name: userData.name,
         role: userData.role || 'employee',
-        department: userData.department
+        department: userData.department,
+        employee_name: userData.employeeName
       });
       
       return { success: true, userId: newUser?.id };
@@ -131,7 +135,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        department: user.department
+        department: user.department,
+        employeeName: user.employee_name
       };
     } catch (error) {
       console.error('Token verification error:', error);
@@ -148,7 +153,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        department: user.department
+        department: user.department,
+        employeeName: user.employee_name
       }));
     } catch (error) {
       console.error('Get all users error:', error);
@@ -173,6 +179,28 @@ export class AuthService {
     } catch (error) {
       console.error('Delete user error:', error);
       return false;
+    }
+  }
+
+  async updateUserProfile(userId: number, profileData: {
+    name?: string;
+    department?: string;
+    employeeName?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const updateData: any = {
+        updated_at: new Date()
+      };
+
+      if (profileData.name !== undefined) updateData.name = profileData.name;
+      if (profileData.department !== undefined) updateData.department = profileData.department;
+      if (profileData.employeeName !== undefined) updateData.employee_name = profileData.employeeName;
+
+      await this.db.update('users', updateData, { id: userId });
+      return { success: true };
+    } catch (error) {
+      console.error('Update user profile error:', error);
+      return { success: false, error: 'Failed to update profile' };
     }
   }
 }
