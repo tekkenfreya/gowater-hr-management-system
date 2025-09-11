@@ -34,7 +34,7 @@ export function useAuth() {
           error: null
         });
       }
-    } catch (error) {
+    } catch (_error) {
       setAuthState({
         user: null,
         isLoading: false,
@@ -72,7 +72,7 @@ export function useAuth() {
         });
         return { success: false, error: data.error || 'Login failed' };
       }
-    } catch (error) {
+    } catch (_error) {
       const errorMsg = 'Network error. Please try again.';
       setAuthState({
         user: null,

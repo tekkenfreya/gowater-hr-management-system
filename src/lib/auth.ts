@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDb } from './supabase';
-import { User } from '@/types/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gowater-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
@@ -94,7 +93,7 @@ export class AuthService {
     }
   }
 
-  async createUser(userData: CreateUserData, createdBy?: number): Promise<{ success: boolean; error?: string; userId?: number }> {
+  async createUser(userData: CreateUserData, _createdBy?: number): Promise<{ success: boolean; error?: string; userId?: number }> {
     try {
       // Check if user already exists
       const existingUser = await this.db.get('users', { email: userData.email });

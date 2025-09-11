@@ -192,7 +192,8 @@ class WhatsAppService {
         id: chat.id._serialized,
         name: chat.name,
         isGroup: chat.isGroup,
-        participants: chat.participants?.length || 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        participants: (chat as any).participants?.length || 0,
         lastMessage: chat.lastMessage?.body?.substring(0, 50) || ''
       }));
     } catch (error) {

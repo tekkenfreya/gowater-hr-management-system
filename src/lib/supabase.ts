@@ -40,12 +40,13 @@ export class SupabaseDatabase {
   }
 
   // SQLite-compatible methods for easy migration
-  async run(sql: string, params: unknown[] = []): Promise<void> {
+  async run(sql: string, _params: unknown[] = []): Promise<void> {
     // For INSERT/UPDATE/DELETE operations, convert to Supabase operations
     // This is a simplified approach - you may need to enhance based on actual SQL used
     throw new Error('Use Supabase table operations instead of raw SQL');
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async get<T = any>(table: string, conditions: Record<string, unknown> = {}): Promise<T | undefined> {
     let query = this.client.from(table).select('*');
     
@@ -62,6 +63,7 @@ export class SupabaseDatabase {
     return data as T;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async all<T = any>(table: string, conditions: Record<string, unknown> = {}, orderBy?: string): Promise<T[]> {
     let query = this.client.from(table).select('*');
     
@@ -127,6 +129,7 @@ export class SupabaseDatabase {
   }
 
   // Raw SQL execution for complex queries (use sparingly)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async executeRawSQL<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
     const { data, error } = await this.client.rpc('execute_sql', { 
       query: sql, 
