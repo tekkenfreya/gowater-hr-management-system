@@ -187,7 +187,7 @@ export default function AttendancePage() {
               </div>
               <div>
                 <span className="font-semibold text-gray-900">Position:</span>
-                <span className="ml-2 text-gray-800">{user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'N/A'}</span>
+                <span className="ml-2 text-gray-800">{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'N/A'}</span>
               </div>
               <div>
                 <span className="font-semibold text-gray-900">Department:</span>

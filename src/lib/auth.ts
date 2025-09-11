@@ -52,7 +52,7 @@ export class AuthService {
           role: 'admin',
           department: 'IT'
         });
-        console.log('Default admin account created: admin@gowater.com / admin123');
+        console.log('Default admin account created successfully');
       }
     } catch (error) {
       console.error('Error creating default admin:', error);
