@@ -417,6 +417,7 @@ export default function LeaveTracker() {
             )}
           </div>
         </div>
+        </div>
       </main>
       </div>
     </div>
