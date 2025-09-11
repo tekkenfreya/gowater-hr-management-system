@@ -145,7 +145,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           {!isCollapsed && (
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/dashboard" className="flex items-center space-x-2">
               <img src="/gowater new logo.png" alt="GoWater" className="h-8 w-auto" />
               <span className="font-semibold text-gray-900">GoWater HR</span>
             </Link>
