@@ -339,9 +339,6 @@ export default function AttendancePage() {
                     <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                       <ViewListIcon />
                     </button>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm">
-                      Regularization
-                    </button>
                   </div>
                 </div>
 
@@ -349,15 +346,12 @@ export default function AttendancePage() {
                 <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
                   {/* Header */}
                   <div className="bg-gray-50 border-b border-gray-200">
-                    <div className="grid grid-cols-8 divide-x divide-gray-200">
-                      <div className="p-4 font-medium text-gray-900">Days</div>
-                      <div className="p-4 font-medium text-gray-900">Hours</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">Payable Days</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">Present</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">On Duty</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">Paid leave</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">Holidays</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">Weekend</div>
+                    <div className="grid grid-cols-5 divide-x divide-gray-200">
+                      <div className="p-4 font-medium text-gray-900">Date</div>
+                      <div className="p-4 font-medium text-gray-900">Check In</div>
+                      <div className="p-4 font-medium text-gray-900">Check Out</div>
+                      <div className="p-4 font-medium text-gray-900">Total Hours</div>
+                      <div className="p-4 font-medium text-gray-900 text-center">Status</div>
                     </div>
                   </div>
 
@@ -365,60 +359,42 @@ export default function AttendancePage() {
                   {weeklyAttendance.map((day, index) => (
                     <div 
                       key={day.date} 
-                      className={`grid grid-cols-8 divide-x divide-gray-200 border-b border-gray-200 ${getStatusBg(day.status)}`}
+                      className={`grid grid-cols-5 divide-x divide-gray-200 border-b border-gray-200 ${getStatusBg(day.status)}`}
                     >
-                      {/* Day Column */}
+                      {/* Date Column */}
                       <div className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{day.day}</p>
-                            <p className="text-sm text-gray-800">{day.date}</p>
-                          </div>
-                          {day.status === 'Weekend' && (
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-                              {day.status}
-                            </span>
-                          )}
-                        </div>
+                        <p className="font-medium text-gray-900">{day.day}</p>
+                        <p className="text-sm text-gray-800">{day.date}</p>
                       </div>
 
-                      {/* Hours Column */}
+                      {/* Check In Column */}
                       <div className="p-4">
-                        <div className={`${getStatusColor(day.status)}`}>
-                          <p className="font-medium">{day.hours}</p>
-                          <p className="text-xs">Hrs worked</p>
-                        </div>
+                        <p className="font-medium text-gray-900">{day.checkIn || '--'}</p>
+                        {day.lateBy && (
+                          <p className="text-xs text-orange-600">Late by {day.lateBy}</p>
+                        )}
                       </div>
 
-                      {/* Timeline Visualization */}
-                      <div className="col-span-6 p-4">
-                        {day.checkIn && (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              {day.lateBy && (
-                                <span className="text-xs text-orange-600">Late by {day.lateBy}</span>
-                              )}
-                              <div className="flex items-center space-x-1">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium">{day.checkIn}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-sm font-medium">{day.hours}</span>
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            </div>
-                          </div>
-                        )}
-                        {!day.checkIn && day.status === 'Absent' && (
-                          <div className="flex items-center justify-center py-2">
-                            <span className="text-sm text-gray-800">No attendance recorded</span>
-                          </div>
-                        )}
-                        {day.isWeekend && (
-                          <div className="flex items-center justify-center py-2">
-                            <span className="text-sm text-gray-800">Weekend</span>
-                          </div>
-                        )}
+                      {/* Check Out Column */}
+                      <div className="p-4">
+                        <p className="font-medium text-gray-900">{day.checkOut || '--'}</p>
+                      </div>
+
+                      {/* Total Hours Column */}
+                      <div className="p-4">
+                        <p className="font-medium text-gray-900">{day.hours}</p>
+                      </div>
+
+                      {/* Status Column */}
+                      <div className="p-4 text-center">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          day.status === 'Present' ? 'bg-green-100 text-green-800' :
+                          day.status === 'Late' ? 'bg-orange-100 text-orange-800' :
+                          day.status === 'Absent' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {day.status}
+                        </span>
                       </div>
                     </div>
                   ))}

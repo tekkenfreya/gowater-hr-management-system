@@ -52,8 +52,17 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchTasks();
+      fetchTodayAttendance();
     }
   }, [user]);
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (workInterval) clearInterval(workInterval);
+      if (breakInterval) clearInterval(breakInterval);
+    };
+  }, [workInterval, breakInterval]);
 
   const fetchTasks = async () => {
     try {
@@ -67,6 +76,54 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
+    }
+  };
+
+  const fetchTodayAttendance = async () => {
+    try {
+      const response = await fetch('/api/attendance');
+      if (response.ok) {
+        const data = await response.json();
+        const attendance = data.attendance;
+        
+        if (attendance && attendance.checkInTime && !attendance.checkOutTime) {
+          // User is already checked in today
+          setIsTimedIn(true);
+          setTimeInTime(new Date(attendance.checkInTime));
+          setTimeOutTime(null);
+          
+          // Calculate work duration from check-in time
+          const checkInTime = new Date(attendance.checkInTime);
+          const currentTime = new Date();
+          const durationInSeconds = Math.floor((currentTime.getTime() - checkInTime.getTime()) / 1000);
+          setWorkDuration(durationInSeconds);
+          
+          // Start work duration timer to continue tracking
+          const interval = setInterval(() => {
+            setWorkDuration(prev => prev + 1);
+          }, 1000);
+          setWorkInterval(interval);
+        } else if (attendance && attendance.checkOutTime) {
+          // User has completed today's shift
+          setIsTimedIn(false);
+          setTimeInTime(new Date(attendance.checkInTime));
+          setTimeOutTime(new Date(attendance.checkOutTime));
+          
+          // Calculate total work duration
+          const checkInTime = new Date(attendance.checkInTime);
+          const checkOutTime = new Date(attendance.checkOutTime);
+          const durationInSeconds = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / 1000);
+          setWorkDuration(durationInSeconds);
+        } else {
+          // No attendance record today
+          setIsTimedIn(false);
+          setTimeInTime(null);
+          setTimeOutTime(null);
+          setWorkDuration(0);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch today\'s attendance:', error);
     }
   };
 
