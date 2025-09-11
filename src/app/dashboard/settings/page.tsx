@@ -13,6 +13,7 @@ interface UserProfile {
   phone: string;
   position: string;
   department: string;
+  employeeName: string;
   avatar?: string;
 }
 
@@ -54,7 +55,8 @@ export default function SettingsPage() {
     email: '',
     phone: '',
     position: '',
-    department: ''
+    department: '',
+    employeeName: ''
   });
 
   const [notifications, setNotifications] = useState<NotificationSettings>({
@@ -97,7 +99,8 @@ export default function SettingsPage() {
         email: user.email || '',
         phone: '', // Would come from additional user data if available
         position: user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || '',
-        department: user.department || ''
+        department: user.department || '',
+        employeeName: user.employeeName || user.name || ''
       });
     }
   }, [user]);
@@ -112,13 +115,26 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
-      // In a real app, this would call an API to update user profile
-      // For now, we'll just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSuccess('Profile updated successfully!');
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: `${profile.firstName} ${profile.lastName}`.trim(),
+          department: profile.department,
+          employeeName: profile.employeeName
+        }),
+      });
+
+      if (response.ok) {
+        setSuccess('Profile updated successfully!');
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to update profile. Please try again.');
+      }
     } catch (error) {
       setError('Failed to update profile. Please try again.');
     } finally {
@@ -222,7 +238,7 @@ export default function SettingsPage() {
           {/* Header Section */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-            <p className="text-gray-700">Manage your account settings and preferences</p>
+            <p className="text-gray-800">Manage your account settings and preferences</p>
           </div>
 
           {/* Status Messages */}
@@ -248,7 +264,7 @@ export default function SettingsPage() {
                     className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center space-x-2 ${
                       activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-700 hover:text-gray-800 hover:border-gray-300'
+                        : 'border-transparent text-gray-800 hover:text-gray-900 hover:border-gray-300'
                     }`}
                   >
                     {tab.icon}
@@ -265,59 +281,77 @@ export default function SettingsPage() {
                   <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">First Name</label>
                       <input
                         type="text"
                         value={profile.firstName}
                         onChange={(e) => setProfile({...profile, firstName: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Last Name</label>
                       <input
                         type="text"
                         value={profile.lastName}
                         onChange={(e) => setProfile({...profile, lastName: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Email</label>
                       <input
                         type="email"
                         value={profile.email}
                         onChange={(e) => setProfile({...profile, email: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Phone</label>
                       <input
                         type="tel"
                         value={profile.phone}
                         onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                         placeholder="+1 (555) 123-4567"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Position</label>
                       <input
                         type="text"
                         value={profile.position}
                         onChange={(e) => setProfile({...profile, position: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Department</label>
                       <input
                         type="text"
                         value={profile.department}
                         onChange={(e) => setProfile({...profile, department: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Employee Display Name (for reports)</label>
+                      <input
+                        type="text"
+                        value={profile.employeeName}
+                        onChange={(e) => setProfile({...profile, employeeName: e.target.value})}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        placeholder="Name shown in WhatsApp reports"
+                      />
+                      <p className="text-sm text-gray-800 mt-1">This name will appear in your start and EOD reports sent to WhatsApp</p>
                     </div>
                   </div>
                   <div className="flex justify-end">
@@ -342,7 +376,7 @@ export default function SettingsPage() {
                           <h3 className="text-sm font-medium text-gray-900">
                             {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                           </h3>
-                          <p className="text-sm text-gray-700">
+                          <p className="text-sm text-gray-800">
                             Receive notifications for {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
                           </p>
                         </div>
@@ -375,59 +409,64 @@ export default function SettingsPage() {
                   <h2 className="text-lg font-semibold text-gray-900">Appearance Settings</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Theme</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Theme</label>
                       <select
                         value={appearance.theme}
                         onChange={(e) => setAppearance({...appearance, theme: e.target.value as any})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       >
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                        <option value="system">System</option>
+                        <option value="light" style={{ color: '#000000' }}>Light</option>
+                        <option value="dark" style={{ color: '#000000' }}>Dark</option>
+                        <option value="system" style={{ color: '#000000' }}>System</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Language</label>
                       <select
                         value={appearance.language}
                         onChange={(e) => setAppearance({...appearance, language: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       >
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
+                        <option value="en" style={{ color: '#000000' }}>English</option>
+                        <option value="es" style={{ color: '#000000' }}>Spanish</option>
+                        <option value="fr" style={{ color: '#000000' }}>French</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time Zone</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Time Zone</label>
                       <input
                         type="text"
                         value={appearance.timeZone}
                         onChange={(e) => setAppearance({...appearance, timeZone: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date Format</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Date Format</label>
                       <select
                         value={appearance.dateFormat}
                         onChange={(e) => setAppearance({...appearance, dateFormat: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       >
-                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                        <option value="MM/DD/YYYY" style={{ color: '#000000' }}>MM/DD/YYYY</option>
+                        <option value="DD/MM/YYYY" style={{ color: '#000000' }}>DD/MM/YYYY</option>
+                        <option value="YYYY-MM-DD" style={{ color: '#000000' }}>YYYY-MM-DD</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time Format</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Time Format</label>
                       <select
                         value={appearance.timeFormat}
                         onChange={(e) => setAppearance({...appearance, timeFormat: e.target.value as any})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       >
-                        <option value="12h">12 Hour</option>
-                        <option value="24h">24 Hour</option>
+                        <option value="12h" style={{ color: '#000000' }}>12 Hour</option>
+                        <option value="24h" style={{ color: '#000000' }}>24 Hour</option>
                       </select>
                     </div>
                   </div>
@@ -450,7 +489,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-medium text-gray-900">Two-Factor Authentication</h3>
-                        <p className="text-sm text-gray-700">Add an extra layer of security to your account</p>
+                        <p className="text-sm text-gray-800">Add an extra layer of security to your account</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
@@ -463,12 +502,13 @@ export default function SettingsPage() {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Session Timeout (minutes)</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Session Timeout (minutes)</label>
                       <input
                         type="number"
                         value={security.sessionTimeout}
                         onChange={(e) => setSecurity({...security, sessionTimeout: parseInt(e.target.value)})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
                         min="5"
                         max="120"
                       />
@@ -476,7 +516,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-medium text-gray-900">Login Alerts</h3>
-                        <p className="text-sm text-gray-700">Get notified when someone logs into your account</p>
+                        <p className="text-sm text-gray-800">Get notified when someone logs into your account</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input

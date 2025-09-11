@@ -167,7 +167,7 @@ export default function LeaveTracker() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Leave Tracker</h1>
-          <p className="text-gray-700 font-medium">Manage your leave requests and track your balance</p>
+          <p className="text-gray-800 font-medium">Manage your leave requests and track your balance</p>
         </div>
 
         {/* Leave Balance Cards */}
@@ -175,9 +175,9 @@ export default function LeaveTracker() {
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-700">Vacation Leave</p>
+                <p className="text-sm font-semibold text-gray-800">Vacation Leave</p>
                 <p className="text-2xl font-bold text-blue-600">{leaveBalance.vacation.total - leaveBalance.vacation.used}</p>
-                <p className="text-xs text-gray-700">Available days</p>
+                <p className="text-xs text-gray-800">Available days</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
                 <CalendarIcon className="w-6 h-6 text-blue-600" />
@@ -200,9 +200,9 @@ export default function LeaveTracker() {
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-700">Sick Leave</p>
+                <p className="text-sm font-semibold text-gray-800">Sick Leave</p>
                 <p className="text-2xl font-bold text-red-600">{leaveBalance.sick.total - leaveBalance.sick.used}</p>
-                <p className="text-xs text-gray-700">Available days</p>
+                <p className="text-xs text-gray-800">Available days</p>
               </div>
               <div className="bg-red-100 p-3 rounded-lg">
                 <MedicalIcon className="w-6 h-6 text-red-600" />
@@ -225,9 +225,9 @@ export default function LeaveTracker() {
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-700">Personal Leave</p>
+                <p className="text-sm font-semibold text-gray-800">Personal Leave</p>
                 <p className="text-2xl font-bold text-purple-600">{leaveBalance.personal.total - leaveBalance.personal.used}</p>
-                <p className="text-xs text-gray-700">Available days</p>
+                <p className="text-xs text-gray-800">Available days</p>
               </div>
               <div className="bg-purple-100 p-3 rounded-lg">
                 <UserIcon className="w-6 h-6 text-purple-600" />
@@ -257,7 +257,7 @@ export default function LeaveTracker() {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'apply'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-700 hover:text-gray-700'
+                    : 'border-transparent text-gray-800 hover:text-gray-900'
                 }`}
               >
                 Apply Leave
@@ -267,7 +267,7 @@ export default function LeaveTracker() {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'history'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-700 hover:text-gray-700'
+                    : 'border-transparent text-gray-800 hover:text-gray-900'
                 }`}
               >
                 Leave History
@@ -387,13 +387,13 @@ export default function LeaveTracker() {
                             <div>
                               <p className="font-semibold text-gray-800">Duration</p>
                               <p className="text-gray-800">{request.startDate} to {request.endDate}</p>
-                              <p className="text-gray-700">{request.days} day{request.days > 1 ? 's' : ''}</p>
+                              <p className="text-gray-800">{request.days} day{request.days > 1 ? 's' : ''}</p>
                             </div>
                             <div>
                               <p className="font-semibold text-gray-800">Applied Date</p>
                               <p className="text-gray-800">{request.appliedDate}</p>
                               {request.approvedBy && (
-                                <p className="text-gray-700">By: {request.approvedBy}</p>
+                                <p className="text-gray-800">By: {request.approvedBy}</p>
                               )}
                             </div>
                             <div>
