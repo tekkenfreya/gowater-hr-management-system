@@ -4,25 +4,48 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
-import { AttendanceRecord } from '@/types/attendance';
+import { AttendanceRecord as ServiceAttendanceRecord } from '@/lib/attendance';
+
+interface WeeklyAttendanceData {
+  date: string;
+  day: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  totalHours: number;
+  status: 'present' | 'absent' | 'late' | 'on_duty';
+  notes?: string;
+  isWeekend?: boolean;
+}
+
+interface AttendanceSummaryData {
+  totalDays: number;
+  presentDays: number;
+  absentDays: number;
+  totalHours: number;
+}
 
 export default function AttendancePage() {
   const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'summary' | 'regularization'>('summary');
-  const [selectedWeek, setSelectedWeek] = useState(new Date());
+  const [selectedWeek] = useState(new Date());
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [todayAttendance, setTodayAttendance] = useState<any>(null);
-  const [weeklyAttendance, setWeeklyAttendance] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any>({});
-  const [loading, setLoading] = useState(true);
+  const [todayAttendance, setTodayAttendance] = useState<ServiceAttendanceRecord | null>(null);
+  const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
+  const [summary, setSummary] = useState<AttendanceSummaryData>({
+    totalDays: 0,
+    presentDays: 0,
+    absentDays: 0,
+    totalHours: 0
+  });
 
   useEffect(() => {
     if (user) {
       fetchTodayAttendance();
       fetchWeeklyAttendance();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchTodayAttendance = async () => {
@@ -43,13 +66,30 @@ export default function AttendancePage() {
       const response = await fetch(`/api/attendance/weekly?startDate=${startDate}`);
       if (response.ok) {
         const data = await response.json();
-        setWeeklyAttendance(data.weeklyAttendance);
+        // Transform the data to match our interface
+        const transformedAttendance = data.weeklyAttendance.map((record: {
+          date: string;
+          checkInTime?: string;
+          checkOutTime?: string;
+          totalHours: number;
+          status: 'present' | 'absent' | 'late' | 'on_duty';
+          notes?: string;
+        }) => ({
+          date: record.date,
+          day: new Date(record.date).toLocaleDateString('en-US', { weekday: 'short' }),
+          checkInTime: record.checkInTime,
+          checkOutTime: record.checkOutTime,
+          totalHours: record.totalHours || 0,
+          status: record.status,
+          notes: record.notes,
+          isWeekend: [0, 6].includes(new Date(record.date).getDay())
+        }));
+        setWeeklyAttendance(transformedAttendance);
         setSummary(data.summary);
       }
     } catch (error) {
       console.error('Failed to fetch weekly attendance:', error);
     }
-    setLoading(false);
   };
 
   const getWeekStartDate = (date: Date): string => {
@@ -142,25 +182,6 @@ export default function AttendancePage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Present': return 'text-green-600';
-      case 'Late': return 'text-orange-600';
-      case 'Absent': return 'text-red-600';
-      case 'Weekend': return 'text-gray-800';
-      default: return 'text-gray-800';
-    }
-  };
-
-  const getStatusBg = (status: string) => {
-    switch (status) {
-      case 'Present': return 'bg-green-50';
-      case 'Late': return 'bg-orange-50';
-      case 'Absent': return 'bg-red-50';
-      case 'Weekend': return 'bg-gray-50';
-      default: return 'bg-white';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -356,7 +377,7 @@ export default function AttendancePage() {
                 <div className="bg-white border border-gray-300 rounded-lg overflow-hidden mb-6">
                   {/* Table Header */}
                   <div className="bg-gray-100 border-b border-gray-300">
-                    <div className="grid grid-cols-8 divide-x divide-gray-300 text-xs font-semibold text-gray-900 text-center">
+                    <div className="grid grid-cols-10 divide-x divide-gray-300 text-xs font-semibold text-gray-900 text-center">
                       <div className="p-3 border-r border-gray-300">DATE</div>
                       <div className="p-3 border-r border-gray-300">SITE SCHEDULE</div>
                       <div className="col-span-2 p-3 border-r border-gray-300">
@@ -373,6 +394,13 @@ export default function AttendancePage() {
                           <div>OUT</div>
                         </div>
                       </div>
+                      <div className="col-span-2 p-3 border-r border-gray-300">
+                        <div className="border-b border-gray-300 pb-1 mb-2">Overtime</div>
+                        <div className="grid grid-cols-2 divide-x divide-gray-300">
+                          <div>IN</div>
+                          <div>OUT</div>
+                        </div>
+                      </div>
                       <div className="p-3 border-r border-gray-300">TASK / PURPOSE</div>
                       <div className="p-3">REMARKS</div>
                     </div>
@@ -382,7 +410,7 @@ export default function AttendancePage() {
                   {weeklyAttendance.map((day, index) => (
                     <div 
                       key={day.date} 
-                      className="grid grid-cols-8 divide-x divide-gray-300 border-b border-gray-300 min-h-[100px]"
+                      className="grid grid-cols-10 divide-x divide-gray-300 border-b border-gray-300 min-h-[100px]"
                     >
                       {/* Date Column */}
                       <div className="p-3 flex items-center justify-center border-r border-gray-300">
@@ -402,34 +430,48 @@ export default function AttendancePage() {
                       {/* AM Time Columns */}
                       <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
                         <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900">{day.checkIn || ''}</span>
+                          <span className="text-sm text-gray-900">
+                            {day.checkInTime ? new Date(day.checkInTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
                         </div>
                         <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900">{day.amOut || ''}</span>
+                          <span className="text-sm text-gray-900"></span>
                         </div>
                       </div>
 
                       {/* PM Time Columns */}
                       <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
                         <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900">{day.pmIn || ''}</span>
+                          <span className="text-sm text-gray-900"></span>
                         </div>
                         <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900">{day.checkOut || ''}</span>
+                          <span className="text-sm text-gray-900">
+                            {day.checkOutTime ? new Date(day.checkOutTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Overtime Columns */}
+                      <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
+                        <div className="p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-900"></span>
+                        </div>
+                        <div className="p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-900"></span>
                         </div>
                       </div>
 
                       {/* Task/Purpose Column */}
                       <div className="p-3 border-r border-gray-300">
                         <div className="text-xs text-gray-900">
-                          {day.tasks || 'Daily development tasks and project work'}
+                          Daily development tasks and project work
                         </div>
                       </div>
 
                       {/* Remarks Column */}
                       <div className="p-3">
                         <div className="text-xs text-gray-900">
-                          {day.remarks || (day.lateBy ? `Late by ${day.lateBy}` : '')}
+                          {day.notes || ''}
                         </div>
                       </div>
                     </div>
@@ -458,7 +500,7 @@ export default function AttendancePage() {
                   </div>
                   <div className="mt-4 text-center">
                     <p className="text-sm text-gray-800">
-                      Week Summary • {summary.lateDays || 0} late days
+                      Week Summary
                     </p>
                   </div>
                 </div>
