@@ -178,15 +178,25 @@ export default function AttendancePage() {
         />
 
         <main className="p-6">
-          {/* Header Section */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
-              <p className="text-gray-800">Track your attendance and manage work hours</p>
+          {/* Employee Info Header */}
+          <div className="bg-white rounded-lg border border-gray-300 p-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="font-semibold text-gray-900">Name:</span>
+                <span className="ml-2 text-gray-800">{user?.name || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-900">Position:</span>
+                <span className="ml-2 text-gray-800">{user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-900">Department:</span>
+                <span className="ml-2 text-gray-800">{user?.department || 'N/A'}</span>
+              </div>
             </div>
             
             {/* Action Buttons */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
               <button 
                 onClick={handleDeleteAttendance}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
@@ -342,59 +352,85 @@ export default function AttendancePage() {
                   </div>
                 </div>
 
-                {/* Weekly Calendar Grid - Matching Zoho Layout */}
-                <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
-                  {/* Header */}
-                  <div className="bg-gray-50 border-b border-gray-200">
-                    <div className="grid grid-cols-5 divide-x divide-gray-200">
-                      <div className="p-4 font-medium text-gray-900">Date</div>
-                      <div className="p-4 font-medium text-gray-900">Check In</div>
-                      <div className="p-4 font-medium text-gray-900">Check Out</div>
-                      <div className="p-4 font-medium text-gray-900">Total Hours</div>
-                      <div className="p-4 font-medium text-gray-900 text-center">Status</div>
+                {/* Attendance Timesheet Table */}
+                <div className="bg-white border border-gray-300 rounded-lg overflow-hidden mb-6">
+                  {/* Table Header */}
+                  <div className="bg-gray-100 border-b border-gray-300">
+                    <div className="grid grid-cols-8 divide-x divide-gray-300 text-xs font-semibold text-gray-900 text-center">
+                      <div className="p-3 border-r border-gray-300">DATE</div>
+                      <div className="p-3 border-r border-gray-300">SITE SCHEDULE</div>
+                      <div className="col-span-2 p-3 border-r border-gray-300">
+                        <div className="border-b border-gray-300 pb-1 mb-2">AM Time</div>
+                        <div className="grid grid-cols-2 divide-x divide-gray-300">
+                          <div>IN</div>
+                          <div>OUT</div>
+                        </div>
+                      </div>
+                      <div className="col-span-2 p-3 border-r border-gray-300">
+                        <div className="border-b border-gray-300 pb-1 mb-2">PM Time</div>
+                        <div className="grid grid-cols-2 divide-x divide-gray-300">
+                          <div>IN</div>
+                          <div>OUT</div>
+                        </div>
+                      </div>
+                      <div className="p-3 border-r border-gray-300">TASK / PURPOSE</div>
+                      <div className="p-3">REMARKS</div>
                     </div>
                   </div>
 
-                  {/* Weekly Data Rows */}
+                  {/* Table Rows */}
                   {weeklyAttendance.map((day, index) => (
                     <div 
                       key={day.date} 
-                      className={`grid grid-cols-5 divide-x divide-gray-200 border-b border-gray-200 ${getStatusBg(day.status)}`}
+                      className="grid grid-cols-8 divide-x divide-gray-300 border-b border-gray-300 min-h-[100px]"
                     >
                       {/* Date Column */}
-                      <div className="p-4">
-                        <p className="font-medium text-gray-900">{day.day}</p>
-                        <p className="text-sm text-gray-800">{day.date}</p>
+                      <div className="p-3 flex items-center justify-center border-r border-gray-300">
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-gray-900">{day.date}</div>
+                          <div className="text-xs text-gray-800">{day.day}</div>
+                        </div>
                       </div>
 
-                      {/* Check In Column */}
-                      <div className="p-4">
-                        <p className="font-medium text-gray-900">{day.checkIn || '--'}</p>
-                        {day.lateBy && (
-                          <p className="text-xs text-orange-600">Late by {day.lateBy}</p>
-                        )}
+                      {/* Site Schedule Column */}
+                      <div className="p-3 flex items-center justify-center border-r border-gray-300">
+                        <div className="text-center text-sm text-gray-900">
+                          {day.isWeekend ? 'OFF' : 'WFH'}
+                        </div>
                       </div>
 
-                      {/* Check Out Column */}
-                      <div className="p-4">
-                        <p className="font-medium text-gray-900">{day.checkOut || '--'}</p>
+                      {/* AM Time Columns */}
+                      <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
+                        <div className="p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-900">{day.checkIn || ''}</span>
+                        </div>
+                        <div className="p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-900">{day.amOut || ''}</span>
+                        </div>
                       </div>
 
-                      {/* Total Hours Column */}
-                      <div className="p-4">
-                        <p className="font-medium text-gray-900">{day.hours}</p>
+                      {/* PM Time Columns */}
+                      <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
+                        <div className="p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-900">{day.pmIn || ''}</span>
+                        </div>
+                        <div className="p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-900">{day.checkOut || ''}</span>
+                        </div>
                       </div>
 
-                      {/* Status Column */}
-                      <div className="p-4 text-center">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          day.status === 'Present' ? 'bg-green-100 text-green-800' :
-                          day.status === 'Late' ? 'bg-orange-100 text-orange-800' :
-                          day.status === 'Absent' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {day.status}
-                        </span>
+                      {/* Task/Purpose Column */}
+                      <div className="p-3 border-r border-gray-300">
+                        <div className="text-xs text-gray-900">
+                          {day.tasks || 'Daily development tasks and project work'}
+                        </div>
+                      </div>
+
+                      {/* Remarks Column */}
+                      <div className="p-3">
+                        <div className="text-xs text-gray-900">
+                          {day.remarks || (day.lateBy ? `Late by ${day.lateBy}` : '')}
+                        </div>
                       </div>
                     </div>
                   ))}
