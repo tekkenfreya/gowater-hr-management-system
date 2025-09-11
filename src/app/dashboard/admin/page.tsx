@@ -226,47 +226,51 @@ export default function AdminPage() {
 
                 <form onSubmit={handleCreateUser} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Full Name</label>
                     <input
                       type="text"
                       required
                       value={createForm.name}
                       onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       placeholder="John Doe"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Email</label>
                     <input
                       type="email"
                       required
                       value={createForm.email}
                       onChange={(e) => setCreateForm({...createForm, email: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       placeholder="john@gowater.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Password</label>
                     <input
                       type="password"
                       required
                       value={createForm.password}
                       onChange={(e) => setCreateForm({...createForm, password: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       placeholder="••••••••"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
                     <select
                       value={createForm.role}
                       onChange={(e) => setCreateForm({...createForm, role: e.target.value as any})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
                     >
                       <option value="employee">Employee</option>
                       <option value="manager">Manager</option>
@@ -275,12 +279,13 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Department</label>
                     <input
                       type="text"
                       value={createForm.department}
                       onChange={(e) => setCreateForm({...createForm, department: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       placeholder="IT, Sales, Marketing..."
                     />
                   </div>
