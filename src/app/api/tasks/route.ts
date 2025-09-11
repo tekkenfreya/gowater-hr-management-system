@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getDb } from '@/lib/supabase';
+import { Task } from '@/types/attendance';
 
 interface JWTPayload {
   userId: number;
   email: string;
   role: string;
+}
+
+interface DbTask {
+  id: string;
+  title: string;
+  description: string;
+  priority: string;
+  due_date: string | null;
+  status: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -114,7 +124,7 @@ export async function PUT(request: NextRequest) {
 
     // Verify task belongs to user
     const database = getDb();
-    const existingTask = await database.get('tasks', { id, user_id: userId });
+    const existingTask = await database.get<DbTask>('tasks', { id, user_id: userId });
     if (!existingTask) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
@@ -164,7 +174,7 @@ export async function DELETE(request: NextRequest) {
 
     // Verify task belongs to user
     const database = getDb();
-    const existingTask = await database.get('tasks', { id: taskId, user_id: userId });
+    const existingTask = await database.get<DbTask>('tasks', { id: taskId, user_id: userId });
     if (!existingTask) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }

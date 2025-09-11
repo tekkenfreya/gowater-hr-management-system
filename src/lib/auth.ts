@@ -124,7 +124,7 @@ export class AuthService {
 
   async verifyToken(token: string): Promise<AuthUser | null> {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
       
       const user = await this.db.get('users', { id: decoded.userId, status: 'active' });
 
@@ -188,7 +188,7 @@ export class AuthService {
     employeeName?: string;
   }): Promise<{ success: boolean; error?: string }> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date()
       };
 

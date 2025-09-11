@@ -412,7 +412,7 @@ export default function SettingsPage() {
                       <label className="block text-sm font-medium text-gray-800 mb-1">Theme</label>
                       <select
                         value={appearance.theme}
-                        onChange={(e) => setAppearance({...appearance, theme: e.target.value as any})}
+                        onChange={(e) => setAppearance({...appearance, theme: e.target.value as 'light' | 'dark' | 'system'})}
                         className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                         style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       >
@@ -461,7 +461,7 @@ export default function SettingsPage() {
                       <label className="block text-sm font-medium text-gray-800 mb-1">Time Format</label>
                       <select
                         value={appearance.timeFormat}
-                        onChange={(e) => setAppearance({...appearance, timeFormat: e.target.value as any})}
+                        onChange={(e) => setAppearance({...appearance, timeFormat: e.target.value as '12h' | '24h'})}
                         className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                         style={{ color: '#000000', backgroundColor: '#ffffff' }}
                       >

@@ -12,6 +12,7 @@ interface WeeklyAttendanceData {
   day: string;
   checkInTime?: string;
   checkOutTime?: string;
+  breakDuration?: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
   notes?: string;
@@ -79,7 +80,7 @@ export default function AttendancePage() {
         // Sync break state from localStorage (shared with dashboard)
         const breakState = localStorage.getItem('break-state');
         if (breakState) {
-          const { isOnBreak: storedIsOnBreak, breakDuration: storedBreakDuration, breakStartTime } = JSON.parse(breakState);
+          const { isOnBreak: storedIsOnBreak, breakStartTime } = JSON.parse(breakState);
           setIsOnBreak(storedIsOnBreak);
           
           if (storedIsOnBreak && breakStartTime) {
@@ -141,6 +142,7 @@ export default function AttendancePage() {
           date: string;
           checkInTime?: string;
           checkOutTime?: string;
+          breakDuration?: number;
           totalHours: number;
           status: 'present' | 'absent' | 'late' | 'on_duty';
           notes?: string;
@@ -149,6 +151,7 @@ export default function AttendancePage() {
           day: new Date(record.date).toLocaleDateString('en-US', { weekday: 'short' }),
           checkInTime: record.checkInTime,
           checkOutTime: record.checkOutTime,
+          breakDuration: record.breakDuration || 0,
           totalHours: record.totalHours || 0,
           status: record.status,
           notes: record.notes,
@@ -183,48 +186,86 @@ export default function AttendancePage() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const startBreak = () => {
-    const now = new Date();
-    setIsOnBreak(true);
-    setBreakDuration(0);
+  const startBreak = async () => {
+    try {
+      const response = await fetch('/api/attendance/break/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    // Save break state to localStorage (shared with dashboard)
-    localStorage.setItem('break-state', JSON.stringify({
-      isOnBreak: true,
-      breakDuration: 0,
-      breakStartTime: now.toISOString()
-    }));
+      if (response.ok) {
+        const now = new Date();
+        setIsOnBreak(true);
+        setBreakDuration(0);
 
-    // Stop work timer
-    if (workInterval) {
-      clearInterval(workInterval);
-      setWorkInterval(null);
+        // Save break state to localStorage (shared with dashboard)
+        localStorage.setItem('break-state', JSON.stringify({
+          isOnBreak: true,
+          breakDuration: 0,
+          breakStartTime: now.toISOString()
+        }));
+
+        // Stop work timer
+        if (workInterval) {
+          clearInterval(workInterval);
+          setWorkInterval(null);
+        }
+
+        // Start break timer (same logic as dashboard)
+        const interval = setInterval(() => {
+          setBreakDuration(prev => prev + 1);
+        }, 1000);
+        setBreakInterval(interval);
+      } else {
+        const data = await response.json();
+        alert(`Failed to start break: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Start break error:', error);
+      alert('Failed to start break. Please try again.');
     }
-
-    // Start break timer (same logic as dashboard)
-    const interval = setInterval(() => {
-      setBreakDuration(prev => prev + 1);
-    }, 1000);
-    setBreakInterval(interval);
   };
 
-  const endBreak = () => {
-    setIsOnBreak(false);
+  const endBreak = async () => {
+    try {
+      const response = await fetch('/api/attendance/break/end', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    // Clear break state from localStorage (shared with dashboard)
-    localStorage.removeItem('break-state');
+      if (response.ok) {
+        setIsOnBreak(false);
 
-    // Stop break timer
-    if (breakInterval) {
-      clearInterval(breakInterval);
-      setBreakInterval(null);
+        // Clear break state from localStorage (shared with dashboard)
+        localStorage.removeItem('break-state');
+
+        // Stop break timer
+        if (breakInterval) {
+          clearInterval(breakInterval);
+          setBreakInterval(null);
+        }
+
+        // Resume work timer (same logic as dashboard)
+        const interval = setInterval(() => {
+          setWorkDuration(prev => prev + 1);
+        }, 1000);
+        setWorkInterval(interval);
+
+        // Refresh attendance data to show updated break info
+        await fetchTodayAttendance();
+        await fetchWeeklyAttendance();
+      } else {
+        const data = await response.json();
+        alert(`Failed to end break: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('End break error:', error);
+      alert('Failed to end break. Please try again.');
     }
-
-    // Resume work timer (same logic as dashboard)
-    const interval = setInterval(() => {
-      setWorkDuration(prev => prev + 1);
-    }, 1000);
-    setWorkInterval(interval);
   };
 
   const getTasksForDate = (date: string): string => {
@@ -643,7 +684,9 @@ export default function AttendancePage() {
 
                       {/* BREAK Column */}
                       <div className="p-3 flex items-center justify-center border-r border-gray-300">
-                        <span className="text-sm text-gray-900">-</span>
+                        <span className="text-sm text-gray-900">
+                          {day.breakDuration ? formatTime(day.breakDuration) : '-'}
+                        </span>
                       </div>
 
                       {/* TIME OUT Column */}

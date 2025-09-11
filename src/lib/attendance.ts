@@ -6,6 +6,7 @@ export interface AttendanceRecord {
   date: string;
   checkInTime?: string;
   checkOutTime?: string;
+  breakDuration?: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
   notes?: string;
@@ -105,6 +106,7 @@ export class AttendanceService {
         date: record.date,
         checkInTime: record.check_in_time,
         checkOutTime: record.check_out_time,
+        breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
         notes: record.notes
@@ -131,6 +133,7 @@ export class AttendanceService {
         date: record.date,
         checkInTime: record.check_in_time,
         checkOutTime: record.check_out_time,
+        breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
         notes: record.notes
@@ -191,6 +194,71 @@ export class AttendanceService {
     } catch (error) {
       console.error('Delete attendance error:', error);
       return { success: false, error: 'Failed to delete attendance record' };
+    }
+  }
+
+  async startBreak(userId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const record = await this.db.get('attendance', { user_id: userId, date: today });
+      
+      if (!record) {
+        return { success: false, error: 'No attendance record found for today' };
+      }
+
+      if (!record.check_in_time) {
+        return { success: false, error: 'Must check in before taking a break' };
+      }
+
+      if (record.break_start_time && !record.break_end_time) {
+        return { success: false, error: 'Break already in progress' };
+      }
+
+      const breakStartTime = new Date().toISOString();
+      
+      await this.db.update('attendance', {
+        break_start_time: breakStartTime,
+        break_end_time: null,
+        updated_at: new Date()
+      }, { id: record.id });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Start break error:', error);
+      return { success: false, error: 'Failed to start break' };
+    }
+  }
+
+  async endBreak(userId: number): Promise<{ success: boolean; error?: string; breakDuration?: number }> {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const record = await this.db.get('attendance', { user_id: userId, date: today });
+      
+      if (!record) {
+        return { success: false, error: 'No attendance record found for today' };
+      }
+
+      if (!record.break_start_time || record.break_end_time) {
+        return { success: false, error: 'No active break to end' };
+      }
+
+      const breakEndTime = new Date().toISOString();
+      const breakStartTime = new Date(record.break_start_time);
+      const breakDurationSeconds = Math.floor((new Date(breakEndTime).getTime() - breakStartTime.getTime()) / 1000);
+      const totalBreakDuration = (record.break_duration || 0) + breakDurationSeconds;
+      
+      await this.db.update('attendance', {
+        break_end_time: breakEndTime,
+        break_duration: totalBreakDuration,
+        updated_at: new Date()
+      }, { id: record.id });
+
+      return { success: true, breakDuration: breakDurationSeconds };
+    } catch (error) {
+      console.error('End break error:', error);
+      return { success: false, error: 'Failed to end break' };
     }
   }
 }

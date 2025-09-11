@@ -15,7 +15,14 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Database-driven notifications
-  const notifications: any[] = [];
+  const notifications: {
+    id: string;
+    unread: boolean;
+    type: string;
+    title: string;
+    message: string;
+    time: string;
+  }[] = [];
   const unreadCount = notifications?.filter(n => n?.unread)?.length || 0;
 
   return (

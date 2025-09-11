@@ -51,11 +51,6 @@ export default function LoginPage() {
             <p className="text-sm text-gray-800">
               Please login to continue to your account.
             </p>
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-              <p className="font-medium text-blue-800">Default Admin Account:</p>
-              <p className="text-blue-700">Email: admin@gowater.com</p>
-              <p className="text-blue-700">Password: admin123</p>
-            </div>
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>

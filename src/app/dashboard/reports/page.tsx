@@ -61,7 +61,7 @@ export default function Reports() {
   }, []);
 
   const exportToExcel = (reportType: string) => {
-    let data: any[] = [];
+    let data: unknown[] = [];
     let fileName = '';
 
     switch (reportType) {
@@ -123,7 +123,7 @@ export default function Reports() {
       }
 
       // Auto-width columns
-      const colWidths: any[] = [];
+      const colWidths: { wch: number }[] = [];
       for (let col = range.s.c; col <= range.e.c; col++) {
         let maxWidth = 10;
         for (let row = range.s.r; row <= range.e.r; row++) {
@@ -134,7 +134,7 @@ export default function Reports() {
             maxWidth = Math.max(maxWidth, cellLength);
           }
         }
-        colWidths.push({ width: Math.min(maxWidth + 2, 50) });
+        colWidths.push({ wch: Math.min(maxWidth + 2, 50) });
       }
       ws['!cols'] = colWidths;
 
@@ -287,7 +287,7 @@ export default function Reports() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id as 'attendance' | 'tasks' | 'leaves' | 'time')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'

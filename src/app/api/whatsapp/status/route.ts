@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       isReady,
       qrCode,
-      error: global.whatsappError || null
+      error: (global as unknown as Record<string, unknown>).whatsappError || null
     });
   } catch (error) {
     return NextResponse.json(

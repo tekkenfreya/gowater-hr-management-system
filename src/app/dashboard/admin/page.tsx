@@ -268,7 +268,7 @@ export default function AdminPage() {
                     <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
                     <select
                       value={createForm.role}
-                      onChange={(e) => setCreateForm({...createForm, role: e.target.value as any})}
+                      onChange={(e) => setCreateForm({...createForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
                       className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                       style={{ color: '#000000', backgroundColor: '#ffffff' }}
                     >

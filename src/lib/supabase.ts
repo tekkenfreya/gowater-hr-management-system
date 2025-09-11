@@ -40,13 +40,13 @@ export class SupabaseDatabase {
   }
 
   // SQLite-compatible methods for easy migration
-  async run(sql: string, params: any[] = []): Promise<void> {
+  async run(sql: string, params: unknown[] = []): Promise<void> {
     // For INSERT/UPDATE/DELETE operations, convert to Supabase operations
     // This is a simplified approach - you may need to enhance based on actual SQL used
     throw new Error('Use Supabase table operations instead of raw SQL');
   }
 
-  async get<T = any>(table: string, conditions: any = {}): Promise<T | undefined> {
+  async get<T = any>(table: string, conditions: Record<string, unknown> = {}): Promise<T | undefined> {
     let query = this.client.from(table).select('*');
     
     Object.keys(conditions).forEach(key => {
@@ -62,14 +62,14 @@ export class SupabaseDatabase {
     return data as T;
   }
 
-  async all<T = any>(table: string, conditions: any = {}, orderBy?: string): Promise<T[]> {
+  async all<T = any>(table: string, conditions: Record<string, unknown> = {}, orderBy?: string): Promise<T[]> {
     let query = this.client.from(table).select('*');
     
     Object.keys(conditions).forEach(key => {
       if (key.includes('_range')) {
         // Handle date range queries
         const field = key.replace('_range', '');
-        const [start, end] = conditions[key];
+        const [start, end] = conditions[key] as [string, string];
         query = query.gte(field, start).lte(field, end);
       } else {
         query = query.eq(key, conditions[key]);
@@ -90,7 +90,7 @@ export class SupabaseDatabase {
   }
 
   // Enhanced Supabase methods
-  async insert(table: string, data: any) {
+  async insert(table: string, data: Record<string, unknown>) {
     const { data: result, error } = await this.client
       .from(table)
       .insert(data)
@@ -101,7 +101,7 @@ export class SupabaseDatabase {
     return result;
   }
 
-  async update(table: string, data: any, conditions: any) {
+  async update(table: string, data: Record<string, unknown>, conditions: Record<string, unknown>) {
     let query = this.client.from(table).update(data);
     
     Object.keys(conditions).forEach(key => {
@@ -114,7 +114,7 @@ export class SupabaseDatabase {
     return result;
   }
 
-  async delete(table: string, conditions: any) {
+  async delete(table: string, conditions: Record<string, unknown>) {
     let query = this.client.from(table).delete();
     
     Object.keys(conditions).forEach(key => {
@@ -127,7 +127,7 @@ export class SupabaseDatabase {
   }
 
   // Raw SQL execution for complex queries (use sparingly)
-  async executeRawSQL<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  async executeRawSQL<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
     const { data, error } = await this.client.rpc('execute_sql', { 
       query: sql, 
       params: params 

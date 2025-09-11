@@ -249,72 +249,106 @@ export default function Dashboard() {
     setShowTimeOutConfirm(false);
   };
 
-  const startBreak = () => {
-    const now = new Date();
-    setIsOnBreak(true);
-
-    // Save break state to localStorage (shared with attendance)
-    localStorage.setItem('break-state', JSON.stringify({
-      isOnBreak: true,
-      breakDuration: 0,
-      breakStartTime: now.toISOString()
-    }));
-
-    // Add new break record
-    const newBreakRecord = {
-      startTime: now,
-      duration: 0
-    };
-    setBreakRecords(prev => [...prev, newBreakRecord]);
-
-    // Stop work timer
-    if (workInterval) {
-      clearInterval(workInterval);
-      setWorkInterval(null);
-    }
-
-    // Start break timer
-    const interval = setInterval(() => {
-      setBreakDuration(prev => prev + 1);
-      // Update the current break record duration
-      setBreakRecords(prev => {
-        const updated = [...prev];
-        if (updated.length > 0) {
-          updated[updated.length - 1].duration += 1;
-        }
-        return updated;
+  const startBreak = async () => {
+    try {
+      const response = await fetch('/api/attendance/break/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
-    }, 1000);
-    setBreakInterval(interval);
+
+      if (response.ok) {
+        const now = new Date();
+        setIsOnBreak(true);
+
+        // Save break state to localStorage (shared with attendance)
+        localStorage.setItem('break-state', JSON.stringify({
+          isOnBreak: true,
+          breakDuration: 0,
+          breakStartTime: now.toISOString()
+        }));
+
+        // Add new break record
+        const newBreakRecord = {
+          startTime: now,
+          duration: 0
+        };
+        setBreakRecords(prev => [...prev, newBreakRecord]);
+
+        // Stop work timer
+        if (workInterval) {
+          clearInterval(workInterval);
+          setWorkInterval(null);
+        }
+
+        // Start break timer
+        const interval = setInterval(() => {
+          setBreakDuration(prev => prev + 1);
+          // Update the current break record duration
+          setBreakRecords(prev => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              updated[updated.length - 1].duration += 1;
+            }
+            return updated;
+          });
+        }, 1000);
+        setBreakInterval(interval);
+      } else {
+        const data = await response.json();
+        alert(`Failed to start break: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Start break error:', error);
+      alert('Failed to start break. Please try again.');
+    }
   };
 
-  const endBreak = () => {
-    setIsOnBreak(false);
+  const endBreak = async () => {
+    try {
+      const response = await fetch('/api/attendance/break/end', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    // Clear break state from localStorage (shared with attendance)
-    localStorage.removeItem('break-state');
+      if (response.ok) {
+        setIsOnBreak(false);
 
-    // Complete the current break record
-    const now = new Date();
-    setBreakRecords(prev => {
-      const updated = [...prev];
-      if (updated.length > 0 && !updated[updated.length - 1].endTime) {
-        updated[updated.length - 1].endTime = now;
+        // Clear break state from localStorage (shared with attendance)
+        localStorage.removeItem('break-state');
+
+        // Complete the current break record
+        const now = new Date();
+        setBreakRecords(prev => {
+          const updated = [...prev];
+          if (updated.length > 0 && !updated[updated.length - 1].endTime) {
+            updated[updated.length - 1].endTime = now;
+          }
+          return updated;
+        });
+
+        // Stop break timer
+        if (breakInterval) {
+          clearInterval(breakInterval);
+          setBreakInterval(null);
+        }
+
+        // Resume work timer
+        const interval = setInterval(() => {
+          setWorkDuration(prev => prev + 1);
+        }, 1000);
+        setWorkInterval(interval);
+      } else {
+        const data = await response.json();
+        alert(`Failed to end break: ${data.error}`);
       }
-      return updated;
-    });
-
-    // Stop break timer
-    if (breakInterval) {
-      clearInterval(breakInterval);
-      setBreakInterval(null);
+    } catch (error) {
+      console.error('End break error:', error);
+      alert('Failed to end break. Please try again.');
     }
-
-    // Resume work timer
-    const interval = setInterval(() => {
-      setWorkDuration(prev => prev + 1);
-    }, 1000);
-    setWorkInterval(interval);
   };
 
   // Check if user can time out (encourage task status updates)

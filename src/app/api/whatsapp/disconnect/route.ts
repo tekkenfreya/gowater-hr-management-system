@@ -4,9 +4,9 @@ import { whatsappService } from '@/lib/whatsapp';
 export async function POST(request: NextRequest) {
   try {
     await whatsappService.disconnect();
-    global.whatsappReady = false;
-    global.whatsappQR = null;
-    global.whatsappError = null;
+    (global as unknown as Record<string, unknown>).whatsappReady = false;
+    (global as unknown as Record<string, unknown>).whatsappQR = null;
+    (global as unknown as Record<string, unknown>).whatsappError = null;
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS attendance (
   date DATE NOT NULL,
   check_in_time TIMESTAMPTZ,
   check_out_time TIMESTAMPTZ,
+  break_start_time TIMESTAMPTZ,
+  break_end_time TIMESTAMPTZ,
+  break_duration INTEGER DEFAULT 0, -- total break time in seconds
   total_hours REAL DEFAULT 0,
   status TEXT DEFAULT 'absent' CHECK (status IN ('present', 'absent', 'late', 'on_duty')),
   notes TEXT,

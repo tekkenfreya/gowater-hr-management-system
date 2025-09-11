@@ -6,16 +6,16 @@ export async function POST(request: NextRequest) {
     await whatsappService.initialize({
       onQR: (qr: string) => {
         // Store QR code for retrieval
-        global.whatsappQR = qr;
+        (global as unknown as Record<string, unknown>).whatsappQR = qr;
       },
       onReady: () => {
-        global.whatsappReady = true;
+        (global as unknown as Record<string, unknown>).whatsappReady = true;
       },
       onDisconnected: () => {
-        global.whatsappReady = false;
+        (global as unknown as Record<string, unknown>).whatsappReady = false;
       },
       onAuthFailure: (error: string) => {
-        global.whatsappError = error;
+        (global as unknown as Record<string, unknown>).whatsappError = error;
       }
     });
 
