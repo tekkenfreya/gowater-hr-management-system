@@ -53,6 +53,29 @@ export default function Dashboard() {
     if (user) {
       fetchTasks();
       fetchTodayAttendance();
+      
+      // Sync break state from localStorage (shared with attendance)
+      const breakState = localStorage.getItem('break-state');
+      if (breakState) {
+        const { isOnBreak: storedIsOnBreak, breakStartTime } = JSON.parse(breakState);
+        if (storedIsOnBreak) {
+          setIsOnBreak(true);
+          
+          if (breakStartTime) {
+            // Calculate current break duration
+            const currentTime = new Date();
+            const startTime = new Date(breakStartTime);
+            const currentBreakDuration = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+            setBreakDuration(currentBreakDuration);
+            
+            // Start break timer
+            const breakInt = setInterval(() => {
+              setBreakDuration(prev => prev + 1);
+            }, 1000);
+            setBreakInterval(breakInt);
+          }
+        }
+      }
     }
   }, [user]);
 
@@ -230,6 +253,13 @@ export default function Dashboard() {
     const now = new Date();
     setIsOnBreak(true);
 
+    // Save break state to localStorage (shared with attendance)
+    localStorage.setItem('break-state', JSON.stringify({
+      isOnBreak: true,
+      breakDuration: 0,
+      breakStartTime: now.toISOString()
+    }));
+
     // Add new break record
     const newBreakRecord = {
       startTime: now,
@@ -260,6 +290,9 @@ export default function Dashboard() {
 
   const endBreak = () => {
     setIsOnBreak(false);
+
+    // Clear break state from localStorage (shared with attendance)
+    localStorage.removeItem('break-state');
 
     // Complete the current break record
     const now = new Date();

@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { AttendanceRecord as ServiceAttendanceRecord } from '@/lib/attendance';
+import { Task } from '@/types/attendance';
 
 interface WeeklyAttendanceData {
   date: string;
@@ -31,7 +32,14 @@ export default function AttendancePage() {
   const [selectedWeek] = useState(new Date());
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [workLocation, setWorkLocation] = useState<'WFH' | 'Onsite'>('WFH');
   const [todayAttendance, setTodayAttendance] = useState<ServiceAttendanceRecord | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [workDuration, setWorkDuration] = useState(0); // in seconds
+  const [workInterval, setWorkInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [breakDuration, setBreakDuration] = useState(0); // in seconds
+  const [breakInterval, setBreakInterval] = useState<NodeJS.Timeout | null>(null);
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
   const [summary, setSummary] = useState<AttendanceSummaryData>({
     totalDays: 0,
@@ -44,9 +52,22 @@ export default function AttendancePage() {
     if (user) {
       fetchTodayAttendance();
       fetchWeeklyAttendance();
+      fetchTasks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (workInterval) {
+        clearInterval(workInterval);
+      }
+      if (breakInterval) {
+        clearInterval(breakInterval);
+      }
+    };
+  }, [workInterval, breakInterval]);
 
   const fetchTodayAttendance = async () => {
     try {
@@ -54,9 +75,58 @@ export default function AttendancePage() {
       if (response.ok) {
         const data = await response.json();
         setTodayAttendance(data.attendance);
+        
+        // Sync break state from localStorage (shared with dashboard)
+        const breakState = localStorage.getItem('break-state');
+        if (breakState) {
+          const { isOnBreak: storedIsOnBreak, breakDuration: storedBreakDuration, breakStartTime } = JSON.parse(breakState);
+          setIsOnBreak(storedIsOnBreak);
+          
+          if (storedIsOnBreak && breakStartTime) {
+            // Calculate current break duration
+            const currentTime = new Date();
+            const startTime = new Date(breakStartTime);
+            const currentBreakDuration = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+            setBreakDuration(currentBreakDuration);
+            
+            // Start break timer
+            const breakInt = setInterval(() => {
+              setBreakDuration(prev => prev + 1);
+            }, 1000);
+            setBreakInterval(breakInt);
+          }
+        }
+        
+        // If checked in but not checked out, start work timer (only if not on break)
+        if (data.attendance && data.attendance.checkInTime && !data.attendance.checkOutTime) {
+          const checkInTime = new Date(data.attendance.checkInTime);
+          const currentTime = new Date();
+          const durationInSeconds = Math.floor((currentTime.getTime() - checkInTime.getTime()) / 1000);
+          setWorkDuration(durationInSeconds);
+          
+          // Only start work timer if not on break
+          if (!isOnBreak) {
+            const interval = setInterval(() => {
+              setWorkDuration(prev => prev + 1);
+            }, 1000);
+            setWorkInterval(interval);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch today attendance:', error);
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch('/api/tasks');
+      if (response.ok) {
+        const data = await response.json();
+        setTasks(data.tasks || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
     }
   };
 
@@ -99,6 +169,108 @@ export default function AttendancePage() {
     return new Date(d.setDate(diff)).toISOString().split('T')[0];
   };
 
+  const getWorkLocationFromNotes = (notes?: string): string => {
+    if (!notes) return 'WFH';
+    const match = notes.match(/Work Location: (WFH|Onsite)/);
+    return match ? match[1] : 'WFH';
+  };
+
+  const formatTime = (seconds: number) => {
+    const safeSeconds = seconds || 0;
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const secs = safeSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const startBreak = () => {
+    const now = new Date();
+    setIsOnBreak(true);
+    setBreakDuration(0);
+
+    // Save break state to localStorage (shared with dashboard)
+    localStorage.setItem('break-state', JSON.stringify({
+      isOnBreak: true,
+      breakDuration: 0,
+      breakStartTime: now.toISOString()
+    }));
+
+    // Stop work timer
+    if (workInterval) {
+      clearInterval(workInterval);
+      setWorkInterval(null);
+    }
+
+    // Start break timer (same logic as dashboard)
+    const interval = setInterval(() => {
+      setBreakDuration(prev => prev + 1);
+    }, 1000);
+    setBreakInterval(interval);
+  };
+
+  const endBreak = () => {
+    setIsOnBreak(false);
+
+    // Clear break state from localStorage (shared with dashboard)
+    localStorage.removeItem('break-state');
+
+    // Stop break timer
+    if (breakInterval) {
+      clearInterval(breakInterval);
+      setBreakInterval(null);
+    }
+
+    // Resume work timer (same logic as dashboard)
+    const interval = setInterval(() => {
+      setWorkDuration(prev => prev + 1);
+    }, 1000);
+    setWorkInterval(interval);
+  };
+
+  const getTasksForDate = (date: string): string => {
+    // For today's tasks, show in-progress and pending tasks
+    const today = new Date().toISOString().split('T')[0];
+    if (date === today) {
+      const relevantTasks = tasks.filter(task => 
+        task.status === 'in_progress' || task.status === 'pending'
+      );
+      if (relevantTasks.length > 0) {
+        return relevantTasks.map((task, index) => {
+          let taskText = `${index + 1}. ${task.title}`;
+          if (task.description) {
+            // Split description by line breaks and format as subtasks
+            const subtasks = task.description.split('\n').filter(line => line.trim());
+            const formattedSubtasks = subtasks.map(subtask => `   • ${subtask.trim()}`).join('\n');
+            taskText += `\n${formattedSubtasks}`;
+          }
+          return taskText;
+        }).join('\n\n');
+      }
+    }
+    
+    // For past dates, show completed tasks
+    const completedTasks = tasks.filter(task => {
+      if (!task.completedAt) return false;
+      const completedDate = new Date(task.completedAt);
+      return completedDate.toISOString().split('T')[0] === date;
+    });
+    
+    if (completedTasks.length > 0) {
+      return completedTasks.map((task, index) => {
+        let taskText = `${index + 1}. ${task.title}`;
+        if (task.description) {
+          // Split description by line breaks and format as subtasks
+          const subtasks = task.description.split('\n').filter(line => line.trim());
+          const formattedSubtasks = subtasks.map(subtask => `   • ${subtask.trim()}`).join('\n');
+          taskText += `\n${formattedSubtasks}`;
+        }
+        return taskText;
+      }).join('\n\n');
+    }
+    
+    return 'Daily development tasks and project work';
+  };
+
   const handleCheckIn = async () => {
     setCheckingIn(true);
     try {
@@ -107,10 +279,17 @@ export default function AttendancePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ notes: '' }),
+        body: JSON.stringify({ notes: `Work Location: ${workLocation}` }),
       });
 
       if (response.ok) {
+        // Start work duration timer on successful check-in
+        setWorkDuration(0);
+        const interval = setInterval(() => {
+          setWorkDuration(prev => prev + 1);
+        }, 1000);
+        setWorkInterval(interval);
+        
         await fetchTodayAttendance();
         await fetchWeeklyAttendance();
       } else {
@@ -139,6 +318,12 @@ export default function AttendancePage() {
       });
 
       if (response.ok) {
+        // Stop work duration timer on successful check-out
+        if (workInterval) {
+          clearInterval(workInterval);
+          setWorkInterval(null);
+        }
+        
         await fetchTodayAttendance();
         await fetchWeeklyAttendance();
       } else {
@@ -289,18 +474,35 @@ export default function AttendancePage() {
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
-                        <div className="text-sm text-gray-800">
-                          <span className="text-blue-500 font-medium">
-                            {todayAttendance?.totalHours ? todayAttendance.totalHours.toFixed(2) : '0.00'}
-                          </span> Hrs
-                        </div>
+                        {isOnBreak ? (
+                          <div className="text-sm text-orange-600 font-medium flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                            <span>Break: {formatTime(breakDuration || 0)}</span>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-800">
+                            <span className="text-blue-500 font-medium">
+                              {formatTime(workDuration)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       {!todayAttendance?.checkInTime ? (
-                        <button
-                          onClick={handleCheckIn}
-                          disabled={checkingIn}
-                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                        >
+                        <div className="flex items-center space-x-3">
+                          <select
+                            value={workLocation}
+                            onChange={(e) => setWorkLocation(e.target.value as 'WFH' | 'Onsite')}
+                            className="text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                          >
+                            <option value="WFH">WFH</option>
+                            <option value="Onsite">Onsite</option>
+                          </select>
+                          <button
+                            onClick={handleCheckIn}
+                            disabled={checkingIn}
+                            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                          >
                           {checkingIn ? (
                             <>
                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -312,13 +514,35 @@ export default function AttendancePage() {
                               <span>Check in</span>
                             </>
                           )}
-                        </button>
+                          </button>
+                        </div>
                       ) : todayAttendance?.checkOutTime ? (
                         <div className="text-green-600 font-medium px-6 py-2">
                           ✓ Day Complete
                         </div>
                       ) : (
                         <div className="flex items-center space-x-2">
+                          {isOnBreak ? (
+                            <button
+                              onClick={endBreak}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>End Break</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={startBreak}
+                              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Take Break</span>
+                            </button>
+                          )}
                           <button
                             onClick={handleCheckOut}
                             disabled={checkingOut}
@@ -377,30 +601,13 @@ export default function AttendancePage() {
                 <div className="bg-white border border-gray-300 rounded-lg overflow-hidden mb-6">
                   {/* Table Header */}
                   <div className="bg-gray-100 border-b border-gray-300">
-                    <div className="grid grid-cols-10 divide-x divide-gray-300 text-xs font-semibold text-gray-900 text-center">
+                    <div className="grid grid-cols-8 divide-x divide-gray-300 text-xs font-semibold text-gray-900 text-center">
                       <div className="p-3 border-r border-gray-300">DATE</div>
                       <div className="p-3 border-r border-gray-300">SITE SCHEDULE</div>
-                      <div className="col-span-2 p-3 border-r border-gray-300">
-                        <div className="border-b border-gray-300 pb-1 mb-2">AM Time</div>
-                        <div className="grid grid-cols-2 divide-x divide-gray-300">
-                          <div>IN</div>
-                          <div>OUT</div>
-                        </div>
-                      </div>
-                      <div className="col-span-2 p-3 border-r border-gray-300">
-                        <div className="border-b border-gray-300 pb-1 mb-2">PM Time</div>
-                        <div className="grid grid-cols-2 divide-x divide-gray-300">
-                          <div>IN</div>
-                          <div>OUT</div>
-                        </div>
-                      </div>
-                      <div className="col-span-2 p-3 border-r border-gray-300">
-                        <div className="border-b border-gray-300 pb-1 mb-2">Overtime</div>
-                        <div className="grid grid-cols-2 divide-x divide-gray-300">
-                          <div>IN</div>
-                          <div>OUT</div>
-                        </div>
-                      </div>
+                      <div className="p-3 border-r border-gray-300">TIME IN</div>
+                      <div className="p-3 border-r border-gray-300">BREAK</div>
+                      <div className="p-3 border-r border-gray-300">TIME OUT</div>
+                      <div className="p-3 border-r border-gray-300">OVERTIME</div>
                       <div className="p-3 border-r border-gray-300">TASK / PURPOSE</div>
                       <div className="p-3">REMARKS</div>
                     </div>
@@ -410,7 +617,7 @@ export default function AttendancePage() {
                   {weeklyAttendance.map((day, index) => (
                     <div 
                       key={day.date} 
-                      className="grid grid-cols-10 divide-x divide-gray-300 border-b border-gray-300 min-h-[100px]"
+                      className="grid grid-cols-8 divide-x divide-gray-300 border-b border-gray-300 min-h-[100px]"
                     >
                       {/* Date Column */}
                       <div className="p-3 flex items-center justify-center border-r border-gray-300">
@@ -423,55 +630,44 @@ export default function AttendancePage() {
                       {/* Site Schedule Column */}
                       <div className="p-3 flex items-center justify-center border-r border-gray-300">
                         <div className="text-center text-sm text-gray-900">
-                          {day.isWeekend ? 'OFF' : 'WFH'}
+                          {day.isWeekend ? 'OFF' : getWorkLocationFromNotes(day.notes)}
                         </div>
                       </div>
 
-                      {/* AM Time Columns */}
-                      <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
-                        <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900">
-                            {day.checkInTime ? new Date(day.checkInTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}
-                          </span>
-                        </div>
-                        <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900"></span>
-                        </div>
+                      {/* TIME IN Column */}
+                      <div className="p-3 flex items-center justify-center border-r border-gray-300">
+                        <span className="text-sm text-gray-900">
+                          {day.checkInTime ? new Date(day.checkInTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
                       </div>
 
-                      {/* PM Time Columns */}
-                      <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
-                        <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900"></span>
-                        </div>
-                        <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900">
-                            {day.checkOutTime ? new Date(day.checkOutTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}
-                          </span>
-                        </div>
+                      {/* BREAK Column */}
+                      <div className="p-3 flex items-center justify-center border-r border-gray-300">
+                        <span className="text-sm text-gray-900">-</span>
                       </div>
 
-                      {/* Overtime Columns */}
-                      <div className="grid grid-cols-2 divide-x divide-gray-300 border-r border-gray-300">
-                        <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900"></span>
-                        </div>
-                        <div className="p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-900"></span>
-                        </div>
+                      {/* TIME OUT Column */}
+                      <div className="p-3 flex items-center justify-center border-r border-gray-300">
+                        <span className="text-sm text-gray-900">
+                          {day.checkOutTime ? new Date(day.checkOutTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+
+                      {/* OVERTIME Column */}
+                      <div className="p-3 flex items-center justify-center border-r border-gray-300">
+                        <span className="text-sm text-gray-900">-</span>
                       </div>
 
                       {/* Task/Purpose Column */}
                       <div className="p-3 border-r border-gray-300">
-                        <div className="text-xs text-gray-900">
-                          Daily development tasks and project work
+                        <div className="text-xs text-gray-900 whitespace-pre-wrap">
+                          {getTasksForDate(day.date)}
                         </div>
                       </div>
 
                       {/* Remarks Column */}
                       <div className="p-3">
                         <div className="text-xs text-gray-900">
-                          {day.notes || ''}
                         </div>
                       </div>
                     </div>
