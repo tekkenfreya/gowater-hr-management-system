@@ -15,6 +15,7 @@ interface WeeklyAttendanceData {
   breakDuration?: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
+  workLocation?: string;
   notes?: string;
   isWeekend?: boolean;
 }
@@ -30,17 +31,9 @@ export default function AttendancePage() {
   const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'summary' | 'regularization'>('summary');
-  const [selectedWeek] = useState(new Date());
-  const [checkingOut, setCheckingOut] = useState(false);
-  const [checkingIn, setCheckingIn] = useState(false);
-  const [workLocation, setWorkLocation] = useState<'WFH' | 'Onsite'>('WFH');
+  const [selectedWeek, setSelectedWeek] = useState(new Date());
   const [todayAttendance, setTodayAttendance] = useState<ServiceAttendanceRecord | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [workDuration, setWorkDuration] = useState(0); // in seconds
-  const [workInterval, setWorkInterval] = useState<NodeJS.Timeout | null>(null);
-  const [isOnBreak, setIsOnBreak] = useState(false);
-  const [breakDuration, setBreakDuration] = useState(0); // in seconds
-  const [breakInterval, setBreakInterval] = useState<NodeJS.Timeout | null>(null);
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
   const [summary, setSummary] = useState<AttendanceSummaryData>({
     totalDays: 0,
@@ -58,17 +51,13 @@ export default function AttendancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Cleanup timers on unmount
+  // Refetch weekly data when week selection changes
   useEffect(() => {
-    return () => {
-      if (workInterval) {
-        clearInterval(workInterval);
-      }
-      if (breakInterval) {
-        clearInterval(breakInterval);
-      }
-    };
-  }, [workInterval, breakInterval]);
+    if (user && selectedWeek) {
+      fetchWeeklyAttendance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeek, user]);
 
   const fetchTodayAttendance = async () => {
     try {
@@ -76,43 +65,6 @@ export default function AttendancePage() {
       if (response.ok) {
         const data = await response.json();
         setTodayAttendance(data.attendance);
-        
-        // Sync break state from localStorage (shared with dashboard)
-        const breakState = localStorage.getItem('break-state');
-        if (breakState) {
-          const { isOnBreak: storedIsOnBreak, breakStartTime } = JSON.parse(breakState);
-          setIsOnBreak(storedIsOnBreak);
-          
-          if (storedIsOnBreak && breakStartTime) {
-            // Calculate current break duration
-            const currentTime = new Date();
-            const startTime = new Date(breakStartTime);
-            const currentBreakDuration = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
-            setBreakDuration(currentBreakDuration);
-            
-            // Start break timer
-            const breakInt = setInterval(() => {
-              setBreakDuration(prev => prev + 1);
-            }, 1000);
-            setBreakInterval(breakInt);
-          }
-        }
-        
-        // If checked in but not checked out, start work timer (only if not on break)
-        if (data.attendance && data.attendance.checkInTime && !data.attendance.checkOutTime) {
-          const checkInTime = new Date(data.attendance.checkInTime);
-          const currentTime = new Date();
-          const durationInSeconds = Math.floor((currentTime.getTime() - checkInTime.getTime()) / 1000);
-          setWorkDuration(durationInSeconds);
-          
-          // Only start work timer if not on break
-          if (!isOnBreak) {
-            const interval = setInterval(() => {
-              setWorkDuration(prev => prev + 1);
-            }, 1000);
-            setWorkInterval(interval);
-          }
-        }
       }
     } catch (error) {
       console.error('Failed to fetch today attendance:', error);
@@ -145,6 +97,7 @@ export default function AttendancePage() {
           breakDuration?: number;
           totalHours: number;
           status: 'present' | 'absent' | 'late' | 'on_duty';
+          workLocation?: string;
           notes?: string;
         }) => ({
           date: record.date,
@@ -154,6 +107,7 @@ export default function AttendancePage() {
           breakDuration: record.breakDuration || 0,
           totalHours: record.totalHours || 0,
           status: record.status,
+          workLocation: record.workLocation,
           notes: record.notes,
           isWeekend: [0, 6].includes(new Date(record.date).getDay())
         }));
@@ -172,10 +126,38 @@ export default function AttendancePage() {
     return new Date(d.setDate(diff)).toISOString().split('T')[0];
   };
 
-  const getWorkLocationFromNotes = (notes?: string): string => {
-    if (!notes) return 'WFH';
-    const match = notes.match(/Work Location: (WFH|Onsite)/);
-    return match ? match[1] : 'WFH';
+  const getWeekEndDate = (date: Date): string => {
+    const startDate = new Date(getWeekStartDate(date));
+    startDate.setDate(startDate.getDate() + 6);
+    return startDate.toISOString().split('T')[0];
+  };
+
+  const formatWeekRange = (date: Date): string => {
+    const start = new Date(getWeekStartDate(date));
+    const end = new Date(getWeekEndDate(date));
+
+    const formatDate = (d: Date) => d.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  };
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newDate = new Date(selectedWeek);
+    newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+    setSelectedWeek(newDate);
+  };
+
+  const getWorkLocationFromRecord = (workLocation?: string): string => {
+    // Handle all possible cases for work location
+    if (workLocation === 'WFH' || workLocation === 'Onsite') {
+      return workLocation;
+    }
+    // Default to WFH if not set
+    return 'WFH';
   };
 
   const formatTime = (seconds: number) => {
@@ -184,88 +166,6 @@ export default function AttendancePage() {
     const minutes = Math.floor((safeSeconds % 3600) / 60);
     const secs = safeSeconds % 60;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const startBreak = async () => {
-    try {
-      const response = await fetch('/api/attendance/break/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const now = new Date();
-        setIsOnBreak(true);
-        setBreakDuration(0);
-
-        // Save break state to localStorage (shared with dashboard)
-        localStorage.setItem('break-state', JSON.stringify({
-          isOnBreak: true,
-          breakDuration: 0,
-          breakStartTime: now.toISOString()
-        }));
-
-        // Stop work timer
-        if (workInterval) {
-          clearInterval(workInterval);
-          setWorkInterval(null);
-        }
-
-        // Start break timer (same logic as dashboard)
-        const interval = setInterval(() => {
-          setBreakDuration(prev => prev + 1);
-        }, 1000);
-        setBreakInterval(interval);
-      } else {
-        const data = await response.json();
-        alert(`Failed to start break: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Start break error:', error);
-      alert('Failed to start break. Please try again.');
-    }
-  };
-
-  const endBreak = async () => {
-    try {
-      const response = await fetch('/api/attendance/break/end', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setIsOnBreak(false);
-
-        // Clear break state from localStorage (shared with dashboard)
-        localStorage.removeItem('break-state');
-
-        // Stop break timer
-        if (breakInterval) {
-          clearInterval(breakInterval);
-          setBreakInterval(null);
-        }
-
-        // Resume work timer (same logic as dashboard)
-        const interval = setInterval(() => {
-          setWorkDuration(prev => prev + 1);
-        }, 1000);
-        setWorkInterval(interval);
-
-        // Refresh attendance data to show updated break info
-        await fetchTodayAttendance();
-        await fetchWeeklyAttendance();
-      } else {
-        const data = await response.json();
-        alert(`Failed to end break: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('End break error:', error);
-      alert('Failed to end break. Please try again.');
-    }
   };
 
   const getTasksForDate = (date: string): string => {
@@ -312,101 +212,11 @@ export default function AttendancePage() {
     return 'Daily development tasks and project work';
   };
 
-  const handleCheckIn = async () => {
-    setCheckingIn(true);
-    try {
-      const response = await fetch('/api/attendance/checkin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notes: `Work Location: ${workLocation}` }),
-      });
-
-      if (response.ok) {
-        // Start work duration timer on successful check-in
-        setWorkDuration(0);
-        const interval = setInterval(() => {
-          setWorkDuration(prev => prev + 1);
-        }, 1000);
-        setWorkInterval(interval);
-        
-        await fetchTodayAttendance();
-        await fetchWeeklyAttendance();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to check in');
-      }
-    } catch (error) {
-      alert('Failed to check in. Please try again.');
-    }
-    setCheckingIn(false);
-  };
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
-  const handleCheckOut = async () => {
-    setCheckingOut(true);
-    try {
-      const response = await fetch('/api/attendance/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notes: '' }),
-      });
-
-      if (response.ok) {
-        // Stop work duration timer on successful check-out
-        if (workInterval) {
-          clearInterval(workInterval);
-          setWorkInterval(null);
-        }
-        
-        await fetchTodayAttendance();
-        await fetchWeeklyAttendance();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to check out');
-      }
-    } catch (error) {
-      alert('Failed to check out. Please try again.');
-    }
-    setCheckingOut(false);
-  };
-
-  const handleDeleteAttendance = async () => {
-    if (!confirm('Are you sure you want to delete today\'s attendance record? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          notes: 'Testing - delete attendance from attendance page'
-        }),
-      });
-
-      if (response.ok) {
-        await fetchTodayAttendance();
-        await fetchWeeklyAttendance();
-        alert('Today\'s attendance record deleted successfully! You can now check in again.');
-      } else {
-        const data = await response.json();
-        alert(`Delete failed: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Delete attendance error:', error);
-      alert('Failed to delete attendance. Please try again.');
-    }
-  };
 
 
   return (
@@ -444,14 +254,6 @@ export default function AttendancePage() {
             
             {/* Action Buttons */}
             <div className="flex items-center justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
-              <button 
-                onClick={handleDeleteAttendance}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                title="Delete today's attendance record (for testing)"
-              >
-                <TrashIcon />
-                <span>Delete Today</span>
-              </button>
               <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
                 <DownloadIcon />
                 <span>Export</span>
@@ -489,128 +291,50 @@ export default function AttendancePage() {
           <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 p-6">
             {activeTab === 'summary' && (
               <>
-                {/* Current Status Card - Real Data */}
+                {/* Current Status Card - Data Only */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div>
                         <p className="text-sm text-gray-800">
-                          {new Date().toLocaleDateString('en-US', { 
+                          {new Date().toLocaleDateString('en-US', {
                             weekday: 'long',
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
                           })}
                         </p>
                         <h3 className="font-medium text-gray-900">
-                          {todayAttendance?.status ? todayAttendance.status.charAt(0).toUpperCase() + todayAttendance.status.slice(1) : 'Not checked in'}
+                          {todayAttendance?.status ? todayAttendance.status.charAt(0).toUpperCase() + todayAttendance.status.slice(1) : 'No attendance record'}
                         </h3>
                         <p className="text-xs text-gray-800 mt-1">
-                          {todayAttendance?.checkInTime 
+                          {todayAttendance?.checkInTime
                             ? `Checked in at ${new Date(todayAttendance.checkInTime).toLocaleTimeString()}`
-                            : 'Ready to check in'
+                            : 'No check-in time'
                           }
                         </p>
+                        {todayAttendance?.checkOutTime && (
+                          <p className="text-xs text-gray-800 mt-1">
+                            {`Checked out at ${new Date(todayAttendance.checkOutTime).toLocaleTimeString()}`}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
-                        {isOnBreak ? (
-                          <div className="text-sm text-orange-600 font-medium flex items-center space-x-1">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                            <span>Break: {formatTime(breakDuration || 0)}</span>
-                          </div>
-                        ) : (
+                        {todayAttendance?.totalHours && (
                           <div className="text-sm text-gray-800">
                             <span className="text-blue-500 font-medium">
-                              {formatTime(workDuration)}
+                              {todayAttendance.totalHours.toFixed(2)}h worked
                             </span>
                           </div>
                         )}
+                        {todayAttendance?.breakDuration && (
+                          <div className="text-sm text-orange-600 font-medium">
+                            Break: {formatTime(todayAttendance.breakDuration)}
+                          </div>
+                        )}
                       </div>
-                      {!todayAttendance?.checkInTime ? (
-                        <div className="flex items-center space-x-3">
-                          <select
-                            value={workLocation}
-                            onChange={(e) => setWorkLocation(e.target.value as 'WFH' | 'Onsite')}
-                            className="text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
-                          >
-                            <option value="WFH">WFH</option>
-                            <option value="Onsite">Onsite</option>
-                          </select>
-                          <button
-                            onClick={handleCheckIn}
-                            disabled={checkingIn}
-                            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                          >
-                          {checkingIn ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              <span>Checking in...</span>
-                            </>
-                          ) : (
-                            <>
-                              <ClockIcon />
-                              <span>Check in</span>
-                            </>
-                          )}
-                          </button>
-                        </div>
-                      ) : todayAttendance?.checkOutTime ? (
-                        <div className="text-green-600 font-medium px-6 py-2">
-                          ✓ Day Complete
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          {isOnBreak ? (
-                            <button
-                              onClick={endBreak}
-                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span>End Break</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={startBreak}
-                              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span>Take Break</span>
-                            </button>
-                          )}
-                          <button
-                            onClick={handleCheckOut}
-                            disabled={checkingOut}
-                            className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                          >
-                            {checkingOut ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                <span>Checking out...</span>
-                              </>
-                            ) : (
-                              <>
-                                <ClockIcon />
-                                <span>Check out</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={handleDeleteAttendance}
-                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                            title="Delete today's attendance record (for testing)"
-                          >
-                            <TrashIcon />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -618,13 +342,21 @@ export default function AttendancePage() {
                 {/* Date Navigation */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center space-x-4">
-                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <button
+                      onClick={() => navigateWeek('prev')}
+                      className="flex items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 shadow-md"
+                      title="Previous week"
+                    >
                       <ChevronLeftIcon />
                     </button>
-                    <span className="text-lg font-medium text-gray-900">
-                      31-Aug-2025 - 06-Sep-2025
+                    <span className="text-lg font-medium text-gray-900 min-w-[240px] text-center">
+                      {formatWeekRange(selectedWeek)}
                     </span>
-                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <button
+                      onClick={() => navigateWeek('next')}
+                      className="flex items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 shadow-md"
+                      title="Next week"
+                    >
                       <ChevronRightIcon />
                     </button>
                   </div>
@@ -670,8 +402,19 @@ export default function AttendancePage() {
 
                       {/* Site Schedule Column */}
                       <div className="p-3 flex items-center justify-center border-r border-gray-300">
-                        <div className="text-center text-sm text-gray-900">
-                          {day.isWeekend ? 'OFF' : getWorkLocationFromNotes(day.notes)}
+                        <div className="text-center">
+                          {/* Show work location if there's attendance data, regardless of weekend */}
+                          {day.checkInTime || day.workLocation ? (
+                            <span className={`text-sm font-medium px-2 py-1 rounded-full ${
+                              getWorkLocationFromRecord(day.workLocation) === 'WFH'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {getWorkLocationFromRecord(day.workLocation)}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
                         </div>
                       </div>
 

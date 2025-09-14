@@ -20,6 +20,9 @@ export default function Dashboard() {
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [showTimeOutConfirm, setShowTimeOutConfirm] = useState(false);
+  const [showWorkLocationModal, setShowWorkLocationModal] = useState(false);
+  const [workLocation, setWorkLocation] = useState<'WFH' | 'Onsite'>('WFH');
+  const [originalTasks, setOriginalTasks] = useState<Task[]>([]); // Store original state for cancel
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -151,9 +154,13 @@ export default function Dashboard() {
   };
 
   // Attendance functions
+  const showWorkLocationSelection = () => {
+    setShowWorkLocationModal(true);
+  };
+
   const timeIn = async () => {
     try {
-      // Call attendance API to check in
+      // Call attendance API to check in with work location
       const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: {
@@ -161,6 +168,7 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           action: 'checkin',
+          workLocation: workLocation, // Send work location as separate field
           notes: 'Dashboard check-in'
         }),
       });
@@ -183,6 +191,9 @@ export default function Dashboard() {
           setWorkDuration(prev => prev + 1);
         }, 1000);
         setWorkInterval(interval);
+
+        // Close work location modal
+        setShowWorkLocationModal(false);
       } else {
         const data = await response.json();
         alert(`Check-in failed: ${data.error}`);
@@ -194,12 +205,17 @@ export default function Dashboard() {
   };
 
   const requestTimeOut = () => {
+    // Save original tasks state before showing modal for potential restore
+    setOriginalTasks(JSON.parse(JSON.stringify(tasks)));
     // Show confirmation popup
     setShowTimeOutConfirm(true);
   };
 
   const confirmTimeOut = async () => {
     try {
+      // Archive completed tasks before checking out to keep history clean
+      await archiveCompletedTasks();
+
       // Call attendance API to check out
       const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -231,6 +247,9 @@ export default function Dashboard() {
           setBreakInterval(null);
         }
 
+        // Refresh tasks to reflect archived status
+        await fetchTasks();
+
         const data = await response.json();
         if (data.totalHours) {
           alert(`Successfully checked out. Total work hours: ${data.totalHours.toFixed(2)}`);
@@ -245,8 +264,71 @@ export default function Dashboard() {
     }
   };
 
-  const cancelTimeOut = () => {
+  const cancelTimeOut = async () => {
+    // Restore original task states using existing updateTaskStatus function
+    try {
+      for (const originalTask of originalTasks) {
+        const currentTask = tasks.find(t => t.id === originalTask.id);
+        if (currentTask) {
+          // Restore status if changed
+          if (currentTask.status !== originalTask.status) {
+            await updateTaskStatus(originalTask.id, originalTask.status);
+          }
+
+          // Restore description (sub-tasks) if changed
+          if (currentTask.description !== originalTask.description) {
+            const response = await fetch('/api/tasks', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                id: originalTask.id,
+                description: originalTask.description
+              }),
+            });
+            if (response.ok) {
+              await fetchTasks();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore original task states:', error);
+    }
+
     setShowTimeOutConfirm(false);
+  };
+
+  // Archive completed tasks to avoid errors and keep history clean
+  // Only archive tasks where ALL sub-tasks are completed
+  const archiveCompletedTasks = async () => {
+    try {
+      // Helper function to check if all sub-tasks are completed
+      const areAllSubTasksCompleted = (description: string) => {
+        if (!description) return true; // No sub-tasks = fully completed
+
+        const lines = description.split('\n').filter(line => line.trim());
+        if (lines.length === 0) return true;
+
+        // Check if all lines are marked as completed (start with ✓)
+        return lines.every(line => line.trim().startsWith('✓'));
+      };
+
+      const fullyCompletedTasks = tasks.filter(task =>
+        task.status === 'completed' && areAllSubTasksCompleted(task.description)
+      );
+
+      for (const task of fullyCompletedTasks) {
+        await updateTaskStatus(task.id, 'archived');
+      }
+
+      if (fullyCompletedTasks.length > 0) {
+        console.log(`Archived ${fullyCompletedTasks.length} fully completed tasks`);
+      }
+    } catch (error) {
+      console.error('Failed to archive completed tasks:', error);
+    }
   };
 
   const startBreak = async () => {
@@ -390,8 +472,9 @@ export default function Dashboard() {
       hour12: true
     });
 
-    // Create task list for start of work
-    const taskList = tasks.map((task, index) => {
+    // Create task list for start of work - exclude completed and archived tasks
+    const activeTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'archived');
+    const taskList = activeTasks.map((task, index) => {
       let taskText = `${index + 1}. ${task.title}`;
       if (task.description) {
         // Split description by line breaks and format as subtasks
@@ -500,7 +583,8 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
         'completed': 'done',
         'in_progress': 'in-progress',
         'pending': 'pending',
-        'blocked': 'blocked'
+        'blocked': 'blocked',
+        'archived': 'archived'
       };
       let taskText = `${index + 1}. ${task.title} (${statusMap[task.status]})`;
       if (task.description) {
@@ -733,7 +817,7 @@ ${allTasksWithStatus.length > 0 ? allTasksWithStatus.join('\n') : 'No tasks for 
               <div className="flex items-center space-x-2">
                 {!isTimedIn ? (
                   <button
-                    onClick={timeIn}
+                    onClick={showWorkLocationSelection}
                     disabled={tasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked').length === 0}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2 ${tasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked').length > 0
                         ? 'bg-green-600 hover:bg-green-700 text-white'
@@ -929,6 +1013,18 @@ ${allTasksWithStatus.length > 0 ? allTasksWithStatus.join('\n') : 'No tasks for 
           {/* Tasks are displayed in the regular task grid below */}
 
           {/* Tasks Grid */}
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Today Tasks</h2>
+            <button
+              onClick={() => router.push('/dashboard/tasks')}
+              className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors duration-200 flex items-center space-x-1"
+            >
+              <span>View All Tasks</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* To Do */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -1068,28 +1164,106 @@ ${allTasksWithStatus.length > 0 ? allTasksWithStatus.join('\n') : 'No tasks for 
                 </p>
 
                 <div className="space-y-4 mb-6">
-                  {tasks.map((task) => (
-                    <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{task.title}</h4>
-                          {task.description && (
-                            <p className="text-sm text-gray-800 mt-1">{task.description}</p>
-                          )}
+                  {tasks.filter(task => task.status !== 'archived').map((task) => {
+                    // Parse sub-tasks to show progress in timeout modal
+                    const parseSubTasks = (description: string) => {
+                      if (!description) return [];
+                      return description.split('\n')
+                        .filter(line => line.trim())
+                        .map(line => ({
+                          text: line.replace(/^[•✓]\s*/, '').trim(),
+                          completed: line.trim().startsWith('✓')
+                        }));
+                    };
+
+                    // Toggle sub-task completion during timeout (using existing API)
+                    const toggleSubTaskInModal = async (taskId: string, taskDescription: string, index: number) => {
+                      const subTasks = parseSubTasks(taskDescription);
+                      subTasks[index].completed = !subTasks[index].completed;
+
+                      const newDescription = subTasks
+                        .map(st => `${st.completed ? '✓' : '•'} ${st.text}`)
+                        .join('\n');
+
+                      try {
+                        const response = await fetch('/api/tasks', {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            id: taskId,
+                            description: newDescription
+                          }),
+                        });
+
+                        if (response.ok) {
+                          fetchTasks();
+                        }
+                      } catch (error) {
+                        console.error('Failed to update sub-task:', error);
+                      }
+                    };
+
+                    const subTasks = parseSubTasks(task.description);
+                    const completedSubTasks = subTasks.filter(st => st.completed).length;
+
+                    return (
+                      <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-medium text-gray-900">{task.title}</h4>
+                              {subTasks.length > 0 && (
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                  {completedSubTasks}/{subTasks.length} completed
+                                </span>
+                              )}
+                            </div>
+                            {subTasks.length > 0 ? (
+                              <div className="mt-2 space-y-1">
+                                {subTasks.map((subTask, index) => (
+                                  <div key={index} className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => toggleSubTaskInModal(task.id, task.description, index)}
+                                      className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                        subTask.completed
+                                          ? 'bg-green-500 border-green-500 text-white'
+                                          : 'border-gray-300 hover:border-gray-400'
+                                      }`}
+                                    >
+                                      {subTask.completed && (
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                    <span className={`text-sm ${
+                                      subTask.completed ? 'line-through text-gray-500' : 'text-gray-800'
+                                    }`}>
+                                      {subTask.text}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : task.description && (
+                              <p className="text-sm text-gray-800 mt-1">{task.description}</p>
+                            )}
+                          </div>
+                          <select
+                            value={task.status}
+                            onChange={(e) => updateTaskStatus(task.id, e.target.value as Task['status'])}
+                            className="ml-4 text-sm border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+                          >
+                            <option value="completed">Done</option>
+                            <option value="in_progress">Ongoing</option>
+                            <option value="pending">Pending</option>
+                            <option value="blocked">Blocked</option>
+                          </select>
                         </div>
-                        <select
-                          value={task.status}
-                          onChange={(e) => updateTaskStatus(task.id, e.target.value as Task['status'])}
-                          className="ml-4 text-sm border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
-                        >
-                          <option value="completed">Done</option>
-                          <option value="in_progress">Ongoing</option>
-                          <option value="pending">Pending</option>
-                          <option value="blocked">Blocked</option>
-                        </select>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -1125,6 +1299,69 @@ ${allTasksWithStatus.length > 0 ? allTasksWithStatus.join('\n') : 'No tasks for 
               </div>
             </div>
           )}
+
+          {/* Work Location Selection Modal */}
+          {showWorkLocationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-xl font-semibold mb-4 text-center">Select Work Location</h3>
+                <p className="text-gray-800 text-center mb-6">
+                  Where are you working today?
+                </p>
+
+                <div className="space-y-3 mb-6">
+                  <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="workLocation"
+                      value="WFH"
+                      checked={workLocation === 'WFH'}
+                      onChange={(e) => setWorkLocation(e.target.value as 'WFH' | 'Onsite')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      <span className="font-medium text-gray-900">Work From Home</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="workLocation"
+                      value="Onsite"
+                      checked={workLocation === 'Onsite'}
+                      onChange={(e) => setWorkLocation(e.target.value as 'WFH' | 'Onsite')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span className="font-medium text-gray-900">Onsite Office</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={timeIn}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors duration-200"
+                  >
+                    Time In
+                  </button>
+                  <button
+                    onClick={() => setShowWorkLocationModal(false)}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -1143,10 +1380,34 @@ function TaskCard({
   onDeleteTask: (id: string) => void;
   getPriorityColor: (priority: 'low' | 'medium' | 'high' | 'urgent') => string;
 }) {
+  // Parse sub-tasks from description using existing format conventions
+  const parseSubTasks = (description: string) => {
+    if (!description) return [];
+    return description.split('\n')
+      .filter(line => line.trim())
+      .map(line => ({
+        text: line.replace(/^[•✓]\s*/, '').trim(),
+        completed: line.trim().startsWith('✓')
+      }));
+  };
+
+  // Sub-tasks are read-only in normal view - only editable during timeout
+
+  const subTasks = parseSubTasks(task.description);
+  const completedSubTasks = subTasks.filter(st => st.completed).length;
+  const totalSubTasks = subTasks.length;
+
   return (
     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors">
       <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-900 flex-1">{task.title}</h4>
+        <div className="flex-1">
+          <h4 className="font-medium text-gray-900">{task.title}</h4>
+          {totalSubTasks > 0 && (
+            <p className="text-xs text-gray-600 mt-1">
+              {completedSubTasks}/{totalSubTasks} sub-tasks completed
+            </p>
+          )}
+        </div>
         <div className="flex items-center space-x-2">
           <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}>
             {task.priority}
@@ -1163,7 +1424,36 @@ function TaskCard({
         </div>
       </div>
 
-      {task.description && (
+      {/* Sub-tasks display (read-only) */}
+      {subTasks.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {subTasks.map((subTask, index) => (
+            <div key={index} className="flex items-start space-x-2">
+              <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center ${
+                subTask.completed
+                  ? 'bg-green-500 border-green-500 text-white'
+                  : 'border-gray-300'
+              }`}>
+                {subTask.completed && (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              <span className={`text-sm flex-1 ${
+                subTask.completed
+                  ? 'line-through text-gray-500'
+                  : 'text-gray-800'
+              }`}>
+                {subTask.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Display plain description if no sub-tasks format found */}
+      {subTasks.length === 0 && task.description && (
         <p className="text-sm text-gray-800 mb-3">{task.description}</p>
       )}
 
