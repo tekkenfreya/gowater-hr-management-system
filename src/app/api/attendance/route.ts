@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
     const userId = decoded.userId;
 
     const body = await request.json();
-    const { action, notes } = body;
+    const { action, notes, workLocation } = body;
 
     const attendanceService = getAttendanceService();
-    
+
     if (action === 'checkin') {
-      const result = await attendanceService.checkIn(userId, notes);
+      const result = await attendanceService.checkIn(userId, notes, workLocation);
       
       if (result.success) {
         return NextResponse.json({ 

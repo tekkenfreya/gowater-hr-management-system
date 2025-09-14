@@ -9,6 +9,7 @@ export interface AttendanceRecord {
   breakDuration?: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
+  workLocation?: 'WFH' | 'Onsite';
   notes?: string;
 }
 
@@ -23,7 +24,7 @@ export interface AttendanceSummary {
 export class AttendanceService {
   private db = getDb();
 
-  async checkIn(userId: number, notes?: string): Promise<{ success: boolean; error?: string }> {
+  async checkIn(userId: number, notes?: string, workLocation?: 'WFH' | 'Onsite'): Promise<{ success: boolean; error?: string }> {
     try {
       const today = new Date().toISOString().split('T')[0];
       
@@ -43,6 +44,7 @@ export class AttendanceService {
         await this.db.update('attendance', {
           check_in_time: checkInTime,
           status,
+          work_location: workLocation || 'WFH',
           notes,
           updated_at: new Date()
         }, { id: existing.id });
@@ -53,6 +55,7 @@ export class AttendanceService {
           date: today,
           check_in_time: checkInTime,
           status,
+          work_location: workLocation || 'WFH',
           notes
         });
       }
@@ -109,6 +112,7 @@ export class AttendanceService {
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
+        workLocation: record.work_location as 'WFH' | 'Onsite',
         notes: record.notes
       };
     } catch (error) {
@@ -136,6 +140,7 @@ export class AttendanceService {
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
+        workLocation: record.work_location as 'WFH' | 'Onsite',
         notes: record.notes
       }));
     } catch (error) {
