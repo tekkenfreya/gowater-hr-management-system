@@ -47,6 +47,12 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
       href: '/dashboard/attendance'
     },
     {
+      id: 'tasks',
+      label: 'Tasks',
+      icon: <TaskIcon />,
+      href: '/dashboard/tasks'
+    },
+    {
       id: 'leave',
       label: 'Leave Tracker',
       icon: <CalendarDaysIcon />,
@@ -93,12 +99,6 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
         }
       ]
     }] : []),
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: <ReportsIcon />,
-      href: '/dashboard/reports'
-    },
     {
       id: 'files',
       label: 'Files',
