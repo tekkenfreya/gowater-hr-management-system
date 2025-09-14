@@ -123,7 +123,8 @@ export default function SettingsPage() {
         body: JSON.stringify({
           name: `${profile.firstName} ${profile.lastName}`.trim(),
           department: profile.department,
-          employeeName: profile.employeeName
+          employeeName: profile.employeeName,
+          role: profile.position.toLowerCase() // Send position as role
         }),
       });
 

@@ -145,8 +145,8 @@ export class AuthService {
 
   async getAllUsers(): Promise<AuthUser[]> {
     try {
-      const users = await this.db.all('users', {}, 'created_at');
-      
+      const users = await this.db.all('users', { status: 'active' }, 'created_at');
+
       return users.map(user => ({
         id: user.id,
         email: user.email,
@@ -185,6 +185,7 @@ export class AuthService {
     name?: string;
     department?: string;
     employeeName?: string;
+    role?: string;
   }): Promise<{ success: boolean; error?: string }> {
     try {
       const updateData: Record<string, unknown> = {
@@ -194,6 +195,7 @@ export class AuthService {
       if (profileData.name !== undefined) updateData.name = profileData.name;
       if (profileData.department !== undefined) updateData.department = profileData.department;
       if (profileData.employeeName !== undefined) updateData.employee_name = profileData.employeeName;
+      if (profileData.role !== undefined) updateData.role = profileData.role;
 
       await this.db.update('users', updateData, { id: userId });
       return { success: true };
