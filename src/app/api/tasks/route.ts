@@ -113,7 +113,8 @@ export async function PUT(request: NextRequest) {
         'pending': 'pending',
         'in_progress': 'in_progress',
         'completed': 'completed',
-        'blocked': 'blocked'
+        'blocked': 'blocked',
+        'archived': 'archived'
       };
       return statusMap[status] || status;
     };
