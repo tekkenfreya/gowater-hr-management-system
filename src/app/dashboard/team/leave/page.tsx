@@ -9,11 +9,11 @@ import Header from '@/components/Header';
 interface LeaveRequestWithDetails {
   id: number;
   user_id: number;
-  leave_type: 'annual' | 'sick' | 'personal' | 'emergency';
+  leave_type: 'annual' | 'sick' | 'personal' | 'maternity' | 'paternity' | 'unpaid';
   start_date: string;
   end_date: string;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   approver_id?: number;
   approved_at?: string;
   comments?: string;
@@ -159,7 +159,9 @@ export default function TeamLeaveApprovals() {
       annual: 'text-blue-600',
       sick: 'text-red-600',
       personal: 'text-purple-600',
-      emergency: 'text-orange-600'
+      maternity: 'text-pink-600',
+      paternity: 'text-green-600',
+      unpaid: 'text-gray-600'
     };
     return colors[type];
   };
@@ -169,7 +171,9 @@ export default function TeamLeaveApprovals() {
       annual: 'Annual Leave',
       sick: 'Sick Leave',
       personal: 'Personal Leave',
-      emergency: 'Emergency Leave'
+      maternity: 'Maternity Leave',
+      paternity: 'Paternity Leave',
+      unpaid: 'Unpaid Leave'
     };
     return labels[type];
   };
