@@ -9,7 +9,9 @@ export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  employeeId?: string;
   role: 'admin' | 'employee' | 'manager';
+  position?: string;
   department?: string;
   employeeName?: string;
 }
@@ -25,7 +27,9 @@ export interface CreateUserData {
   email: string;
   password: string;
   name: string;
+  employeeId?: string;
   role?: 'admin' | 'employee' | 'manager';
+  position?: string;
   department?: string;
   employeeName?: string;
 }
@@ -58,24 +62,32 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string): Promise<LoginResult> {
+  async login(username: string, password: string): Promise<LoginResult> {
     try {
-      const user = await this.db.get('users', { email, status: 'active' });
+      // Try to find user by email or employee_id
+      let user = await this.db.get('users', { email: username, status: 'active' });
+
+      // If not found by email, try by employee_id
+      if (!user) {
+        user = await this.db.get('users', { employee_id: username, status: 'active' });
+      }
 
       if (!user) {
-        return { success: false, error: 'Invalid email or password' };
+        return { success: false, error: 'Invalid username or password' };
       }
 
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
       if (!isValidPassword) {
-        return { success: false, error: 'Invalid email or password' };
+        return { success: false, error: 'Invalid username or password' };
       }
 
       const authUser: AuthUser = {
         id: user.id,
         email: user.email,
         name: user.name,
+        employeeId: user.employee_id,
         role: user.role,
+        position: user.position,
         department: user.department,
         employeeName: user.employee_name
       };
@@ -95,10 +107,18 @@ export class AuthService {
 
   async createUser(userData: CreateUserData, _createdBy?: number): Promise<{ success: boolean; error?: string; userId?: number }> {
     try {
-      // Check if user already exists
+      // Check if user already exists by email
       const existingUser = await this.db.get('users', { email: userData.email });
       if (existingUser) {
         return { success: false, error: 'User with this email already exists' };
+      }
+
+      // Check if employee_id already exists (if provided)
+      if (userData.employeeId) {
+        const existingEmployeeId = await this.db.get('users', { employee_id: userData.employeeId });
+        if (existingEmployeeId) {
+          return { success: false, error: 'User with this employee ID already exists' };
+        }
       }
 
       // Hash password
@@ -109,7 +129,9 @@ export class AuthService {
         email: userData.email,
         password_hash: hashedPassword,
         name: userData.name,
+        employee_id: userData.employeeId,
         role: userData.role || 'employee',
+        position: userData.position,
         department: userData.department,
         employee_name: userData.employeeName
       });
@@ -133,7 +155,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        employeeId: user.employee_id,
         role: user.role,
+        position: user.position,
         department: user.department,
         employeeName: user.employee_name
       };
@@ -151,7 +175,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        employeeId: user.employee_id,
         role: user.role,
+        position: user.position,
         department: user.department,
         employeeName: user.employee_name
       }));
@@ -173,7 +199,20 @@ export class AuthService {
 
   async deleteUser(userId: number): Promise<boolean> {
     try {
-      await this.db.update('users', { status: 'inactive', updated_at: new Date() }, { id: userId });
+      // Get current user data to modify email
+      const user = await this.db.get('users', { id: userId });
+      if (!user) {
+        return false;
+      }
+
+      // Append timestamp to email to make it unique and allow reuse of original email
+      const deletedEmail = `${user.email}_deleted_${Date.now()}`;
+
+      await this.db.update('users', {
+        status: 'inactive',
+        email: deletedEmail,
+        updated_at: new Date()
+      }, { id: userId });
       return true;
     } catch (error) {
       console.error('Delete user error:', error);
@@ -185,9 +224,19 @@ export class AuthService {
     name?: string;
     department?: string;
     employeeName?: string;
+    employeeId?: string;
     role?: string;
+    position?: string;
   }): Promise<{ success: boolean; error?: string }> {
     try {
+      // Check if employee_id already exists (if provided and different from current user)
+      if (profileData.employeeId) {
+        const existingEmployeeId = await this.db.get('users', { employee_id: profileData.employeeId });
+        if (existingEmployeeId && existingEmployeeId.id !== userId) {
+          return { success: false, error: 'User with this employee ID already exists' };
+        }
+      }
+
       const updateData: Record<string, unknown> = {
         updated_at: new Date()
       };
@@ -195,13 +244,50 @@ export class AuthService {
       if (profileData.name !== undefined) updateData.name = profileData.name;
       if (profileData.department !== undefined) updateData.department = profileData.department;
       if (profileData.employeeName !== undefined) updateData.employee_name = profileData.employeeName;
+      if (profileData.employeeId !== undefined) updateData.employee_id = profileData.employeeId;
       if (profileData.role !== undefined) updateData.role = profileData.role;
+      if (profileData.position !== undefined) updateData.position = profileData.position;
 
       await this.db.update('users', updateData, { id: userId });
       return { success: true };
     } catch (error) {
       console.error('Update user profile error:', error);
       return { success: false, error: 'Failed to update profile' };
+    }
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Get current user
+      const user = await this.db.get('users', { id: userId, status: 'active' });
+      if (!user) {
+        return { success: false, error: 'User not found' };
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+      if (!isCurrentPasswordValid) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+
+      // Validate new password
+      if (newPassword.length < 6) {
+        return { success: false, error: 'New password must be at least 6 characters long' };
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await this.db.update('users', {
+        password_hash: hashedNewPassword,
+        updated_at: new Date()
+      }, { id: userId });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Change password error:', error);
+      return { success: false, error: 'Failed to change password' };
     }
   }
 }

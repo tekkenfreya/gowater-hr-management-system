@@ -161,7 +161,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                   {user?.name}
                 </p>
                 <p className="text-xs text-gray-800">
-                  {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee'}
+                  {user?.position || (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee')}
                 </p>
               </div>
               <ChevronDownIcon />

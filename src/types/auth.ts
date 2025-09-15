@@ -2,13 +2,15 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  employeeId?: string;
   role: 'admin' | 'employee' | 'manager';
+  position?: string;
   department?: string;
   employeeName?: string;
 }
 
 export interface LoginCredentials {
-  email: string;
+  username: string; // Can be email or employee_id
   password: string;
 }
 

@@ -79,7 +79,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
         }] : [])
       ]
     },
-    ...(user?.role === 'admin' ? [{
+    ...((user?.role === 'admin' || user?.role === 'manager') ? [{
       id: 'team',
       label: 'Team',
       icon: <UsersIcon />,
@@ -90,6 +90,12 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
           label: 'Team Attendance',
           icon: <ClockIcon />,
           href: '/dashboard/team/attendance'
+        },
+        {
+          id: 'team-leave',
+          label: 'Leave Approvals',
+          icon: <CalendarIcon />,
+          href: '/dashboard/team/leave'
         },
         {
           id: 'team-reports',
@@ -172,7 +178,7 @@ export default function Sidebar({ user, isCollapsed, onToggle }: SidebarProps) {
                   {user?.name}
                 </p>
                 <p className="text-xs text-gray-800 truncate">
-                  {user?.department} • {user?.role}
+                  {user?.department} • {user?.position || user?.role}
                 </p>
               </div>
             </div>

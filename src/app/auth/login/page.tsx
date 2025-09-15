@@ -10,7 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: '',
+    username: '',
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const result = await login(credentials.email, credentials.password);
+      const result = await login(credentials.username, credentials.password);
       
       if (result.success) {
         router.push('/dashboard');
@@ -61,19 +61,19 @@ export default function LoginPage() {
             )}
             
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username (Email or Employee ID)
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
                 required
                 className="block w-full px-3 py-2 border border-blue-200 rounded placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="jonas_kahnwald@gmail.com"
-                value={credentials.email}
-                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                placeholder="R-001 or your@email.com"
+                value={credentials.username}
+                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
               />
             </div>
 

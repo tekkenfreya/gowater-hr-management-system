@@ -3,11 +3,11 @@ import { getAuthService } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { username, password } = await request.json();
 
-    if (!email || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Username and password are required' },
         { status: 400 }
       );
     }
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const authService = getAuthService();
     await authService.initialize();
 
-    const result = await authService.login(email, password);
+    const result = await authService.login(username, password);
 
     if (!result.success) {
       return NextResponse.json(
