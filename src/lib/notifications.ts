@@ -6,7 +6,7 @@ export interface Notification {
   type: 'leave_request' | 'leave_approved' | 'leave_rejected' | 'attendance_alert' | 'task_assigned' | 'system_update';
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   read_at?: Date;
   created_at: Date;
 }
@@ -16,7 +16,7 @@ export interface CreateNotificationData {
   type: Notification['type'];
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export class NotificationService {
@@ -42,7 +42,7 @@ export class NotificationService {
 
   async getUserNotifications(userId: number, unreadOnly: boolean = false): Promise<Notification[]> {
     try {
-      let conditions: any = { user_id: userId };
+      const conditions: Record<string, unknown> = { user_id: userId };
 
       if (unreadOnly) {
         conditions.read_at = null;

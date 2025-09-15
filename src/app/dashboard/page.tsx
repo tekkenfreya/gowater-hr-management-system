@@ -23,6 +23,13 @@ export default function Dashboard() {
   const [showWorkLocationModal, setShowWorkLocationModal] = useState(false);
   const [workLocation, setWorkLocation] = useState<'WFH' | 'Onsite'>('WFH');
   const [originalTasks, setOriginalTasks] = useState<Task[]>([]); // Store original state for cancel
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editTaskForm, setEditTaskForm] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
+  });
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -766,6 +773,50 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
     }
   };
 
+  const editTask = (task: Task) => {
+    setEditingTask(task);
+    setEditTaskForm({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority
+    });
+    setShowEditTaskModal(true);
+  };
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: editingTask.id,
+          title: editTaskForm.title,
+          description: editTaskForm.description,
+          priority: editTaskForm.priority
+        }),
+      });
+
+      if (response.ok) {
+        setShowEditTaskModal(false);
+        setEditingTask(null);
+        setEditTaskForm({
+          title: '',
+          description: '',
+          priority: 'medium'
+        });
+        fetchTasks(); // Refresh tasks from database
+      } else {
+        console.error('Failed to update task');
+      }
+    } catch (error) {
+      console.error('Failed to update task:', error);
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const safeSeconds = seconds || 0;
@@ -1080,6 +1131,7 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                       task={task}
                       onStatusChange={updateTaskStatus}
                       onDeleteTask={deleteTask}
+                      onEditTask={editTask}
                       getPriorityColor={getPriorityColor}
                     />
                   ))
@@ -1102,6 +1154,7 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                     task={task}
                     onStatusChange={updateTaskStatus}
                     onDeleteTask={deleteTask}
+                    onEditTask={editTask}
                     getPriorityColor={getPriorityColor}
                   />
                 ))}
@@ -1123,6 +1176,7 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                     task={task}
                     onStatusChange={updateTaskStatus}
                     onDeleteTask={deleteTask}
+                    onEditTask={editTask}
                     getPriorityColor={getPriorityColor}
                   />
                 ))}
@@ -1186,6 +1240,77 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                     Cancel
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Task Modal */}
+          {showEditTaskModal && editingTask && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Task</h3>
+                <form onSubmit={handleUpdateTask} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1">Title</label>
+                    <input
+                      type="text"
+                      value={editTaskForm.title}
+                      onChange={(e) => setEditTaskForm({ ...editTaskForm, title: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter task title"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1">Description / Subtasks</label>
+                    <textarea
+                      value={editTaskForm.description}
+                      onChange={(e) => setEditTaskForm({ ...editTaskForm, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={6}
+                      placeholder="Enter task description or subtasks (use • for new subtasks, ✓ for completed)"
+                    />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Use • for new subtasks, ✓ for completed ones. Add remarks or explanations for work done.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1">Priority</label>
+                    <select
+                      value={editTaskForm.priority}
+                      onChange={(e) => setEditTaskForm({ ...editTaskForm, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditTaskModal(false);
+                        setEditingTask(null);
+                        setEditTaskForm({
+                          title: '',
+                          description: '',
+                          priority: 'medium'
+                        });
+                      }}
+                      className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      Update Task
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
@@ -1409,11 +1534,13 @@ function TaskCard({
   task,
   onStatusChange,
   onDeleteTask,
+  onEditTask,
   getPriorityColor
 }: {
   task: Task;
   onStatusChange: (id: string, status: Task['status']) => void;
   onDeleteTask: (id: string) => void;
+  onEditTask: (task: Task) => void;
   getPriorityColor: (priority: 'low' | 'medium' | 'high' | 'urgent') => string;
 }) {
   // Parse sub-tasks from description using existing format conventions
@@ -1448,6 +1575,17 @@ function TaskCard({
           <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}>
             {task.priority}
           </span>
+          {(task.status === 'pending' || task.status === 'in_progress') && (
+            <button
+              onClick={() => onEditTask(task)}
+              className="text-gray-800 hover:text-blue-500 transition-colors"
+              title="Edit task"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={() => onDeleteTask(task.id)}
             className="text-gray-800 hover:text-red-500 transition-colors"
