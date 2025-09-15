@@ -11,8 +11,20 @@ interface CreateUserForm {
   email: string;
   password: string;
   name: string;
+  employeeId: string;
   role: 'admin' | 'employee' | 'manager';
+  position: string;
   department: string;
+  employeeName: string;
+}
+
+interface EditUserForm {
+  name: string;
+  employeeId: string;
+  role: 'admin' | 'employee' | 'manager';
+  position: string;
+  department: string;
+  employeeName: string;
 }
 
 export default function AdminPage() {
@@ -22,12 +34,25 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserForm>({
     email: '',
     password: '',
     name: '',
+    employeeId: '',
     role: 'employee',
-    department: ''
+    position: '',
+    department: '',
+    employeeName: ''
+  });
+  const [editForm, setEditForm] = useState<EditUserForm>({
+    name: '',
+    employeeId: '',
+    role: 'employee',
+    position: '',
+    department: '',
+    employeeName: ''
   });
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
@@ -75,8 +100,11 @@ export default function AdminPage() {
           email: '',
           password: '',
           name: '',
+          employeeId: '',
           role: 'employee',
-          department: ''
+          position: '',
+          department: '',
+          employeeName: ''
         });
         fetchUsers(); // Refresh the users list
       } else {
@@ -84,6 +112,51 @@ export default function AdminPage() {
       }
     } catch (error) {
       setError('Failed to create user. Please try again.');
+    }
+    setFormLoading(false);
+  };
+
+  const handleEditUser = (userToEdit: User) => {
+    setEditingUser(userToEdit);
+    setEditForm({
+      name: userToEdit.name,
+      employeeId: userToEdit.employeeId || '',
+      role: userToEdit.role,
+      position: userToEdit.position || '',
+      department: userToEdit.department || '',
+      employeeName: userToEdit.employeeName || ''
+    });
+    setShowEditForm(true);
+    setError('');
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setFormLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowEditForm(false);
+        setEditingUser(null);
+        fetchUsers(); // Refresh the users list
+      } else {
+        setError(data.error || 'Failed to update user');
+      }
+    } catch (error) {
+      setError('Failed to update user. Please try again.');
     }
     setFormLoading(false);
   };
@@ -165,7 +238,9 @@ export default function AdminPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Employee ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Position</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Role</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Department</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-800 uppercase tracking-wider">Actions</th>
@@ -176,14 +251,23 @@ export default function AdminPage() {
                       <tr key={userItem.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">{userItem.name}</div>
+                          {userItem.employeeName && (
+                            <div className="text-sm text-gray-500">{userItem.employeeName}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-800">
+                          {userItem.employeeId || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-800">
                           {userItem.email}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-800">
+                          {userItem.position || 'N/A'}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            userItem.role === 'admin' 
-                              ? 'bg-red-100 text-red-800' 
+                            userItem.role === 'admin'
+                              ? 'bg-red-100 text-red-800'
                               : userItem.role === 'manager'
                               ? 'bg-purple-100 text-purple-800'
                               : 'bg-green-100 text-green-800'
@@ -195,14 +279,24 @@ export default function AdminPage() {
                           {userItem.department || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {userItem.id !== user.id && (
+                          <div className="flex items-center justify-end space-x-2">
                             <button
-                              onClick={() => handleDeleteUser(userItem.id)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
+                              onClick={() => handleEditUser(userItem)}
+                              className="text-blue-600 hover:text-blue-900 transition-colors"
+                              title="Edit user"
                             >
-                              <TrashIcon />
+                              <EditIcon />
                             </button>
-                          )}
+                            {userItem.id !== user.id && (
+                              <button
+                                onClick={() => handleDeleteUser(userItem.id)}
+                                className="text-red-600 hover:text-red-900 transition-colors"
+                                title="Delete user"
+                              >
+                                <TrashIcon />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -290,12 +384,58 @@ export default function AdminPage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Employee ID</label>
+                    <input
+                      type="text"
+                      value={createForm.employeeId}
+                      onChange={(e) => setCreateForm({...createForm, employeeId: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="R-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Position</label>
+                    <input
+                      type="text"
+                      value={createForm.position}
+                      onChange={(e) => setCreateForm({...createForm, position: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="Software Developer, Manager..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Employee Name (Display)</label>
+                    <input
+                      type="text"
+                      value={createForm.employeeName}
+                      onChange={(e) => setCreateForm({...createForm, employeeName: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="Anne (optional display name)"
+                    />
+                  </div>
+
                   <div className="flex space-x-3 pt-4">
                     <button
                       type="button"
                       onClick={() => {
                         setShowCreateForm(false);
                         setError('');
+                        setCreateForm({
+                          email: '',
+                          password: '',
+                          name: '',
+                          employeeId: '',
+                          role: 'employee',
+                          position: '',
+                          department: '',
+                          employeeName: ''
+                        });
                       }}
                       className="flex-1 py-2 px-4 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                     >
@@ -313,6 +453,118 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+
+          {/* Edit User Modal */}
+          {showEditForm && editingUser && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Employee: {editingUser.name}</h2>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleUpdateUser} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Employee ID</label>
+                    <input
+                      type="text"
+                      value={editForm.employeeId}
+                      onChange={(e) => setEditForm({...editForm, employeeId: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="R-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Position</label>
+                    <input
+                      type="text"
+                      value={editForm.position}
+                      onChange={(e) => setEditForm({...editForm, position: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="Software Developer, Manager..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
+                    <select
+                      value={editForm.role}
+                      onChange={(e) => setEditForm({...editForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={editForm.department}
+                      onChange={(e) => setEditForm({...editForm, department: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="IT, Sales, Marketing..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Employee Name (Display)</label>
+                    <input
+                      type="text"
+                      value={editForm.employeeName}
+                      onChange={(e) => setEditForm({...editForm, employeeName: e.target.value})}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      placeholder="Anne (optional display name)"
+                    />
+                  </div>
+
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditForm(false);
+                        setEditingUser(null);
+                        setError('');
+                      }}
+                      className="flex-1 py-2 px-4 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={formLoading}
+                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {formLoading ? 'Updating...' : 'Update User'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -324,6 +576,14 @@ function PlusIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
     </svg>
   );
 }

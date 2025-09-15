@@ -17,6 +17,43 @@ async function verifyAdminAuth(request: NextRequest) {
   return user;
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  try {
+    const admin = await verifyAdminAuth(request);
+    if (!admin) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const resolvedParams = await params;
+    const userId = parseInt(resolvedParams.userId);
+    const profileData = await request.json();
+
+    const authService = getAuthService();
+    const result = await authService.updateUserProfile(userId, profileData);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to update user profile' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ message: 'User profile updated successfully' });
+  } catch (error) {
+    console.error('Update user profile API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
