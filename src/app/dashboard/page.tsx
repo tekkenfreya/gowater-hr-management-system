@@ -677,7 +677,7 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
       // Add remarks if they exist for this task
       const taskRemark = taskRemarks[task.id];
       if (taskRemark && taskRemark.trim()) {
-        taskText += `\n   📝 Remarks: ${taskRemark.trim()}`;
+        taskText += `\n     ${taskRemark.trim()}`;
       }
 
       return taskText;
