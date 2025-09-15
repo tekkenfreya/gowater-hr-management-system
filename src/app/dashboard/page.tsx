@@ -30,7 +30,7 @@ export default function Dashboard() {
     description: '',
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
-  const [taskRemarks, setTaskRemarks] = useState<{[taskId: string]: string}>({});
+  const [subtaskRemarks, setSubtaskRemarks] = useState<{[taskId: string]: {[subtaskIndex: number]: string}}>({});
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -222,34 +222,51 @@ export default function Dashboard() {
     setShowTimeOutConfirm(true);
   };
 
-  // Save task remarks before timeout
-  const saveTaskRemarks = async () => {
+  // Save subtask remarks before timeout
+  const saveSubtaskRemarks = async () => {
     try {
-      const remarkPromises = Object.entries(taskRemarks)
-        .filter(([, remark]) => remark.trim()) // Only save non-empty remarks
-        .map(([taskId, remark]) =>
-          fetch('/api/tasks', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              id: taskId,
-              remarks: remark.trim()
-            }),
-          })
-        );
+      // For each task, compile all subtask remarks into a single remarks field
+      const remarkPromises = Object.entries(subtaskRemarks)
+        .map(([taskId, subtaskRemarksObj]) => {
+          // Get the task to access its subtasks
+          const task = tasks.find(t => t.id === taskId);
+          if (!task) return null;
+
+          const subTasks = task.description?.split('\n').filter(line => line.trim()) || [];
+          const compiledRemarks = subTasks.map((subtask, index) => {
+            const remark = subtaskRemarksObj[index];
+            if (remark && remark.trim()) {
+              return `${subtask.replace(/^[•✓]\s*/, '').trim()}: ${remark.trim()}`;
+            }
+            return null;
+          }).filter(Boolean).join('\n');
+
+          if (compiledRemarks) {
+            return fetch('/api/tasks', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                id: taskId,
+                remarks: compiledRemarks
+              }),
+            });
+          }
+          return null;
+        })
+        .filter(Boolean);
 
       await Promise.all(remarkPromises);
     } catch (error) {
-      console.error('Failed to save task remarks:', error);
+      console.error('Failed to save subtask remarks:', error);
     }
   };
 
   const confirmTimeOut = async () => {
     try {
-      // Save task remarks before timeout
-      await saveTaskRemarks();
+      // Save subtask remarks before timeout
+      await saveSubtaskRemarks();
 
       // Send EOD report before archiving tasks to capture final states
       await sendEODReport();
@@ -291,8 +308,8 @@ export default function Dashboard() {
           setBreakInterval(null);
         }
 
-        // Clear task remarks after successful timeout
-        setTaskRemarks({});
+        // Clear subtask remarks after successful timeout
+        setSubtaskRemarks({});
 
         // Refresh tasks to reflect archived status
         await fetchTasks();
@@ -345,7 +362,7 @@ export default function Dashboard() {
     }
 
     // Clear any unsaved remarks
-    setTaskRemarks({});
+    setSubtaskRemarks({});
 
     setShowTimeOutConfirm(false);
   };
@@ -674,10 +691,23 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
         taskText += `\n${formattedSubtasks}`;
       }
 
-      // Add remarks if they exist for this task
-      const taskRemark = taskRemarks[task.id];
-      if (taskRemark && taskRemark.trim()) {
-        taskText += `\n     ${taskRemark.trim()}`;
+      // Add subtask remarks if they exist
+      const taskSubtaskRemarks = subtaskRemarks[task.id];
+      if (taskSubtaskRemarks) {
+        const subTasks = task.description?.split('\n').filter(line => line.trim()) || [];
+        subTasks.forEach((subtask, index) => {
+          const remark = taskSubtaskRemarks[index];
+          if (remark && remark.trim()) {
+            // Find the corresponding subtask in the formatted text and add remark
+            const subtaskText = subtask.replace(/^[•✓]\s*/, '').trim();
+            const isCompleted = subtask.trim().startsWith('✓');
+            const status = isCompleted ? '(done)' : '(ongoing)';
+            taskText = taskText.replace(
+              `   • ${subtaskText} ${status}`,
+              `   • ${subtaskText} ${status}\n     ${remark.trim()}`
+            );
+          }
+        });
       }
 
       return taskText;
@@ -1423,28 +1453,49 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                               )}
                             </div>
                             {subTasks.length > 0 ? (
-                              <div className="mt-2 space-y-1">
+                              <div className="mt-2 space-y-3">
                                 {subTasks.map((subTask, index) => (
-                                  <div key={index} className="flex items-center space-x-2">
-                                    <button
-                                      onClick={() => toggleSubTaskInModal(task.id, task.description, index)}
-                                      className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                        subTask.completed
-                                          ? 'bg-green-500 border-green-500 text-white'
-                                          : 'border-gray-300 hover:border-gray-400'
-                                      }`}
-                                    >
-                                      {subTask.completed && (
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </button>
-                                    <span className={`text-sm ${
-                                      subTask.completed ? 'line-through text-gray-500' : 'text-gray-800'
-                                    }`}>
-                                      {subTask.text}
-                                    </span>
+                                  <div key={index} className="space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => toggleSubTaskInModal(task.id, task.description, index)}
+                                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                          subTask.completed
+                                            ? 'bg-green-500 border-green-500 text-white'
+                                            : 'border-gray-300 hover:border-gray-400'
+                                        }`}
+                                      >
+                                        {subTask.completed && (
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                      <span className={`text-sm ${
+                                        subTask.completed ? 'line-through text-gray-500' : 'text-gray-800'
+                                      }`}>
+                                        {subTask.text} {subTask.completed ? '(done)' : '(ongoing)'}
+                                      </span>
+                                    </div>
+                                    {/* Remarks field under each subtask */}
+                                    <div className="ml-6">
+                                      <label className="block text-xs text-gray-600 mb-1">
+                                        remarks:
+                                      </label>
+                                      <textarea
+                                        value={subtaskRemarks[task.id]?.[index] || ''}
+                                        onChange={(e) => setSubtaskRemarks(prev => ({
+                                          ...prev,
+                                          [task.id]: {
+                                            ...prev[task.id],
+                                            [index]: e.target.value
+                                          }
+                                        }))}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                                        rows={1}
+                                        placeholder="What was accomplished for this subtask..."
+                                      />
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1462,23 +1513,6 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                             <option value="pending">Pending</option>
                             <option value="blocked">Blocked</option>
                           </select>
-                        </div>
-
-                        {/* Remarks field for explaining what was done - placed under each task */}
-                        <div className="mt-3">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Work completed / Remarks for &ldquo;{task.title}&rdquo;:
-                          </label>
-                          <textarea
-                            value={taskRemarks[task.id] || ''}
-                            onChange={(e) => setTaskRemarks(prev => ({
-                              ...prev,
-                              [task.id]: e.target.value
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                            rows={2}
-                            placeholder="Explain what was accomplished for this specific task..."
-                          />
                         </div>
                       </div>
                     );
