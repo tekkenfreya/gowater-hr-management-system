@@ -40,6 +40,12 @@ interface SecuritySettings {
   loginAlerts: boolean;
 }
 
+interface PasswordChangeData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
@@ -82,6 +88,14 @@ export default function SettingsPage() {
     loginAlerts: true
   });
 
+  const [passwordChange, setPasswordChange] = useState<PasswordChangeData>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!isLoading && user === null) {
@@ -98,7 +112,7 @@ export default function SettingsPage() {
         lastName: nameParts.slice(1).join(' ') || '',
         email: user.email || '',
         phone: '', // Would come from additional user data if available
-        position: user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || '',
+        position: user.position || '',
         department: user.department || '',
         employeeName: user.employeeName || user.name || ''
       });
@@ -124,7 +138,7 @@ export default function SettingsPage() {
           name: `${profile.firstName} ${profile.lastName}`.trim(),
           department: profile.department,
           employeeName: profile.employeeName,
-          role: profile.position.toLowerCase() // Send position as role
+          position: profile.position // Send position as separate field
         }),
       });
 
@@ -190,13 +204,65 @@ export default function SettingsPage() {
       // In a real app, this would call an API to update security settings
       await new Promise(resolve => setTimeout(resolve, 1000));
       setSuccess('Security settings updated successfully!');
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       setError('Failed to update security settings. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordChange.currentPassword || !passwordChange.newPassword || !passwordChange.confirmPassword) {
+      setError('All password fields are required');
+      return;
+    }
+
+    if (passwordChange.newPassword !== passwordChange.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    if (passwordChange.newPassword.length < 6) {
+      setError('New password must be at least 6 characters long');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passwordChange),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to change password');
+        return;
+      }
+
+      setSuccess('Password changed successfully!');
+      setPasswordChange({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      setError('Failed to change password. Please try again.');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -484,60 +550,115 @@ export default function SettingsPage() {
               )}
 
               {activeTab === 'security' && (
-                <div className="space-y-6">
-                  <h2 className="text-lg font-semibold text-gray-900">Security Settings</h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Change Password</h2>
+                    <div className="bg-gray-50 rounded-lg p-6 space-y-4">
                       <div>
-                        <h3 className="text-sm font-medium text-gray-900">Two-Factor Authentication</h3>
-                        <p className="text-sm text-gray-800">Add an extra layer of security to your account</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="block text-sm font-medium text-gray-800 mb-1">Current Password</label>
                         <input
-                          type="checkbox"
-                          checked={security.twoFactorAuth}
-                          onChange={(e) => setSecurity({...security, twoFactorAuth: e.target.checked})}
-                          className="sr-only peer"
+                          type="password"
+                          value={passwordChange.currentPassword}
+                          onChange={(e) => setPasswordChange({...passwordChange, currentPassword: e.target.value})}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                          style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                          placeholder="Enter your current password"
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-1">Session Timeout (minutes)</label>
-                      <input
-                        type="number"
-                        value={security.sessionTimeout}
-                        onChange={(e) => setSecurity({...security, sessionTimeout: parseInt(e.target.value)})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
-                        min="5"
-                        max="120"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
+                      </div>
                       <div>
-                        <h3 className="text-sm font-medium text-gray-900">Login Alerts</h3>
-                        <p className="text-sm text-gray-800">Get notified when someone logs into your account</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="block text-sm font-medium text-gray-800 mb-1">New Password</label>
                         <input
-                          type="checkbox"
-                          checked={security.loginAlerts}
-                          onChange={(e) => setSecurity({...security, loginAlerts: e.target.checked})}
-                          className="sr-only peer"
+                          type="password"
+                          value={passwordChange.newPassword}
+                          onChange={(e) => setPasswordChange({...passwordChange, newPassword: e.target.value})}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                          style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                          placeholder="Enter your new password"
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
+                        <p className="text-xs text-gray-800 mt-1">Password must be at least 6 characters long</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-800 mb-1">Confirm New Password</label>
+                        <input
+                          type="password"
+                          value={passwordChange.confirmPassword}
+                          onChange={(e) => setPasswordChange({...passwordChange, confirmPassword: e.target.value})}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                          style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                          placeholder="Confirm your new password"
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handlePasswordChange}
+                          disabled={passwordLoading}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded font-medium transition-colors duration-200 flex items-center space-x-2"
+                        >
+                          {passwordLoading && (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          )}
+                          <span>{passwordLoading ? 'Changing Password...' : 'Change Password'}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleSecuritySave}
-                      disabled={loading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
-                    >
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </button>
+
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Security Settings</h2>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900">Two-Factor Authentication</h3>
+                          <p className="text-sm text-gray-800">Add an extra layer of security to your account</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={security.twoFactorAuth}
+                            onChange={(e) => setSecurity({...security, twoFactorAuth: e.target.checked})}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-800 mb-1">Session Timeout (minutes)</label>
+                        <input
+                          type="number"
+                          value={security.sessionTimeout}
+                          onChange={(e) => setSecurity({...security, sessionTimeout: parseInt(e.target.value)})}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                          style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                          min="5"
+                          max="120"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900">Login Alerts</h3>
+                          <p className="text-sm text-gray-800">Get notified when someone logs into your account</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={security.loginAlerts}
+                            onChange={(e) => setSecurity({...security, loginAlerts: e.target.checked})}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleSecuritySave}
+                          disabled={loading}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
+                        >
+                          {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -577,7 +698,7 @@ function PaletteIcon() {
 function LockIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 0 00-8 0v4h8z" />
     </svg>
   );
 }

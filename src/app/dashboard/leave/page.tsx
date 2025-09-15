@@ -7,16 +7,24 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 
 interface LeaveRequest {
-  id: string;
-  type: 'sick' | 'vacation' | 'personal' | 'maternity' | 'emergency';
-  startDate: string;
-  endDate: string;
-  days: number;
+  id: number;
+  user_id: number;
+  leave_type: 'annual' | 'sick' | 'personal' | 'emergency';
+  start_date: string;
+  end_date: string;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
-  appliedDate: string;
-  approvedBy?: string;
+  approver_id?: number;
+  approved_at?: string;
   comments?: string;
+  created_at: string;
+  updated_at: string;
+  employee_name?: string;
+  employee_email?: string;
+  employee_department?: string;
+  approver_name?: string;
+  approver_email?: string;
+  total_days?: number;
 }
 
 export default function LeaveTracker() {
@@ -28,20 +36,32 @@ export default function LeaveTracker() {
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
+  const [leaveBalance, setLeaveBalance] = useState({
+    annual: { used: 0, total: 20 },
+    sick: { used: 0, total: 10 },
+    personal: { used: 0, total: 5 },
+    emergency: { used: 0, total: 3 }
+  });
   
   // Leave application form state
   const [newLeave, setNewLeave] = useState({
-    type: 'vacation' as LeaveRequest['type'],
+    type: 'annual' as LeaveRequest['leave_type'],
     startDate: '',
     endDate: '',
     reason: ''
   });
 
-  // Leave balance (calculated from leave requests)
-  const leaveBalance = {
-    vacation: { used: leaveRequests.filter(r => r.type === 'vacation' && r.status === 'approved').reduce((sum, r) => sum + r.days, 0), total: 20 },
-    sick: { used: leaveRequests.filter(r => r.type === 'sick' && r.status === 'approved').reduce((sum, r) => sum + r.days, 0), total: 10 },
-    personal: { used: leaveRequests.filter(r => r.type === 'personal' && r.status === 'approved').reduce((sum, r) => sum + r.days, 0), total: 5 }
+  const fetchLeaveBalance = async () => {
+    try {
+      const response = await fetch('/api/leave/balance');
+      const data = await response.json();
+
+      if (data.success) {
+        setLeaveBalance(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leave balance:', error);
+    }
   };
 
   // Redirect to login if not authenticated
@@ -54,6 +74,7 @@ export default function LeaveTracker() {
   useEffect(() => {
     if (user) {
       fetchLeaveRequests();
+      fetchLeaveBalance();
     }
   }, [user]);
 
@@ -61,8 +82,16 @@ export default function LeaveTracker() {
     try {
       setLoading(true);
       setError('');
-      // TODO: Implement with existing leave service when available
-      setLeaveRequests([]);
+
+      const response = await fetch('/api/leave');
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to fetch leave requests');
+        return;
+      }
+
+      setLeaveRequests(data.data || []);
     } catch (error) {
       console.error('Failed to fetch leave requests:', error);
       setError('Failed to fetch leave requests');
@@ -94,16 +123,38 @@ export default function LeaveTracker() {
       setFormLoading(true);
       setError('');
 
-      // TODO: Implement with existing leave service when available
-      // For now, just simulate the action
+      const response = await fetch('/api/leave', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          start_date: newLeave.startDate,
+          end_date: newLeave.endDate,
+          leave_type: newLeave.type,
+          reason: newLeave.reason
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to submit leave request');
+        return;
+      }
+
+      // Reset form and refresh data
       setNewLeave({
-        type: 'vacation',
+        type: 'annual',
         startDate: '',
         endDate: '',
         reason: ''
       });
-      
-      alert('Leave request feature will be available when database is configured!');
+
+      // Refresh leave requests and balance
+      await fetchLeaveRequests();
+      await fetchLeaveBalance();
+
       setActiveTab('history');
     } catch (error) {
       console.error('Failed to submit leave request:', error);
@@ -121,13 +172,13 @@ export default function LeaveTracker() {
     }
   };
 
-  const getLeaveTypeColor = (type: LeaveRequest['type']) => {
+  const getLeaveTypeColor = (type: LeaveRequest['leave_type']) => {
     switch (type) {
-      case 'vacation': return 'bg-blue-100 text-blue-800';
+      case 'annual': return 'bg-blue-100 text-blue-800';
       case 'sick': return 'bg-red-100 text-red-800';
       case 'personal': return 'bg-purple-100 text-purple-800';
-      case 'maternity': return 'bg-pink-100 text-pink-800';
       case 'emergency': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -176,7 +227,7 @@ export default function LeaveTracker() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-gray-800">Vacation Leave</p>
-                <p className="text-2xl font-bold text-blue-600">{leaveBalance.vacation.total - leaveBalance.vacation.used}</p>
+                <p className="text-2xl font-bold text-blue-600">{leaveBalance.annual.total - leaveBalance.annual.used}</p>
                 <p className="text-xs text-gray-800">Available days</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
@@ -185,13 +236,13 @@ export default function LeaveTracker() {
             </div>
             <div className="mt-4">
               <div className="flex justify-between text-sm text-gray-800">
-                <span>Used: {leaveBalance.vacation.used}</span>
-                <span>Total: {leaveBalance.vacation.total}</span>
+                <span>Used: {leaveBalance.annual.used}</span>
+                <span>Total: {leaveBalance.annual.total}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                 <div 
                   className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${(leaveBalance.vacation.used / leaveBalance.vacation.total) * 100}%` }}
+                  style={{ width: `${(leaveBalance.annual.used / leaveBalance.annual.total) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -292,13 +343,12 @@ export default function LeaveTracker() {
                     <label className="block text-sm font-semibold text-gray-800 mb-2">Leave Type</label>
                     <select
                       value={newLeave.type}
-                      onChange={(e) => setNewLeave({ ...newLeave, type: e.target.value as LeaveRequest['type'] })}
+                      onChange={(e) => setNewLeave({ ...newLeave, type: e.target.value as LeaveRequest['leave_type'] })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="vacation">Vacation</option>
+                      <option value="annual">Annual Leave</option>
                       <option value="sick">Sick Leave</option>
                       <option value="personal">Personal</option>
-                      <option value="maternity">Maternity</option>
                       <option value="emergency">Emergency</option>
                     </select>
                   </div>
@@ -376,8 +426,8 @@ export default function LeaveTracker() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLeaveTypeColor(request.type)}`}>
-                              {request.type.charAt(0).toUpperCase() + request.type.slice(1)}
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLeaveTypeColor(request.leave_type)}`}>
+                              {request.leave_type === 'annual' ? 'Annual' : request.leave_type.charAt(0).toUpperCase() + request.leave_type.slice(1)}
                             </span>
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(request.status)}`}>
                               {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
@@ -386,14 +436,14 @@ export default function LeaveTracker() {
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div>
                               <p className="font-semibold text-gray-800">Duration</p>
-                              <p className="text-gray-800">{request.startDate} to {request.endDate}</p>
-                              <p className="text-gray-800">{request.days} day{request.days > 1 ? 's' : ''}</p>
+                              <p className="text-gray-800">{request.start_date} to {request.end_date}</p>
+                              <p className="text-gray-800">{request.total_days || 1} day{(request.total_days || 1) > 1 ? 's' : ''}</p>
                             </div>
                             <div>
                               <p className="font-semibold text-gray-800">Applied Date</p>
-                              <p className="text-gray-800">{request.appliedDate}</p>
-                              {request.approvedBy && (
-                                <p className="text-gray-800">By: {request.approvedBy}</p>
+                              <p className="text-gray-800">{new Date(request.created_at).toLocaleDateString()}</p>
+                              {request.approver_name && (
+                                <p className="text-gray-800">By: {request.approver_name}</p>
                               )}
                             </div>
                             <div>
