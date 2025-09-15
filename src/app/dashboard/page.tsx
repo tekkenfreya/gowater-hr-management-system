@@ -684,34 +684,25 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
     const taskList = activeTasks.map((task, index) => {
       let taskText = `${index + 1}. ${task.title}`;
       if (task.description) {
-        // Split description by line breaks and format as subtasks with status
+        // Split description by line breaks and format as subtasks with status and remarks
         const subtasks = task.description.split('\n').filter(line => line.trim());
-        const formattedSubtasks = subtasks.map(subtask => {
+        const taskSubtaskRemarks = subtaskRemarks[task.id];
+
+        const formattedSubtasks = subtasks.map((subtask, index) => {
           const cleanSubtask = subtask.replace(/^[•✓]\s*/, '').trim();
           const isCompleted = subtask.trim().startsWith('✓');
           const status = isCompleted ? '(done)' : '(ongoing)';
-          return `   • ${cleanSubtask} ${status}`;
+          let subtaskLine = `   • ${cleanSubtask} ${status}`;
+
+          // Add remark if it exists for this subtask
+          const remark = taskSubtaskRemarks?.[index];
+          if (remark && remark.trim()) {
+            subtaskLine += `\n     ${remark.trim()}`;
+          }
+
+          return subtaskLine;
         }).join('\n');
         taskText += `\n${formattedSubtasks}`;
-      }
-
-      // Add subtask remarks if they exist
-      const taskSubtaskRemarks = subtaskRemarks[task.id];
-      if (taskSubtaskRemarks) {
-        const subTasks = task.description?.split('\n').filter(line => line.trim()) || [];
-        subTasks.forEach((subtask, index) => {
-          const remark = taskSubtaskRemarks[index];
-          if (remark && remark.trim()) {
-            // Find the corresponding subtask in the formatted text and add remark
-            const subtaskText = subtask.replace(/^[•✓]\s*/, '').trim();
-            const isCompleted = subtask.trim().startsWith('✓');
-            const status = isCompleted ? '(done)' : '(ongoing)';
-            taskText = taskText.replace(
-              `   • ${subtaskText} ${status}`,
-              `   • ${subtaskText} ${status}\n     ${remark.trim()}`
-            );
-          }
-        });
       }
 
       return taskText;
