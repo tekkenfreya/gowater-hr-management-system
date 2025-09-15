@@ -30,6 +30,7 @@ export default function Dashboard() {
     description: '',
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
+  const [taskRemarks, setTaskRemarks] = useState<{[taskId: string]: string}>({});
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -221,8 +222,35 @@ export default function Dashboard() {
     setShowTimeOutConfirm(true);
   };
 
+  // Save task remarks before timeout
+  const saveTaskRemarks = async () => {
+    try {
+      const remarkPromises = Object.entries(taskRemarks)
+        .filter(([, remark]) => remark.trim()) // Only save non-empty remarks
+        .map(([taskId, remark]) =>
+          fetch('/api/tasks', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: taskId,
+              remarks: remark.trim()
+            }),
+          })
+        );
+
+      await Promise.all(remarkPromises);
+    } catch (error) {
+      console.error('Failed to save task remarks:', error);
+    }
+  };
+
   const confirmTimeOut = async () => {
     try {
+      // Save task remarks before timeout
+      await saveTaskRemarks();
+
       // Send EOD report before archiving tasks to capture final states
       await sendEODReport();
 
@@ -262,6 +290,9 @@ export default function Dashboard() {
           clearInterval(breakInterval);
           setBreakInterval(null);
         }
+
+        // Clear task remarks after successful timeout
+        setTaskRemarks({});
 
         // Refresh tasks to reflect archived status
         await fetchTasks();
@@ -312,6 +343,9 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to restore original task states:', error);
     }
+
+    // Clear any unsaved remarks
+    setTaskRemarks({});
 
     setShowTimeOutConfirm(false);
   };
@@ -1421,6 +1455,23 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                             <option value="pending">Pending</option>
                             <option value="blocked">Blocked</option>
                           </select>
+                        </div>
+
+                        {/* Remarks field for explaining what was done */}
+                        <div className="mt-3">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Work completed / Remarks:
+                          </label>
+                          <textarea
+                            value={taskRemarks[task.id] || ''}
+                            onChange={(e) => setTaskRemarks(prev => ({
+                              ...prev,
+                              [task.id]: e.target.value
+                            }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            rows={2}
+                            placeholder="Explain what was accomplished or any important notes..."
+                          />
                         </div>
                       </div>
                     );

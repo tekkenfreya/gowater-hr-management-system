@@ -16,6 +16,7 @@ interface DbTask {
   priority: string;
   due_date: string | null;
   status: string;
+  remarks?: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -105,7 +106,7 @@ export async function PUT(request: NextRequest) {
     const userId = decoded.userId;
 
     const body = await request.json();
-    const { id, title, description, priority, due_date, status } = body;
+    const { id, title, description, priority, due_date, status, remarks } = body;
 
     // Convert frontend status values to database values
     const mapStatusToDb = (status: string) => {
@@ -136,7 +137,8 @@ export async function PUT(request: NextRequest) {
       description: description?.trim() || existingTask.description,
       priority: priority || existingTask.priority,
       due_date: due_date !== undefined ? due_date : existingTask.due_date,
-      status: status ? mapStatusToDb(status) : existingTask.status
+      status: status ? mapStatusToDb(status) : existingTask.status,
+      remarks: remarks?.trim() !== undefined ? remarks?.trim() : existingTask.remarks
     };
 
     const updatedTask = await database.update('tasks', updateData, { id, user_id: userId });
