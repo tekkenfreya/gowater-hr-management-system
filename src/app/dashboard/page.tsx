@@ -186,6 +186,9 @@ export default function Dashboard() {
           await updateTaskStatus(task.id, 'in_progress');
         }
 
+        // Send start report automatically
+        await sendStartReport();
+
         // Start work duration timer
         const interval = setInterval(() => {
           setWorkDuration(prev => prev + 1);
@@ -213,6 +216,12 @@ export default function Dashboard() {
 
   const confirmTimeOut = async () => {
     try {
+      // Send EOD report before archiving tasks to capture final states
+      await sendEODReport();
+
+      // Clean up completed subtasks from task descriptions
+      await cleanupCompletedSubtasks();
+
       // Archive completed tasks before checking out to keep history clean
       await archiveCompletedTasks();
 
@@ -302,6 +311,37 @@ export default function Dashboard() {
 
   // Archive completed tasks to avoid errors and keep history clean
   // Only archive tasks where ALL sub-tasks are completed
+  const cleanupCompletedSubtasks = async () => {
+    try {
+      for (const task of tasks) {
+        if (task.description && task.status !== 'archived') {
+          const lines = task.description.split('\n').filter(line => line.trim());
+          // Keep only incomplete subtasks (those that don't start with ✓)
+          const remainingSubtasks = lines.filter(line => !line.trim().startsWith('✓'));
+
+          // Only update if there are changes
+          if (remainingSubtasks.length !== lines.length) {
+            const newDescription = remainingSubtasks.join('\n');
+
+            // Update task description via API
+            await fetch('/api/tasks', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                id: task.id,
+                description: newDescription
+              }),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to cleanup completed subtasks:', error);
+    }
+  };
+
   const archiveCompletedTasks = async () => {
     try {
       // Helper function to check if all sub-tasks are completed
@@ -316,7 +356,7 @@ export default function Dashboard() {
       };
 
       const fullyCompletedTasks = tasks.filter(task =>
-        task.status === 'completed' && areAllSubTasksCompleted(task.description)
+        (task.status === 'completed' || areAllSubTasksCompleted(task.description)) && task.status !== 'archived'
       );
 
       for (const task of fullyCompletedTasks) {
@@ -485,16 +525,16 @@ export default function Dashboard() {
       return taskText;
     });
 
-    // Get employee name and role from user profile
+    // Get employee name and position from user profile
     const employeeName = user?.employeeName || user?.name;
-    const employeeRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '';
+    const employeePosition = user?.position || '';
 
     const report = `*GoWater Tasks Report*
 
 Date: ${today}
 Time In: ${timeInStr}
 Employee: ${employeeName}
-Role: ${employeeRole}
+Position: ${employeePosition}
 
 *Today's Tasks:*
 ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
@@ -577,20 +617,19 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
       hour12: true
     });
 
-    // Create task list with status
-    const allTasksWithStatus = tasks.map((task, index) => {
-      const statusMap = {
-        'completed': 'done',
-        'in_progress': 'in-progress',
-        'pending': 'pending',
-        'blocked': 'blocked',
-        'archived': 'archived'
-      };
-      let taskText = `${index + 1}. ${task.title} (${statusMap[task.status]})`;
+    // Filter out archived tasks for EOD report (same as start report logic)
+    const activeTasks = tasks.filter(task => task.status !== 'archived');
+    const taskList = activeTasks.map((task, index) => {
+      let taskText = `${index + 1}. ${task.title}`;
       if (task.description) {
-        // Split description by line breaks and format as subtasks
+        // Split description by line breaks and format as subtasks with status
         const subtasks = task.description.split('\n').filter(line => line.trim());
-        const formattedSubtasks = subtasks.map(subtask => `   • ${subtask.trim()}`).join('\n');
+        const formattedSubtasks = subtasks.map(subtask => {
+          const cleanSubtask = subtask.replace(/^[•✓]\s*/, '').trim();
+          const isCompleted = subtask.trim().startsWith('✓');
+          const status = isCompleted ? '(done)' : '(ongoing)';
+          return `   • ${cleanSubtask} ${status}`;
+        }).join('\n');
         taskText += `\n${formattedSubtasks}`;
       }
       return taskText;
@@ -618,27 +657,24 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
       }).join('\n')
       : '';
 
-    const completedTasks = tasks.filter(t => t.status === 'completed').length;
-    const totalTasks = tasks.length;
+    const completedTasks = activeTasks.filter(t => t.status === 'completed').length;
+    const totalTasks = activeTasks.length;
 
-    // Get employee name and role from user profile
+    // Get employee name and position from user profile
     const employeeName = user?.employeeName || user?.name;
-    const employeeRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '';
+    const employeePosition = user?.position || '';
 
     const report = `*GoWater EOD Report*
 
 Date: ${today}
+Time In: ${timeInStr}
+Time Out: ${timeOutStr}
 Employee: ${employeeName}
-Role: ${employeeRole}
+Position: ${employeePosition}
 
-*Work Hours:*
-- Time In: ${timeInStr}
-- Time Out: ${timeOutStr}
-- Work Duration: ${totalWorkTime}
-- Break Duration: ${totalBreakTime}${breakRecordsText}
-
-*Task Summary:* ${completedTasks}/${totalTasks} completed
-${allTasksWithStatus.length > 0 ? allTasksWithStatus.join('\n') : 'No tasks for today'}`;
+*Today's Tasks:*
+${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
+`;
 
     await simpleWhatsAppService.sendReport(report, 'eod');
   };
