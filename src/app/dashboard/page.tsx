@@ -379,7 +379,11 @@ export default function Dashboard() {
 
           // Only update if there are changes
           if (remainingSubtasks.length !== lines.length) {
-            const newDescription = remainingSubtasks.join('\n');
+            // Remove bullets from remaining subtasks to prevent double bullets when task starts again
+            const cleanedSubtasks = remainingSubtasks.map(line =>
+              line.replace(/^[•✓]\s*/, '').trim()
+            );
+            const newDescription = cleanedSubtasks.join('\n');
 
             // Update task description via API
             await fetch('/api/tasks', {
