@@ -673,6 +673,13 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
         }).join('\n');
         taskText += `\n${formattedSubtasks}`;
       }
+
+      // Add remarks if they exist for this task
+      const taskRemark = taskRemarks[task.id];
+      if (taskRemark && taskRemark.trim()) {
+        taskText += `\n   📝 Remarks: ${taskRemark.trim()}`;
+      }
+
       return taskText;
     });
 
@@ -1457,10 +1464,10 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                           </select>
                         </div>
 
-                        {/* Remarks field for explaining what was done */}
+                        {/* Remarks field for explaining what was done - placed under each task */}
                         <div className="mt-3">
                           <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Work completed / Remarks:
+                            Work completed / Remarks for &ldquo;{task.title}&rdquo;:
                           </label>
                           <textarea
                             value={taskRemarks[task.id] || ''}
@@ -1470,7 +1477,7 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
                             }))}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                             rows={2}
-                            placeholder="Explain what was accomplished or any important notes..."
+                            placeholder="Explain what was accomplished for this specific task..."
                           />
                         </div>
                       </div>
