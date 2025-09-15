@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as 'pending' | 'approved' | 'rejected' | null;
 
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },

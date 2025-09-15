@@ -5,7 +5,7 @@ import { getLeaveService } from '@/lib/leave';
 export async function GET(request: NextRequest) {
   try {
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
@@ -122,7 +122,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },

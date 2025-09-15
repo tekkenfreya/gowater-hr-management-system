@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
@@ -123,7 +123,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get user from token
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
