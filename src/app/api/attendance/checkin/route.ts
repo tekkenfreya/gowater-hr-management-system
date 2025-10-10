@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
 import { getAttendanceService } from '@/lib/attendance';
+import { logger } from '@/lib/logger';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: 'Checked in successfully' });
   } catch (error) {
-    console.error('Check-in API error:', error);
+    logger.error('Check-in API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

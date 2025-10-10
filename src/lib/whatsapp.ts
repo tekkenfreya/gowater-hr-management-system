@@ -1,4 +1,5 @@
 import { Client, LocalAuth, Message } from 'whatsapp-web.js';
+import { logger } from './logger';
 
 export interface WhatsAppConfig {
   sessionName: string;
@@ -69,10 +70,10 @@ class WhatsAppService {
       // Initialize the client
       await this.client.initialize();
 
-      console.log('WhatsApp client initialized');
-      
+      logger.info('WhatsApp client initialized');
+
     } catch (error) {
-      console.error('Failed to initialize WhatsApp client:', error);
+      logger.error('Failed to initialize WhatsApp client', error);
       this.isConnecting = false;
       throw error;
     }
@@ -83,14 +84,14 @@ class WhatsAppService {
 
     // QR Code generation
     this.client.on('qr', (qr) => {
-      console.log('QR Code received, please scan with your WhatsApp mobile app');
+      logger.info('QR Code received, please scan with your WhatsApp mobile app');
       this.qrCode = qr;
       this.eventHandlers!.onQR(qr);
     });
 
     // Client ready
     this.client.on('ready', () => {
-      console.log('WhatsApp client is ready!');
+      logger.info('WhatsApp client is ready!');
       this.isReady = true;
       this.isConnecting = false;
       this.eventHandlers!.onReady();
@@ -98,14 +99,14 @@ class WhatsAppService {
 
     // Authentication failure
     this.client.on('auth_failure', (error) => {
-      console.error('WhatsApp authentication failed:', error);
+      logger.error('WhatsApp authentication failed', error);
       this.isConnecting = false;
       this.eventHandlers!.onAuthFailure(error.toString());
     });
 
     // Client disconnected
     this.client.on('disconnected', (reason) => {
-      console.log('WhatsApp client disconnected:', reason);
+      logger.info('WhatsApp client disconnected:', reason);
       this.isReady = false;
       this.isConnecting = false;
       this.eventHandlers!.onDisconnected();
@@ -132,8 +133,8 @@ class WhatsAppService {
       
       // Send the message
       const message = await this.client.sendMessage(chatId, messageData.message);
-      
-      console.log(`Message sent to ${messageData.to}:`, {
+
+      logger.debug(`Message sent to ${messageData.to}:`, {
         id: message.id._serialized,
         timestamp: message.timestamp,
         type: messageData.type
@@ -142,7 +143,7 @@ class WhatsAppService {
       return true;
 
     } catch (error) {
-      console.error('Failed to send WhatsApp message:', error);
+      logger.error('Failed to send WhatsApp message', error);
       throw error;
     }
   }
@@ -197,7 +198,7 @@ class WhatsAppService {
         lastMessage: chat.lastMessage?.body?.substring(0, 50) || ''
       }));
     } catch (error) {
-      console.error('Failed to get chats:', error);
+      logger.error('Failed to get chats', error);
       throw error;
     }
   }
@@ -219,7 +220,7 @@ class WhatsAppService {
           isBlocked: contact.isBlocked
         }));
     } catch (error) {
-      console.error('Failed to get contacts:', error);
+      logger.error('Failed to get contacts', error);
       throw error;
     }
   }
@@ -258,7 +259,7 @@ class WhatsAppService {
       this.client = null;
       this.isReady = false;
       this.isConnecting = false;
-      console.log('WhatsApp client disconnected');
+      logger.info('WhatsApp client disconnected');
     }
   }
 
@@ -277,7 +278,7 @@ class WhatsAppService {
         platform: info?.platform
       };
     } catch (error) {
-      console.error('Failed to get client info:', error);
+      logger.error('Failed to get client info', error);
       return null;
     }
   }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { User } from '@/types/auth';
+import { logger } from '@/lib/logger';
 
 interface AuthState {
   user: User | null;
@@ -89,7 +90,7 @@ export function useAuth() {
         method: 'POST',
       });
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error', error);
     }
 
     setAuthState({

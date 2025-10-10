@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,11 +19,14 @@ export async function POST(request: NextRequest) {
     const result = await authService.login(username, password);
 
     if (!result.success) {
+      logger.security('Failed login attempt', { username });
       return NextResponse.json(
         { error: result.error },
         { status: 401 }
       );
     }
+
+    logger.audit('User login', result.user?.id, { username });
 
     // Set HTTP-only cookie for the token
     const response = NextResponse.json({
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Login API error:', error);
+    logger.error('Login API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

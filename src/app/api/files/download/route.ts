@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import FileService from '@/lib/files';
+import { logger } from '@/lib/logger';
 
 interface JWTPayload {
   userId: number;
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('File download API error:', error);
+    logger.error('File download API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

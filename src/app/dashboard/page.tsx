@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { logger } from '@/lib/logger';
 
 interface TeamMember {
   id: number;
@@ -93,28 +94,28 @@ export default function Dashboard() {
       const response = await fetch('/api/attendance/weekly');
       if (response.ok) {
         const data = await response.json();
-        console.log('Weekly attendance data:', data);
-        console.log('Attendance array:', data.attendance);
+        logger.debug('Weekly attendance data:', data);
+        logger.debug('Attendance array:', data.attendance);
         setWeeklyAttendance(data.attendance || []);
       }
     } catch (error) {
-      console.error('Failed to fetch weekly attendance:', error);
+      logger.error('Failed to fetch weekly attendance', error);
     }
   };
 
   const fetchTeamMembers = async () => {
     try {
       const response = await fetch('/api/team/members');
-      console.log('Team members response status:', response.status);
+      logger.debug('Team members response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('Team members data:', data);
+        logger.debug('Team members data:', data);
         setAllEmployees(data.employees || []);
       } else {
-        console.error('Failed to fetch team members:', response.status, response.statusText);
+        logger.error('Failed to fetch team members', { status: response.status, statusText: response.statusText });
       }
     } catch (error) {
-      console.error('Failed to fetch team members:', error);
+      logger.error('Failed to fetch team members', error);
     }
   };
 

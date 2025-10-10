@@ -6,6 +6,7 @@ import { User } from '@/types/auth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useRouter } from 'next/navigation';
+import { logger } from '@/lib/logger';
 
 interface CreateUserForm {
   email: string;
@@ -73,7 +74,7 @@ export default function AdminPage() {
         setUsers(data.users);
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      logger.error('Failed to fetch users', error);
     }
     setLoading(false);
   };

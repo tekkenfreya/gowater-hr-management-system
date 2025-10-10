@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { whatsappClientService, ContactInfo } from '@/lib/whatsapp-client';
+import { logger } from '@/lib/logger';
 
 interface WhatsAppConnectionProps {
   onConnectionChange: (connected: boolean) => void;
@@ -50,10 +51,10 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
       // Start polling for status updates
       const statusInterval = setInterval(async () => {
         const status = await whatsappClientService.getStatus();
-        
+
         if (status.qrCode && status.qrCode !== qrCode) {
           setQRCode(status.qrCode);
-          console.log('QR Code received. Please scan with your WhatsApp mobile app.');
+          logger.info('QR Code received. Please scan with your WhatsApp mobile app.');
         }
         
         if (status.isReady) {
@@ -107,13 +108,13 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
     try {
       const result = await whatsappClientService.getContacts();
       if (result.error) {
-        console.error('Failed to load contacts:', result.error);
+        logger.error('Failed to load contacts', new Error(result.error));
         setError(result.error);
       } else {
         setContacts(result.contacts);
       }
     } catch (err) {
-      console.error('Failed to load contacts:', err);
+      logger.error('Failed to load contacts', err);
       setError('Failed to load contacts');
     }
   };
@@ -143,7 +144,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
       }
 
       if (results.failed.length > 0) {
-        console.error('Failed to send to some recipients:', results.failed);
+        logger.error('Failed to send to some recipients', { failed: results.failed });
         setError(`Failed to send to ${results.failed.length} recipient(s)`);
       }
     } catch (err) {
@@ -178,7 +179,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
       try {
         setSelectedRecipients(JSON.parse(saved));
       } catch (err) {
-        console.error('Failed to load saved recipients');
+        logger.error('Failed to load saved recipients', err);
       }
     }
   }, []);

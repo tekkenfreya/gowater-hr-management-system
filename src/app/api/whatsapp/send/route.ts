@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { whatsappService } from '@/lib/whatsapp';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { recipients, message, type } = await request.json();
 
     // Security: Log the action for audit trail
-    console.log(`WhatsApp message sent by user ${user.id} (${user.email}) to ${recipients?.length || 0} recipients`);
+    logger.audit('WhatsApp message sent', user.id, { recipientCount: recipients?.length || 0 });
 
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json(

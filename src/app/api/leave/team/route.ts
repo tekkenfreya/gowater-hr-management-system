@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
 import { getLeaveService } from '@/lib/leave';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Get team leave requests API error:', error);
+    logger.error('Get team leave requests API error', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

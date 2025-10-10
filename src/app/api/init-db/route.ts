@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,26 +24,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (initKey !== expectedKey) {
-      console.warn('Failed database initialization attempt - invalid key');
+      logger.security('Failed database initialization attempt - invalid key');
       return NextResponse.json(
         { error: 'Unauthorized - invalid initialization key' },
         { status: 401 }
       );
     }
 
-    console.log('Starting database initialization...');
+    logger.info('Starting database initialization...');
 
     const authService = getAuthService();
     await authService.initialize();
 
-    console.log('Database initialized successfully');
+    logger.info('Database initialized successfully');
 
     return NextResponse.json({
       message: 'Database initialized successfully',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Database initialization error:', error);
+    logger.error('Database initialization error', error);
     return NextResponse.json(
       { error: 'Failed to initialize database' },
       { status: 500 }

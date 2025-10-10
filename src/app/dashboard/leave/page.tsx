@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { logger } from '@/lib/logger';
 
 interface LeaveRequest {
   id: number;
@@ -60,7 +61,7 @@ export default function LeaveTracker() {
         setLeaveBalance(data.data);
       }
     } catch (error) {
-      console.error('Failed to fetch leave balance:', error);
+      logger.error('Failed to fetch leave balance', error);
     }
   };
 
@@ -93,7 +94,7 @@ export default function LeaveTracker() {
 
       setLeaveRequests(data.data || []);
     } catch (error) {
-      console.error('Failed to fetch leave requests:', error);
+      logger.error('Failed to fetch leave requests', error);
       setError('Failed to fetch leave requests');
     } finally {
       setLoading(false);
@@ -157,7 +158,7 @@ export default function LeaveTracker() {
 
       setActiveTab('history');
     } catch (error) {
-      console.error('Failed to submit leave request:', error);
+      logger.error('Failed to submit leave request', error);
       setError('Failed to submit leave request. Please try again.');
     } finally {
       setFormLoading(false);

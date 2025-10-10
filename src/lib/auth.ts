@@ -74,17 +74,19 @@ export class AuthService {
           status: 'active'
         });
 
-        // IMPORTANT: Log the password ONLY during first-time setup
-        console.log('\n' + '='.repeat(60));
-        console.log('🔒 FIRST-TIME SETUP - DEFAULT ADMIN ACCOUNT CREATED');
-        console.log('='.repeat(60));
-        console.log('Email:    admin@gowater.com');
-        console.log('Password:', randomPassword);
-        console.log('='.repeat(60));
-        console.log('⚠️  SAVE THIS PASSWORD IMMEDIATELY!');
-        console.log('⚠️  CHANGE IT AFTER YOUR FIRST LOGIN!');
-        console.log('⚠️  This password will NOT be shown again.');
-        console.log('='.repeat(60) + '\n');
+        // IMPORTANT: Log the password ONLY during first-time setup IN DEVELOPMENT
+        // In production, admin must use password reset flow
+        logger.info('Default admin account created: admin@gowater.com');
+        logger.debug('\n' + '='.repeat(60));
+        logger.debug('🔒 FIRST-TIME SETUP - DEFAULT ADMIN ACCOUNT CREATED');
+        logger.debug('='.repeat(60));
+        logger.debug('Email:    admin@gowater.com');
+        logger.debug('Password:', randomPassword);
+        logger.debug('='.repeat(60));
+        logger.debug('⚠️  SAVE THIS PASSWORD IMMEDIATELY!');
+        logger.debug('⚠️  CHANGE IT AFTER YOUR FIRST LOGIN!');
+        logger.debug('⚠️  This password will NOT be shown again.');
+        logger.debug('='.repeat(60) + '\n');
       }
     } catch (error) {
       logger.error('Error creating default admin', error);

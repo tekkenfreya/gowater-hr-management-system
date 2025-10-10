@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
 import { getAttendanceService } from '@/lib/attendance';
+import { logger } from '@/lib/logger';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       summary
     });
   } catch (error) {
-    console.error('Get weekly attendance API error:', error);
+    logger.error('Get weekly attendance API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

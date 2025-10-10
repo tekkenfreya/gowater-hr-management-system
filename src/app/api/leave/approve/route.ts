@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
 import { getLeaveService } from '@/lib/leave';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Approve/reject leave request API error:', error);
+    logger.error('Approve/reject leave request API error', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

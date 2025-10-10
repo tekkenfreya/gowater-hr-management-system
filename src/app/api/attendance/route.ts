@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getAttendanceService } from '@/lib/attendance';
+import { logger } from '@/lib/logger';
 
 interface JWTPayload {
   userId: number;
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Get attendance API error:', error);
+    logger.error('Get attendance API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Attendance API error:', error);
+    logger.error('Attendance API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

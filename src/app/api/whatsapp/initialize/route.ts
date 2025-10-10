@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { whatsappService } from '@/lib/whatsapp';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`WhatsApp initialization requested by user ${user.id} (${user.email})`);
+    logger.info(`WhatsApp initialization requested by user ${user.id} (${user.email})`);
 
     await whatsappService.initialize({
       onQR: (qr: string) => {

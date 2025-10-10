@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,13 +53,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    logger.audit('Password changed', user.id);
+
     return NextResponse.json({
       success: true,
       message: 'Password changed successfully'
     });
 
   } catch (error) {
-    console.error('Change password API error:', error);
+    logger.error('Change password API error', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { getDb } from './supabase';
 import { getAttendanceService } from './attendance';
 import { getNotificationService } from './notifications';
+import { logger } from './logger';
 
 export interface LeaveRequest {
   id: number;
@@ -130,7 +131,7 @@ export class LeaveService {
 
       return { success: true, leaveRequestId: leaveRequest.id };
     } catch (error) {
-      console.error('Create leave request error:', error);
+      logger.error('Create leave request error', error);
       return { success: false, error: 'Failed to create leave request' };
     }
   }
@@ -145,7 +146,7 @@ export class LeaveService {
 
       return leaveRequests || [];
     } catch (error) {
-      console.error('Get leave requests error:', error);
+      logger.error('Get leave requests error', error);
       return [];
     }
   }
@@ -174,7 +175,7 @@ export class LeaveService {
       const leaveRequests = await this.db.executeRawSQL<LeaveRequestWithDetails>(query, params);
       return leaveRequests || [];
     } catch (error) {
-      console.error('Get team leave requests error:', error);
+      logger.error('Get team leave requests error', error);
       return [];
     }
   }
@@ -219,7 +220,7 @@ export class LeaveService {
 
       return { success: true };
     } catch (error) {
-      console.error('Approve leave request error:', error);
+      logger.error('Approve leave request error', error);
       return { success: false, error: 'Failed to approve leave request' };
     }
   }
@@ -256,7 +257,7 @@ export class LeaveService {
 
       return { success: true };
     } catch (error) {
-      console.error('Reject leave request error:', error);
+      logger.error('Reject leave request error', error);
       return { success: false, error: 'Failed to reject leave request' };
     }
   }
@@ -299,7 +300,7 @@ export class LeaveService {
         unpaid: { used: usedLeave.unpaid, total: 365 }
       };
     } catch (error) {
-      console.error('Get leave balance error:', error);
+      logger.error('Get leave balance error', error);
       return {
         annual: { used: 0, total: 20 },
         sick: { used: 0, total: 10 },
@@ -346,7 +347,7 @@ export class LeaveService {
         }
       }
     } catch (error) {
-      console.error('Mark attendance as leave error:', error);
+      logger.error('Mark attendance as leave error', error);
     }
   }
 
@@ -371,7 +372,7 @@ export class LeaveService {
       await this.db.delete('leave_requests', { id: leaveRequestId });
       return { success: true };
     } catch (error) {
-      console.error('Delete leave request error:', error);
+      logger.error('Delete leave request error', error);
       return { success: false, error: 'Failed to delete leave request' };
     }
   }

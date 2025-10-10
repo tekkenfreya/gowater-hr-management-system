@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import FileService from '@/lib/files';
+import { logger } from '@/lib/logger';
 
 interface JWTPayload {
   userId: number;
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Get files API error:', error);
+    logger.error('Get files API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('File upload API error:', error);
+    logger.error('File upload API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -112,7 +113,7 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('File deletion API error:', error);
+    logger.error('File deletion API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

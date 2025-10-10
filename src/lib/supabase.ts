@@ -8,6 +8,7 @@
  */
 
 import { supabaseAdmin } from './supabase-server';
+import { logger } from './logger';
 
 // Re-export clients for backward compatibility
 export { supabase } from './supabase-client';
@@ -30,9 +31,9 @@ export class SupabaseDatabase {
       }
       
       this.initialized = true;
-      console.log('Supabase database initialized successfully');
+      logger.info('Supabase database initialized successfully');
     } catch (error) {
-      console.error('Supabase database initialization error:', error);
+      logger.error('Supabase database initialization error', error);
       throw error;
     }
   }

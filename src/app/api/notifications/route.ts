@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
 import { getNotificationService } from '@/lib/notifications';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Get notifications API error:', error);
+    logger.error('Get notifications API error', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -102,7 +103,7 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Update notifications API error:', error);
+    logger.error('Update notifications API error', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -157,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Delete notification API error:', error);
+    logger.error('Delete notification API error', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
 export async function POST() {
   try {
-    console.log('Starting user migration - setting status to active...');
+    logger.info('Starting user migration - setting status to active...');
 
     const db = getDb();
     await db.initialize();
@@ -15,11 +16,11 @@ export async function POST() {
       WHERE status IS NULL OR status = ''
     `);
 
-    console.log('Migration result:', result);
+    logger.info('Migration result:', result);
 
     // Verify the update
     const allUsers = await db.all('users', {});
-    console.log('All users after migration:', allUsers);
+    logger.debug('All users after migration:', allUsers);
 
     return NextResponse.json({
       message: 'Users migrated successfully',
@@ -27,7 +28,7 @@ export async function POST() {
       usersUpdated: result
     });
   } catch (error) {
-    console.error('User migration error:', error);
+    logger.error('User migration error', error);
     return NextResponse.json(
       { error: 'Failed to migrate users', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

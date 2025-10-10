@@ -6,6 +6,7 @@ import { Task } from '@/types/attendance';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useRouter } from 'next/navigation';
+import { logger } from '@/lib/logger';
 
 type TaskFilter = 'all' | 'active' | 'completed' | 'archived' | 'pending' | 'in_progress' | 'blocked';
 
@@ -54,10 +55,10 @@ export default function TasksPage() {
         const data = await response.json();
         setTasks(data.tasks || []);
       } else {
-        console.error('Failed to fetch tasks');
+        logger.error('Failed to fetch tasks', new Error('Response not ok'));
       }
     } catch (error) {
-      console.error('Failed to fetch tasks:', error);
+      logger.error('Failed to fetch tasks', error);
     } finally {
       setLoading(false);
     }
@@ -109,10 +110,10 @@ export default function TasksPage() {
         setShowAddTask(false);
         await fetchTasks();
       } else {
-        console.error('Failed to create task');
+        logger.error('Failed to create task', new Error('Response not ok'));
       }
     } catch (error) {
-      console.error('Failed to create task:', error);
+      logger.error('Failed to create task', error);
     }
   };
 
@@ -130,10 +131,10 @@ export default function TasksPage() {
       if (response.ok) {
         await fetchTasks();
       } else {
-        console.error('Failed to update task status');
+        logger.error('Failed to update task status', new Error('Response not ok'));
       }
     } catch (error) {
-      console.error('Failed to update task status:', error);
+      logger.error('Failed to update task status', error);
     }
   };
 
@@ -151,10 +152,10 @@ export default function TasksPage() {
       if (response.ok) {
         await fetchTasks();
       } else {
-        console.error('Failed to delete task');
+        logger.error('Failed to delete task', new Error('Response not ok'));
       }
     } catch (error) {
-      console.error('Failed to delete task:', error);
+      logger.error('Failed to delete task', error);
     }
   };
 

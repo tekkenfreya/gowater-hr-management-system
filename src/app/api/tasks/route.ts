@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getDb } from '@/lib/supabase';
 import { Task } from '@/types/attendance';
+import { logger } from '@/lib/logger';
 
 interface JWTPayload {
   userId: number;
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Get tasks API error:', error);
+    logger.error('Get tasks API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Create task API error:', error);
+    logger.error('Create task API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -149,7 +150,7 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Update task API error:', error);
+    logger.error('Update task API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -190,7 +191,7 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Delete task API error:', error);
+    logger.error('Delete task API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

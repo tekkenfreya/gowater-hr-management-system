@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/lib/logger';
 
 interface AttendanceContextType {
   isTimedIn: boolean;
@@ -77,7 +78,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch attendance:', error);
+      logger.error('Failed to fetch attendance', error);
     }
   };
 
@@ -99,10 +100,10 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         setWorkInterval(interval);
       } else {
         const errorData = await response.json();
-        console.error('Failed to time in:', errorData);
+        logger.error('Failed to time in', errorData);
       }
     } catch (error) {
-      console.error('Failed to time in:', error);
+      logger.error('Failed to time in', error);
     }
   };
 
@@ -121,10 +122,10 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         setCheckInTime(null);
       } else {
         const errorData = await response.json();
-        console.error('Failed to time out:', errorData);
+        logger.error('Failed to time out', errorData);
       }
     } catch (error) {
-      console.error('Failed to time out:', error);
+      logger.error('Failed to time out', error);
     }
   };
 
@@ -144,7 +145,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         setBreakInterval(breakInt);
       }
     } catch (error) {
-      console.error('Failed to start break:', error);
+      logger.error('Failed to start break', error);
     }
   };
 
@@ -163,7 +164,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         setWorkInterval(interval);
       }
     } catch (error) {
-      console.error('Failed to end break:', error);
+      logger.error('Failed to end break', error);
     }
   };
 

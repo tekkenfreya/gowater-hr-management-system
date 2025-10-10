@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { StoredFile } from '@/lib/files';
+import { logger } from '@/lib/logger';
 
 interface FileItem {
   id: string;
@@ -136,10 +137,10 @@ export default function FilesPage() {
         mime_type: file.mime_type,
         file_path: file.file_path
       }));
-      
+
       setFiles(transformedFiles);
     } catch (error) {
-      console.error('Error loading files:', error);
+      logger.error('Error loading files', error);
       setError(error instanceof Error ? error.message : 'Failed to load files');
       setFiles([]);
     } finally {
@@ -283,9 +284,9 @@ export default function FilesPage() {
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadCategory('');
-      
+
     } catch (error) {
-      console.error('Upload error:', error);
+      logger.error('Upload error', error);
       setError(error instanceof Error ? error.message : 'Failed to upload file');
     } finally {
       setUploading(false);
@@ -308,9 +309,9 @@ export default function FilesPage() {
       
       // Refresh the files list
       await loadFiles();
-      
+
     } catch (error) {
-      console.error('Delete error:', error);
+      logger.error('Delete error', error);
       setError(error instanceof Error ? error.message : 'Failed to delete file');
     }
   };
@@ -326,9 +327,9 @@ export default function FilesPage() {
       
       // Open download URL in new tab
       window.open(data.downloadUrl, '_blank');
-      
+
     } catch (error) {
-      console.error('Download error:', error);
+      logger.error('Download error', error);
       setError(error instanceof Error ? error.message : 'Failed to download file');
     }
   };

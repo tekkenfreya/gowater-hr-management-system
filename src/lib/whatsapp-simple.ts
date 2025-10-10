@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 // Simple WhatsApp Web integration using group ID
 export class SimpleWhatsAppService {
   private groupId = 'CjYWbEz8tG2AC6S0KeSjxM'; // Your WhatsApp group ID
@@ -21,7 +23,7 @@ export class SimpleWhatsAppService {
       await navigator.clipboard.writeText(message);
       return true;
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+      logger.error('Failed to copy to clipboard', error);
       return false;
     }
   }

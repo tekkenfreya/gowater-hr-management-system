@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 async function verifyAdminAuth(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users });
   } catch (error) {
-    console.error('Get users API error:', error);
+    logger.error('Get users API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -79,12 +80,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    logger.audit('User created', admin.id, { createdUserId: result.userId, email });
+
     return NextResponse.json(
       { message: 'User created successfully', userId: result.userId },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Create user API error:', error);
+    logger.error('Create user API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

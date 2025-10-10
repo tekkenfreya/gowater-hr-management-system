@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getDb } from '@/lib/supabase';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface JWTPayload {
   userId: number;
@@ -11,10 +12,10 @@ interface JWTPayload {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('=== Team Members API Called ===');
+    logger.debug('=== Team Members API Called ===');
 
     const token = request.cookies.get('auth-token')?.value;
-    console.log('Token exists:', !!token);
+    logger.debug('Token exists:', !!token);
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,38 +23,38 @@ export async function GET(request: NextRequest) {
 
     try {
       jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-      console.log('Token verified successfully');
+      logger.debug('Token verified successfully');
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError);
+      logger.error('JWT verification failed', jwtError);
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    console.log('Getting services...');
+    logger.debug('Getting services...');
     const authService = getAuthService();
     const db = getDb();
-    console.log('Services obtained');
+    logger.debug('Services obtained');
 
     // Fetch all users using AuthService
-    console.log('Fetching users from AuthService...');
+    logger.debug('Fetching users from AuthService...');
     const allUsers = await authService.getAllUsers();
-    console.log('All users from AuthService:', allUsers);
-    console.log('Number of users found:', allUsers.length);
+    logger.debug('All users from AuthService:', allUsers);
+    logger.debug('Number of users found:', allUsers.length);
 
     // If no users found from AuthService, try direct query to debug
     if (allUsers.length === 0) {
-      console.log('No users from AuthService, trying direct query...');
+      logger.debug('No users from AuthService, trying direct query...');
       const directUsers = await db.all('users', {});
-      console.log('Direct query all users (no filter):', directUsers);
+      logger.debug('Direct query all users (no filter):', directUsers);
     }
 
     // Fetch today's attendance for all users
     const today = new Date().toISOString().split('T')[0];
-    console.log('Fetching attendance for date:', today);
+    logger.debug('Fetching attendance for date:', today);
 
     const attendanceRecords = await db.all('attendance', { date: today });
 
-    console.log('Attendance records:', attendanceRecords);
-    console.log('Number of attendance records:', Array.isArray(attendanceRecords) ? attendanceRecords.length : 0);
+    logger.debug('Attendance records:', attendanceRecords);
+    logger.debug('Number of attendance records:', Array.isArray(attendanceRecords) ? attendanceRecords.length : 0);
 
     // Create a map of user_id to attendance status
     const attendanceMap = new Map();
@@ -88,8 +89,8 @@ export async function GET(request: NextRequest) {
       return (a.employeeId || '').localeCompare(b.employeeId || '');
     });
 
-    console.log('Final employees array:', allEmployees);
-    console.log('Number of final employees:', allEmployees.length);
+    logger.debug('Final employees array:', allEmployees);
+    logger.debug('Number of final employees:', allEmployees.length);
 
     return NextResponse.json({
       success: true,
@@ -97,11 +98,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('=== Get team members API error ===');
-    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
-    console.error('Error message:', error instanceof Error ? error.message : String(error));
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('Full error object:', error);
+    logger.error('Get team members API error', error);
 
     return NextResponse.json(
       {

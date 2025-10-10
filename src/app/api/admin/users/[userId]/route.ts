@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 async function verifyAdminAuth(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
@@ -46,7 +47,7 @@ export async function PUT(
 
     return NextResponse.json({ message: 'User profile updated successfully' });
   } catch (error) {
-    console.error('Update user profile API error:', error);
+    logger.error('Update user profile API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -90,7 +91,7 @@ export async function PATCH(
 
     return NextResponse.json({ message: 'User status updated successfully' });
   } catch (error) {
-    console.error('Update user status API error:', error);
+    logger.error('Update user status API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -132,9 +133,11 @@ export async function DELETE(
       );
     }
 
+    logger.audit('User deleted', admin.id, { deletedUserId: userId });
+
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Delete user API error:', error);
+    logger.error('Delete user API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

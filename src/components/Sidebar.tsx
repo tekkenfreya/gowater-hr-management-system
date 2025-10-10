@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { User } from '@/types/auth';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { logger } from '@/lib/logger';
 
 interface SidebarProps {
   user: User | null;
@@ -66,7 +67,7 @@ export default function Sidebar({
           setTeamMembers(data.teamMembers || []);
         }
       } catch (error) {
-        console.error('Failed to fetch team members:', error);
+        logger.error('Failed to fetch team members', error);
       }
     };
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { logger } from '@/lib/logger';
 
 interface ReportData {
   type: string;
@@ -82,10 +83,10 @@ export default function TeamReportsPage() {
         status: 'ready',
         downloadUrl: `/reports/${selectedReportType}-${selectedPeriod}-${Date.now()}.xlsx`
       };
-      
+
       setReports(prev => [newReport, ...prev]);
     } catch (error) {
-      console.error('Failed to generate report:', error);
+      logger.error('Failed to generate report', error);
     }
     
     setIsGenerating(false);

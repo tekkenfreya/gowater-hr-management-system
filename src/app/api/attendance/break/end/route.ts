@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getAttendanceService } from '@/lib/attendance';
+import { logger } from '@/lib/logger';
 
 interface JWTPayload {
   userId: number;
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('End break API error:', error);
+    logger.error('End break API error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

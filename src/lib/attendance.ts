@@ -1,4 +1,5 @@
 import { getDb } from './supabase';
+import { logger } from './logger';
 
 export interface AttendanceRecord {
   id: number;
@@ -74,7 +75,7 @@ export class AttendanceService {
 
       return { success: true };
     } catch (error) {
-      console.error('Check-in error:', error);
+      logger.error('Check-in error', error);
       return { success: false, error: 'Failed to check in' };
     }
   }
@@ -110,7 +111,7 @@ export class AttendanceService {
 
       return { success: true, totalHours: newTotalHours };
     } catch (error) {
-      console.error('Check-out error:', error);
+      logger.error('Check-out error', error);
       return { success: false, error: 'Failed to check out' };
     }
   }
@@ -138,7 +139,7 @@ export class AttendanceService {
         notes: record.notes
       };
     } catch (error) {
-      console.error('Get today attendance error:', error);
+      logger.error('Get today attendance error', error);
       return null;
     }
   }
@@ -166,7 +167,7 @@ export class AttendanceService {
         notes: record.notes
       }));
     } catch (error) {
-      console.error('Get weekly attendance error:', error);
+      logger.error('Get weekly attendance error', error);
       return [];
     }
   }
@@ -194,7 +195,7 @@ export class AttendanceService {
         totalHours: parseFloat(summary?.totalhours) || 0
       };
     } catch (error) {
-      console.error('Get attendance summary error:', error);
+      logger.error('Get attendance summary error', error);
       return {
         totalDays: 0,
         presentDays: 0,
@@ -219,7 +220,7 @@ export class AttendanceService {
       
       return { success: true };
     } catch (error) {
-      console.error('Delete attendance error:', error);
+      logger.error('Delete attendance error', error);
       return { success: false, error: 'Failed to delete attendance record' };
     }
   }
@@ -252,7 +253,7 @@ export class AttendanceService {
 
       return { success: true };
     } catch (error) {
-      console.error('Start break error:', error);
+      logger.error('Start break error', error);
       return { success: false, error: 'Failed to start break' };
     }
   }
@@ -284,7 +285,7 @@ export class AttendanceService {
 
       return { success: true, breakDuration: breakDurationSeconds };
     } catch (error) {
-      console.error('End break error:', error);
+      logger.error('End break error', error);
       return { success: false, error: 'Failed to end break' };
     }
   }

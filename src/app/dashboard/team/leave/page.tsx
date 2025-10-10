@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { logger } from '@/lib/logger';
 
 interface LeaveRequestWithDetails {
   id: number;
@@ -76,7 +77,7 @@ export default function TeamLeaveApprovals() {
 
       setLeaveRequests(data.data || []);
     } catch (error) {
-      console.error('Failed to fetch team leave requests:', error);
+      logger.error('Failed to fetch team leave requests', error);
       setError('Failed to fetch team leave requests');
     } finally {
       setLoading(false);
@@ -129,7 +130,7 @@ export default function TeamLeaveApprovals() {
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error(`Failed to ${modalAction} leave request:`, error);
+      logger.error(`Failed to ${modalAction} leave request`, error);
       setError(`Failed to ${modalAction} leave request. Please try again.`);
     } finally {
       setProcessingRequest(null);

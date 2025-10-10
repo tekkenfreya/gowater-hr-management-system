@@ -1,4 +1,5 @@
 import { supabase, supabaseAdmin } from './supabase';
+import { logger } from './logger';
 
 export interface StoredFile {
   id: string;
@@ -100,7 +101,7 @@ export class FileService {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
+        logger.error('Upload error', uploadError);
         return { success: false, error: 'Failed to upload file to storage' };
       }
 
@@ -131,7 +132,7 @@ export class FileService {
         .single();
 
       if (dbError) {
-        console.error('Database error:', dbError);
+        logger.error('Database error', dbError);
         // Try to clean up uploaded file
         await supabaseAdmin.storage.from('files').remove([filePath]);
         return { success: false, error: 'Failed to save file metadata' };
@@ -139,7 +140,7 @@ export class FileService {
 
       return { success: true, file: dbData };
     } catch (error) {
-      console.error('File upload error:', error);
+      logger.error('File upload error', error);
       return { success: false, error: 'Unexpected error during file upload' };
     }
   }
@@ -159,13 +160,13 @@ export class FileService {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching user files:', error);
+        logger.error('Error fetching user files', error);
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getUserFiles:', error);
+      logger.error('Error in getUserFiles', error);
       return [];
     }
   }
@@ -184,13 +185,13 @@ export class FileService {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching all files:', error);
+        logger.error('Error fetching all files', error);
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getAllFiles:', error);
+      logger.error('Error in getAllFiles', error);
       return [];
     }
   }
@@ -215,7 +216,7 @@ export class FileService {
         .remove([fileRecord.file_path]);
 
       if (storageError) {
-        console.error('Storage deletion error:', storageError);
+        logger.error('Storage deletion error', storageError);
         // Continue to delete database record even if storage deletion fails
       }
 
@@ -226,13 +227,13 @@ export class FileService {
         .eq('id', fileId);
 
       if (dbError) {
-        console.error('Database deletion error:', dbError);
+        logger.error('Database deletion error', dbError);
         return { success: false, error: 'Failed to delete file record' };
       }
 
       return { success: true };
     } catch (error) {
-      console.error('File deletion error:', error);
+      logger.error('File deletion error', error);
       return { success: false, error: 'Unexpected error during file deletion' };
     }
   }
@@ -244,13 +245,13 @@ export class FileService {
         .createSignedUrl(filePath, 3600); // 1 hour expiry
 
       if (error) {
-        console.error('Error creating signed URL:', error);
+        logger.error('Error creating signed URL', error);
         return null;
       }
 
       return data.signedUrl;
     } catch (error) {
-      console.error('Error in getFileDownloadUrl:', error);
+      logger.error('Error in getFileDownloadUrl', error);
       return null;
     }
   }

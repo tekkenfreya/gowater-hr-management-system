@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { AttendanceRecord as ServiceAttendanceRecord } from '@/lib/attendance';
 import { Task } from '@/types/attendance';
+import { logger } from '@/lib/logger';
 
 interface WeeklyAttendanceData {
   date: string;
@@ -67,7 +68,7 @@ export default function AttendancePage() {
         setTodayAttendance(data.attendance);
       }
     } catch (error) {
-      console.error('Failed to fetch today attendance:', error);
+      logger.error('Failed to fetch today attendance', error);
     }
   };
 
@@ -79,7 +80,7 @@ export default function AttendancePage() {
         setTasks(data.tasks || []);
       }
     } catch (error) {
-      console.error('Failed to fetch tasks:', error);
+      logger.error('Failed to fetch tasks', error);
     }
   };
 
@@ -115,7 +116,7 @@ export default function AttendancePage() {
         setSummary(data.summary);
       }
     } catch (error) {
-      console.error('Failed to fetch weekly attendance:', error);
+      logger.error('Failed to fetch weekly attendance', error);
     }
   };
 
