@@ -1,6 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import Sidebar from '@/components/Sidebar';
+import Header from '@/components/Header';
 import { StoredFile } from '@/lib/files';
 import { logger } from '@/lib/logger';
 
@@ -25,6 +29,9 @@ interface FileCategory {
 }
 
 export default function FilesPage() {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +42,16 @@ export default function FilesPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && user === null) {
+      router.push('/auth/login');
+    }
+  }, [user, isLoading, router]);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   const getCategoryIcon = (categoryId: string) => {
     switch (categoryId) {
@@ -334,13 +351,41 @@ export default function FilesPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-800">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Files</h1>
-          <p className="text-gray-800 mt-2">Manage and organize your documents (Max file size: 50MB)</p>
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar
+        user={user}
+        isCollapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+      />
+
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+        <Header
+          user={user}
+          onToggleSidebar={toggleSidebar}
+          onLogout={logout}
+        />
+
+        <main className="p-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Files</h1>
+            <p className="text-gray-800 mt-2">Manage and organize your documents (Max file size: 50MB)</p>
           
           {/* Error Display */}
           {error && (
@@ -609,6 +654,7 @@ export default function FilesPage() {
             </div>
           </div>
         )}
+        </main>
       </div>
     </div>
   );
