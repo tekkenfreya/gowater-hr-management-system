@@ -1,19 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * Supabase Database Wrapper
+ *
+ * This file provides a database abstraction layer for Supabase.
+ * For direct Supabase client access:
+ * - Use './supabase-client' for client-side code
+ * - Use './supabase-server' for server-side code (admin access)
+ */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { supabaseAdmin } from './supabase-server';
 
-// Client for public operations (with RLS enabled)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Admin client for server-side operations (bypasses RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+// Re-export clients for backward compatibility
+export { supabase } from './supabase-client';
+export { supabaseAdmin } from './supabase-server';
 
 // Database interface matching our existing SQLite implementation
 export class SupabaseDatabase {

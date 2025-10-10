@@ -20,10 +20,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const { notes, workLocation } = body;
 
     const attendanceService = getAttendanceService();
-    const result = await attendanceService.checkIn(user.id, notes);
+    const result = await attendanceService.checkIn(user.id, notes, workLocation);
 
     if (!result.success) {
       return NextResponse.json(

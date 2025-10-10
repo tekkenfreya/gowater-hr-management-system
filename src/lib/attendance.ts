@@ -6,6 +6,8 @@ export interface AttendanceRecord {
   date: string;
   checkInTime?: string;
   checkOutTime?: string;
+  breakStartTime?: string;
+  breakEndTime?: string;
   breakDuration?: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
@@ -27,36 +29,46 @@ export class AttendanceService {
   async checkIn(userId: number, notes?: string, workLocation?: 'WFH' | 'Onsite'): Promise<{ success: boolean; error?: string }> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Check if already checked in today
+
+      // Check if already checked in today (without checkout)
       const existing = await this.db.get('attendance', { user_id: userId, date: today });
 
       if (existing && existing.check_in_time && !existing.check_out_time) {
-        return { success: false, error: 'Already checked in today' };
+        return { success: false, error: 'Already checked in. Please check out first.' };
       }
 
       const checkInTime = new Date().toISOString();
       const currentHour = new Date().getHours();
       const status = currentHour >= 10 ? 'late' : 'present'; // Assuming 10 AM is the standard time
 
-      if (existing) {
-        // Update existing record
+      if (existing && existing.check_out_time) {
+        // Already checked out today - this is a new session
+        // Add previous session to sessions array
+        const sessions = existing.sessions || [];
+        sessions.push({
+          checkIn: existing.check_in_time,
+          checkOut: existing.check_out_time
+        });
+
+        // Reset check_in_time for new session, but keep accumulated total_hours and sessions
         await this.db.update('attendance', {
           check_in_time: checkInTime,
-          status,
+          check_out_time: null, // Clear checkout for new session
           work_location: workLocation || 'WFH',
-          notes,
+          notes: notes ? `${existing.notes || ''}\n${notes}` : existing.notes,
+          sessions: JSON.stringify(sessions),
           updated_at: new Date()
         }, { id: existing.id });
       } else {
-        // Create new record
+        // First check-in of the day
         await this.db.insert('attendance', {
           user_id: userId,
           date: today,
           check_in_time: checkInTime,
           status,
           work_location: workLocation || 'WFH',
-          notes
+          notes,
+          total_hours: 0
         });
       }
 
@@ -70,25 +82,33 @@ export class AttendanceService {
   async checkOut(userId: number, notes?: string): Promise<{ success: boolean; error?: string; totalHours?: number }> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       const record = await this.db.get('attendance', { user_id: userId, date: today });
 
       if (!record || !record.check_in_time) {
         return { success: false, error: 'No check-in found for today' };
       }
 
+      if (record.check_out_time) {
+        return { success: false, error: 'Already checked out for this session' };
+      }
+
       const checkOutTime = new Date().toISOString();
       const checkInTime = new Date(record.check_in_time);
-      const totalHours = (new Date(checkOutTime).getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+      const sessionHours = (new Date(checkOutTime).getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+
+      // Add current session hours to existing total_hours (accumulate)
+      const previousTotalHours = record.total_hours || 0;
+      const newTotalHours = previousTotalHours + sessionHours;
 
       await this.db.update('attendance', {
         check_out_time: checkOutTime,
-        total_hours: totalHours,
-        notes,
+        total_hours: newTotalHours, // Accumulate hours
+        notes: notes ? `${record.notes || ''}\n${notes}` : record.notes,
         updated_at: new Date()
       }, { id: record.id });
 
-      return { success: true, totalHours };
+      return { success: true, totalHours: newTotalHours };
     } catch (error) {
       console.error('Check-out error:', error);
       return { success: false, error: 'Failed to check out' };
@@ -109,6 +129,8 @@ export class AttendanceService {
         date: record.date,
         checkInTime: record.check_in_time,
         checkOutTime: record.check_out_time,
+        breakStartTime: record.break_start_time,
+        breakEndTime: record.break_end_time,
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,

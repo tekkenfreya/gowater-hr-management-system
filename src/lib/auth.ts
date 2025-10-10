@@ -1,8 +1,20 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDb } from './supabase';
+import { logger } from './logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'gowater-secret-key-change-in-production';
+// Enforce JWT_SECRET environment variable - no fallback for security
+const JWT_SECRET = (() => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      'CRITICAL: JWT_SECRET environment variable is required and must be at least 32 characters long. ' +
+      'Application cannot start without it for security reasons.'
+    );
+  }
+  return secret;
+})();
+
 const JWT_EXPIRES_IN = '7d';
 
 export interface AuthUser {
@@ -14,6 +26,7 @@ export interface AuthUser {
   position?: string;
   department?: string;
   employeeName?: string;
+  avatar?: string;
 }
 
 export interface LoginResult {
@@ -47,18 +60,34 @@ export class AuthService {
       const existingAdmin = await this.db.get('users', { role: 'admin' });
 
       if (!existingAdmin) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+        // Security: Generate a secure random password instead of hardcoded default
+        const crypto = await import('crypto');
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
         await this.db.insert('users', {
           email: 'admin@gowater.com',
           password_hash: hashedPassword,
           name: 'System Administrator',
           role: 'admin',
-          department: 'IT'
+          department: 'IT',
+          status: 'active'
         });
-        console.log('Default admin account created successfully');
+
+        // IMPORTANT: Log the password ONLY during first-time setup
+        console.log('\n' + '='.repeat(60));
+        console.log('🔒 FIRST-TIME SETUP - DEFAULT ADMIN ACCOUNT CREATED');
+        console.log('='.repeat(60));
+        console.log('Email:    admin@gowater.com');
+        console.log('Password:', randomPassword);
+        console.log('='.repeat(60));
+        console.log('⚠️  SAVE THIS PASSWORD IMMEDIATELY!');
+        console.log('⚠️  CHANGE IT AFTER YOUR FIRST LOGIN!');
+        console.log('⚠️  This password will NOT be shown again.');
+        console.log('='.repeat(60) + '\n');
       }
     } catch (error) {
-      console.error('Error creating default admin:', error);
+      logger.error('Error creating default admin', error);
     }
   }
 
@@ -89,7 +118,8 @@ export class AuthService {
         role: user.role,
         position: user.position,
         department: user.department,
-        employeeName: user.employee_name
+        employeeName: user.employee_name,
+        avatar: user.avatar
       };
 
       const token = jwt.sign(
@@ -100,7 +130,8 @@ export class AuthService {
 
       return { success: true, user: authUser, token };
     } catch (error) {
-      console.error('Login error:', error);
+      logger.error('Login error', error);
+      logger.security('Failed login attempt', { username });
       return { success: false, error: 'Login failed. Please try again.' };
     }
   }
@@ -133,12 +164,13 @@ export class AuthService {
         role: userData.role || 'employee',
         position: userData.position,
         department: userData.department,
-        employee_name: userData.employeeName
+        employee_name: userData.employeeName,
+        status: 'active'
       });
       
       return { success: true, userId: newUser?.id };
     } catch (error) {
-      console.error('Create user error:', error);
+      logger.error('Create user error', error);
       return { success: false, error: 'Failed to create user account' };
     }
   }
@@ -159,10 +191,11 @@ export class AuthService {
         role: user.role,
         position: user.position,
         department: user.department,
-        employeeName: user.employee_name
+        employeeName: user.employee_name,
+        avatar: user.avatar
       };
     } catch (error) {
-      console.error('Token verification error:', error);
+      logger.error('Token verification error', error);
       return null;
     }
   }
@@ -179,10 +212,11 @@ export class AuthService {
         role: user.role,
         position: user.position,
         department: user.department,
-        employeeName: user.employee_name
+        employeeName: user.employee_name,
+        avatar: user.avatar
       }));
     } catch (error) {
-      console.error('Get all users error:', error);
+      logger.error('Get all users error', error);
       return [];
     }
   }
@@ -192,7 +226,7 @@ export class AuthService {
       await this.db.update('users', { status, updated_at: new Date() }, { id: userId });
       return true;
     } catch (error) {
-      console.error('Update user status error:', error);
+      logger.error('Update user status error', error);
       return false;
     }
   }
@@ -215,7 +249,7 @@ export class AuthService {
       }, { id: userId });
       return true;
     } catch (error) {
-      console.error('Delete user error:', error);
+      logger.error('Delete user error', error);
       return false;
     }
   }
@@ -227,6 +261,7 @@ export class AuthService {
     employeeId?: string;
     role?: string;
     position?: string;
+    avatar?: string;
   }): Promise<{ success: boolean; error?: string }> {
     try {
       // Check if employee_id already exists (if provided and different from current user)
@@ -247,11 +282,12 @@ export class AuthService {
       if (profileData.employeeId !== undefined) updateData.employee_id = profileData.employeeId;
       if (profileData.role !== undefined) updateData.role = profileData.role;
       if (profileData.position !== undefined) updateData.position = profileData.position;
+      if (profileData.avatar !== undefined) updateData.avatar = profileData.avatar;
 
       await this.db.update('users', updateData, { id: userId });
       return { success: true };
     } catch (error) {
-      console.error('Update user profile error:', error);
+      logger.error('Update user profile error', error);
       return { success: false, error: 'Failed to update profile' };
     }
   }
@@ -270,9 +306,34 @@ export class AuthService {
         return { success: false, error: 'Current password is incorrect' };
       }
 
-      // Validate new password
-      if (newPassword.length < 6) {
-        return { success: false, error: 'New password must be at least 6 characters long' };
+      // Security: Enhanced password validation
+      if (newPassword.length < 8) {
+        return { success: false, error: 'Password must be at least 8 characters long' };
+      }
+
+      // Check password complexity
+      const hasUpperCase = /[A-Z]/.test(newPassword);
+      const hasLowerCase = /[a-z]/.test(newPassword);
+      const hasNumbers = /\d/.test(newPassword);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+
+      if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+        return {
+          success: false,
+          error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        };
+      }
+
+      // Check against common passwords
+      const commonPasswords = ['password', '12345678', 'qwerty123', 'admin123', 'password123'];
+      if (commonPasswords.includes(newPassword.toLowerCase())) {
+        return { success: false, error: 'Password is too common. Please choose a stronger password' };
+      }
+
+      // Ensure new password is different from current
+      const isSamePassword = await bcrypt.compare(newPassword, user.password_hash);
+      if (isSamePassword) {
+        return { success: false, error: 'New password must be different from current password' };
       }
 
       // Hash new password
@@ -286,7 +347,8 @@ export class AuthService {
 
       return { success: true };
     } catch (error) {
-      console.error('Change password error:', error);
+      logger.error('Change password error', error);
+      logger.audit('password_change_failed', userId);
       return { success: false, error: 'Failed to change password' };
     }
   }

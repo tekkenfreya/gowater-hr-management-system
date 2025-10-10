@@ -252,7 +252,7 @@ export default function AdminPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">{userItem.name}</div>
                           {userItem.employeeName && (
-                            <div className="text-sm text-gray-500">{userItem.employeeName}</div>
+                            <div className="text-sm text-gray-800">{userItem.employeeName}</div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-800">
@@ -437,7 +437,7 @@ export default function AdminPage() {
                           employeeName: ''
                         });
                       }}
-                      className="flex-1 py-2 px-4 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                      className="flex-1 py-2 px-4 border border-gray-300 rounded text-gray-800 font-medium hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
@@ -549,7 +549,7 @@ export default function AdminPage() {
                         setEditingUser(null);
                         setError('');
                       }}
-                      className="flex-1 py-2 px-4 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                      className="flex-1 py-2 px-4 border border-gray-300 rounded text-gray-800 font-medium hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>

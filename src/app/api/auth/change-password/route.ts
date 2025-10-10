@@ -20,15 +20,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json(
-        { success: false, error: 'New password must be at least 6 characters long' },
-        { status: 400 }
-      );
-    }
+    // Note: Password validation now handled in AuthService.changePassword()
+    // which enforces 8+ chars, complexity requirements, etc.
 
-    // Get user from token
-    const token = request.cookies.get('token')?.value;
+    // Get user from token - FIXED: Changed from 'token' to 'auth-token'
+    const token = request.cookies.get('auth-token')?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },

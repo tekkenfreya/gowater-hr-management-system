@@ -95,6 +95,8 @@ export default function SettingsPage() {
   });
 
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -114,7 +116,8 @@ export default function SettingsPage() {
         phone: '', // Would come from additional user data if available
         position: user.position || '',
         department: user.department || '',
-        employeeName: user.employeeName || user.name || ''
+        employeeName: user.employeeName || user.name || '',
+        avatar: user.avatar
       });
     }
   }, [user]);
@@ -129,6 +132,28 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
+      let avatarUrl = profile.avatar;
+
+      // Upload avatar file if there's a new one
+      if (avatarFile) {
+        setUploadingAvatar(true);
+        const formData = new FormData();
+        formData.append('file', avatarFile);
+
+        const uploadResponse = await fetch('/api/files', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          avatarUrl = uploadData.publicUrl || uploadData.filePath;
+        } else {
+          throw new Error('Failed to upload avatar');
+        }
+        setUploadingAvatar(false);
+      }
+
       const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
@@ -138,12 +163,14 @@ export default function SettingsPage() {
           name: `${profile.firstName} ${profile.lastName}`.trim(),
           department: profile.department,
           employeeName: profile.employeeName,
-          position: profile.position // Send position as separate field
+          position: profile.position,
+          avatar: avatarUrl
         }),
       });
 
       if (response.ok) {
         setSuccess('Profile updated successfully!');
+        setAvatarFile(null); // Clear the file after successful upload
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -151,9 +178,10 @@ export default function SettingsPage() {
         setError(data.error || 'Failed to update profile. Please try again.');
       }
     } catch (error) {
-      setError('Failed to update profile. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
+      setUploadingAvatar(false);
     }
   };
 
@@ -294,8 +322,8 @@ export default function SettingsPage() {
         onToggle={toggleSidebar}
       />
 
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
-        <Header 
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-80'}`}>
+        <Header
           user={user} 
           onToggleSidebar={toggleSidebar}
           onLogout={logout}
@@ -346,6 +374,67 @@ export default function SettingsPage() {
               {activeTab === 'profile' && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+
+                  {/* Profile Photo Upload */}
+                  <div className="flex items-center space-x-6 pb-6 border-b border-gray-200">
+                    <div className="relative">
+                      <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                        {profile.avatar ? (
+                          <img src={profile.avatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          <span className="text-white font-bold text-3xl">
+                            {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">Profile Photo</h3>
+                      <div className="flex space-x-3">
+                        <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 transition-colors">
+                          Upload Photo
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                // Validate file size (max 2MB)
+                                if (file.size > 2 * 1024 * 1024) {
+                                  setError('File size must be less than 2MB');
+                                  return;
+                                }
+
+                                // Store the file for upload
+                                setAvatarFile(file);
+
+                                // Show preview
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setProfile({...profile, avatar: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        {profile.avatar && (
+                          <button
+                            onClick={() => {
+                              setProfile({...profile, avatar: undefined});
+                              setAvatarFile(null);
+                            }}
+                            className="bg-white border border-gray-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">JPG, PNG or GIF. Max size 2MB.</p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-800 mb-1">First Name</label>
@@ -424,10 +513,10 @@ export default function SettingsPage() {
                   <div className="flex justify-end">
                     <button
                       onClick={handleProfileSave}
-                      disabled={loading}
+                      disabled={loading || uploadingAvatar}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
                     >
-                      {loading ? 'Saving...' : 'Save Changes'}
+                      {uploadingAvatar ? 'Uploading photo...' : loading ? 'Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </div>

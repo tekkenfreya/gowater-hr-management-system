@@ -36,9 +36,10 @@ export async function GET(request: NextRequest) {
       endDate.toISOString().split('T')[0]
     );
 
-    return NextResponse.json({ 
+    return NextResponse.json({
+      attendance: weeklyAttendance,
       weeklyAttendance,
-      summary 
+      summary
     });
   } catch (error) {
     console.error('Get weekly attendance API error:', error);

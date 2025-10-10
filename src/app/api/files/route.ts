@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: 'File uploaded successfully',
-      file: result.file
+      file: result.file,
+      publicUrl: result.file?.public_url,
+      filePath: result.file?.file_path
     });
 
   } catch (error) {

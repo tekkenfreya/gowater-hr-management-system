@@ -245,7 +245,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
           {/* Recipient Selection */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-800">
                 Select Recipients ({selectedRecipients.length} selected)
               </label>
               <button
@@ -300,7 +300,7 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
 
           {/* Test Message */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-800 mb-2">
               Test Message
             </label>
             <div className="flex space-x-3">

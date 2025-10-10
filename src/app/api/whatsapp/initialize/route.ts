@@ -1,8 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { whatsappService } from '@/lib/whatsapp';
+import { getAuthService } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Security: Require authentication
+    const token = request.cookies.get('auth-token')?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const authService = getAuthService();
+    const user = await authService.verifyToken(token);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
+    // Security: Require admin role for initializing WhatsApp
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions - admin role required' },
+        { status: 403 }
+      );
+    }
+
+    console.log(`WhatsApp initialization requested by user ${user.id} (${user.email})`);
+
     await whatsappService.initialize({
       onQR: (qr: string) => {
         // Store QR code for retrieval

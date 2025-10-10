@@ -162,7 +162,7 @@ export default function TeamLeaveApprovals() {
       personal: 'text-purple-600',
       maternity: 'text-pink-600',
       paternity: 'text-green-600',
-      unpaid: 'text-gray-600'
+      unpaid: 'text-gray-800'
     };
     return colors[type];
   };
@@ -243,7 +243,7 @@ export default function TeamLeaveApprovals() {
                     <ClockIcon className="w-6 h-6 text-yellow-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-semibold text-gray-700">Pending</p>
+                    <p className="text-sm font-semibold text-gray-800">Pending</p>
                     <p className="text-2xl font-bold text-gray-900">{pendingCount}</p>
                   </div>
                 </div>
@@ -255,7 +255,7 @@ export default function TeamLeaveApprovals() {
                     <CheckIcon className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-semibold text-gray-700">Approved</p>
+                    <p className="text-sm font-semibold text-gray-800">Approved</p>
                     <p className="text-2xl font-bold text-gray-900">{approvedCount}</p>
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export default function TeamLeaveApprovals() {
                     <XIcon className="w-6 h-6 text-red-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-semibold text-gray-700">Rejected</p>
+                    <p className="text-sm font-semibold text-gray-800">Rejected</p>
                     <p className="text-2xl font-bold text-gray-900">{rejectedCount}</p>
                   </div>
                 </div>
@@ -279,7 +279,7 @@ export default function TeamLeaveApprovals() {
                     <CalendarIcon className="w-6 h-6 text-blue-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-semibold text-gray-700">Total</p>
+                    <p className="text-sm font-semibold text-gray-800">Total</p>
                     <p className="text-2xl font-bold text-gray-900">{leaveRequests.length}</p>
                   </div>
                 </div>
@@ -340,10 +340,10 @@ export default function TeamLeaveApprovals() {
                               {request.total_days} day{request.total_days > 1 ? 's' : ''}
                             </span>
                           </div>
-                          <div className="text-sm text-gray-700 mb-1">
+                          <div className="text-sm text-gray-800 mb-1">
                             <strong>Dates:</strong> {new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}
                           </div>
-                          <div className="text-sm text-gray-700 mb-2">
+                          <div className="text-sm text-gray-800 mb-2">
                             <strong>Reason:</strong> {request.reason}
                           </div>
                           <div className="text-xs text-gray-800">
@@ -398,15 +398,15 @@ export default function TeamLeaveApprovals() {
 
               <div className="mb-4 p-3 bg-gray-50 rounded border">
                 <p className="text-sm font-medium text-gray-900">{selectedRequest.employee_name}</p>
-                <p className="text-sm text-gray-700">{getLeaveTypeLabel(selectedRequest.leave_type)}</p>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-800">{getLeaveTypeLabel(selectedRequest.leave_type)}</p>
+                <p className="text-sm text-gray-800">
                   {new Date(selectedRequest.start_date).toLocaleDateString()} - {new Date(selectedRequest.end_date).toLocaleDateString()}
                 </p>
-                <p className="text-sm text-gray-700">{selectedRequest.total_days} day{selectedRequest.total_days > 1 ? 's' : ''}</p>
+                <p className="text-sm text-gray-800">{selectedRequest.total_days} day{selectedRequest.total_days > 1 ? 's' : ''}</p>
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-800 mb-2">
                   Comments {modalAction === 'reject' && <span className="text-red-500">*</span>}
                 </label>
                 <textarea
@@ -436,7 +436,7 @@ export default function TeamLeaveApprovals() {
                     setComments('');
                   }}
                   disabled={processingRequest === selectedRequest.id}
-                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-400 transition-colors duration-200 disabled:bg-gray-200"
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded-md font-medium hover:bg-gray-400 transition-colors duration-200 disabled:bg-gray-200"
                 >
                   Cancel
                 </button>

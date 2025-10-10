@@ -384,7 +384,7 @@ export default function FilesPage() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                     selectedCategory === category.id
                       ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                   }`}
                 >
                   {getCategoryIcon(category.id)} {category.name}
@@ -408,7 +408,7 @@ export default function FilesPage() {
                 <button
                   onClick={() => setViewMode('list')}
                   className={`w-10 h-8 flex items-center justify-center ${
-                    viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'
+                    viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
@@ -418,7 +418,7 @@ export default function FilesPage() {
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`w-10 h-8 flex items-center justify-center ${
-                    viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'
+                    viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
@@ -449,11 +449,11 @@ export default function FilesPage() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Size</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Uploaded By</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Size</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Uploaded By</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -464,7 +464,7 @@ export default function FilesPage() {
                           <div className="mr-3">{getFileIcon(file.extension)}</div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">{file.original_name}</div>
-                            <div className="text-sm text-gray-700 capitalize">{file.category}</div>
+                            <div className="text-sm text-gray-800 capitalize">{file.category}</div>
                           </div>
                         </div>
                       </td>
@@ -507,10 +507,10 @@ export default function FilesPage() {
                       <div className="scale-150">{getFileIcon(file.extension)}</div>
                     </div>
                     <div className="text-sm font-medium text-gray-900 truncate mb-1">{file.original_name}</div>
-                    <div className="text-xs text-gray-700 mb-2">
+                    <div className="text-xs text-gray-800 mb-2">
                       {formatFileSize(file.size)}
                     </div>
-                    <div className="text-xs text-gray-700 mb-2">{file.uploadedBy}</div>
+                    <div className="text-xs text-gray-800 mb-2">{file.uploadedBy}</div>
                     <div className="flex justify-center space-x-2">
                       <button 
                         onClick={() => handleDownloadFile(file)}
@@ -536,7 +536,7 @@ export default function FilesPage() {
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📁</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No files found</h3>
-              <p className="text-gray-700">
+              <p className="text-gray-800">
                 {searchQuery ? 'Try adjusting your search criteria.' : 'Upload your first file to get started.'}
               </p>
             </div>
@@ -550,7 +550,7 @@ export default function FilesPage() {
               <h2 className="text-xl font-bold text-gray-900 mb-4">Upload File</h2>
               <form onSubmit={handleFileUpload} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-800 mb-2">
                     Select File (Max 50MB)
                   </label>
                   <input
@@ -571,7 +571,7 @@ export default function FilesPage() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-800 mb-2">
                     Category
                   </label>
                   <select
@@ -599,7 +599,7 @@ export default function FilesPage() {
                   <button
                     type="button"
                     onClick={() => setShowUploadModal(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
                   >
                     Cancel
                   </button>

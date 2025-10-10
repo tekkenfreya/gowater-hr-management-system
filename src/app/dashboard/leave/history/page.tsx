@@ -173,7 +173,7 @@ export default function LeaveHistoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Leave History</h1>
-                <p className="text-gray-700">View and track your leave requests</p>
+                <p className="text-gray-800">View and track your leave requests</p>
               </div>
               <button
                 onClick={() => router.push('/dashboard/leave/apply')}
@@ -197,7 +197,7 @@ export default function LeaveHistoryPage() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-700">Total Requests</p>
+                  <p className="text-sm font-semibold text-gray-800">Total Requests</p>
                   <p className="text-2xl font-bold text-gray-900">{leaveRequests.length}</p>
                 </div>
               </div>
@@ -211,7 +211,7 @@ export default function LeaveHistoryPage() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-700">Pending</p>
+                  <p className="text-sm font-semibold text-gray-800">Pending</p>
                   <p className="text-2xl font-bold text-gray-900">{leaveRequests.filter(r => r.status === 'pending').length}</p>
                 </div>
               </div>
@@ -225,7 +225,7 @@ export default function LeaveHistoryPage() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-700">Approved</p>
+                  <p className="text-sm font-semibold text-gray-800">Approved</p>
                   <p className="text-2xl font-bold text-gray-900">{leaveRequests.filter(r => r.status === 'approved').length}</p>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export default function LeaveHistoryPage() {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-700">Rejected</p>
+                  <p className="text-sm font-semibold text-gray-800">Rejected</p>
                   <p className="text-2xl font-bold text-gray-900">{leaveRequests.filter(r => r.status === 'rejected').length}</p>
                 </div>
               </div>
@@ -302,10 +302,10 @@ export default function LeaveHistoryPage() {
                             {request.days} day{request.days > 1 ? 's' : ''}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-700 mb-1">
+                        <div className="text-sm text-gray-800 mb-1">
                           <strong>Dates:</strong> {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
                         </div>
-                        <div className="text-sm text-gray-700 mb-2">
+                        <div className="text-sm text-gray-800 mb-2">
                           <strong>Reason:</strong> {request.reason}
                         </div>
                         <div className="text-xs text-gray-800">

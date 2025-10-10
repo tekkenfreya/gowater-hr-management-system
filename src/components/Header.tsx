@@ -46,16 +46,23 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
             <MenuIcon />
           </button>
 
-          {/* Current Time */}
-          <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-800">
-            <ClockIcon className="w-4 h-4" />
-            <span>{new Date().toLocaleString() || 'Loading...'}</span>
+          {/* Current Date & Time - Modern Design */}
+          <div className="hidden sm:flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-2.5 rounded-xl border border-blue-100">
+            <ClockIcon className="w-6 h-6 text-blue-600" />
+            <div className="flex flex-col">
+              <span className="text-base font-semibold text-blue-600">
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
+              <span className="text-base font-bold text-blue-700">
+                {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Center Section - Quick Actions */}
         <div className="hidden md:flex items-center space-x-2">
-          <button className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+          <button className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-800 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
             <PlusIcon className="w-4 h-4" />
             <span>Quick Add</span>
           </button>
@@ -77,7 +84,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-800 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative p-2 text-gray-800 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <BellIcon />
               {unreadCount > 0 && (
@@ -100,7 +107,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                   </div>
                   <div className="max-h-64 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-gray-700">
+                      <div className="p-4 text-center text-gray-800">
                         No notifications
                       </div>
                     ) : notifications.map((notification) => (
@@ -140,7 +147,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
           </div>
 
           {/* Export Button */}
-          <button className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+          <button className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-800 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
             <DownloadIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Export</span>
           </button>
@@ -149,20 +156,20 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center space-x-3 p-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center space-x-2 p-2 text-sm font-medium text-gray-800 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium text-sm">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium text-gray-900">
-                  {user?.name}
-                </p>
-                <p className="text-xs text-gray-800">
-                  {user?.position || (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee')}
-                </p>
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-medium text-sm">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
               <ChevronDownIcon />
             </button>
@@ -177,10 +184,18 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                 <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-medium">
-                          {user?.name?.charAt(0).toUpperCase()}
-                        </span>
+                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                        {user?.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt={user.name || 'User'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-white font-medium">
+                            {user?.name?.charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">{user?.name}</p>
@@ -191,7 +206,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                   <div className="py-2">
                     <Link
                       href="/dashboard/profile"
-                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <UserIcon />
@@ -199,7 +214,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                     </Link>
                     <Link
                       href="/dashboard/settings"
-                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <SettingsIcon />
@@ -207,7 +222,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                     </Link>
                     <Link
                       href="/dashboard/help"
-                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <QuestionMarkCircleIcon />

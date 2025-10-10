@@ -43,14 +43,15 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { name, department, employeeName, position } = await request.json();
+    const { name, department, employeeName, position, avatar } = await request.json();
 
     const authService = getAuthService();
     const result = await authService.updateUserProfile(user.id, {
       name,
       department,
       employeeName,
-      position
+      position,
+      avatar
     });
 
     if (!result.success) {

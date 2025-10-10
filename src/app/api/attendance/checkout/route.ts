@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const { notes } = body;
 
     const attendanceService = getAttendanceService();
     const result = await attendanceService.checkOut(user.id, notes);

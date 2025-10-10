@@ -76,7 +76,7 @@ export default function Home() {
                     </svg>
                   </span>
                 </Link>
-                <a href="#features" className="group bg-transparent border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 transform hover:scale-105 min-w-[200px]">
+                <a href="#features" className="group bg-transparent border-2 border-gray-300 text-gray-800 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 transform hover:scale-105 min-w-[200px]">
                   <span className="flex items-center justify-center">
                     Learn More
                     <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +95,7 @@ export default function Home() {
                     </svg>
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">Time Management</h3>
-                  <p className="text-gray-700 text-lg">
+                  <p className="text-gray-800 text-lg">
                     Track your hours, manage attendance, and view your work schedules all in one place
                   </p>
                 </div>
@@ -107,7 +107,7 @@ export default function Home() {
                     </svg>
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">Leave Management</h3>
-                  <p className="text-gray-700 text-lg">
+                  <p className="text-gray-800 text-lg">
                     Request and manage your time off seamlessly with our intuitive leave management system
                   </p>
                 </div>
@@ -119,7 +119,7 @@ export default function Home() {
                     </svg>
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">Team Collaboration</h3>
-                  <p className="text-gray-700 text-lg">
+                  <p className="text-gray-800 text-lg">
                     Connect and work effectively with your colleagues through our collaborative platform
                   </p>
                 </div>

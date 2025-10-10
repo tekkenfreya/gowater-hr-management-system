@@ -1,925 +1,142 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { Task } from '@/types/attendance';
-import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
+import { useAttendance } from '@/contexts/AttendanceContext';
+
+interface TeamMember {
+  id: number;
+  name: string;
+  email: string;
+  employeeId: string;
+  role: string;
+  position: string;
+  department: string;
+  isOnline: boolean;
+  isBoss: boolean;
+}
+
+interface WeeklyAttendanceData {
+  date: string;
+  day: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  totalHours: number;
+  status: 'present' | 'absent' | 'late' | 'on_duty';
+  isWeekend?: boolean;
+  sessions?: Array<{ checkIn: string; checkOut: string }>;
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-
-  // Layout state
+  const { isTimedIn, workDuration, checkInTime, handleTimeIn } = useAttendance();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Tasks state (database-driven)
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // Team members state
+  const [allEmployees, setAllEmployees] = useState<TeamMember[]>([]);
 
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [showTimeOutConfirm, setShowTimeOutConfirm] = useState(false);
-  const [showWorkLocationModal, setShowWorkLocationModal] = useState(false);
-  const [workLocation, setWorkLocation] = useState<'WFH' | 'Onsite'>('WFH');
-  const [originalTasks, setOriginalTasks] = useState<Task[]>([]); // Store original state for cancel
-  const [showEditTaskModal, setShowEditTaskModal] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editTaskForm, setEditTaskForm] = useState({
-    title: '',
-    description: '',
-    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
-  });
-  const [subtaskRemarks, setSubtaskRemarks] = useState<{[taskId: string]: {[subtaskIndex: number]: string}}>({});
-  const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
-  });
+  // Attendance calendar state
+  const [selectedWeek] = useState(new Date());
+  const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
+  const [activeTab, setActiveTab] = useState<'summary' | 'regularization'>('summary');
 
-  // Attendance system
-  const [isTimedIn, setIsTimedIn] = useState(false);
-  const [isOnBreak, setIsOnBreak] = useState(false);
-  const [timeInTime, setTimeInTime] = useState<Date | null>(null);
-  const [timeOutTime, setTimeOutTime] = useState<Date | null>(null);
-  const [workDuration, setWorkDuration] = useState(0); // in seconds
-  const [breakDuration, setBreakDuration] = useState(0); // in seconds
-  const [workInterval, setWorkInterval] = useState<NodeJS.Timeout | null>(null);
-  const [breakInterval, setBreakInterval] = useState<NodeJS.Timeout | null>(null);
-  const [breakRecords, setBreakRecords] = useState<{ startTime: Date, endTime?: Date, duration: number }[]>([]);
+  // Get current week's dates (Sunday to Saturday)
+  const getWeekDates = () => {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const sunday = new Date(today);
 
+    // Calculate days to subtract to get to Sunday
+    sunday.setDate(today.getDate() - currentDay);
 
-  // Timer intervals
-  const [timerIntervals, setTimerIntervals] = useState<{ [key: string]: NodeJS.Timeout }>({});
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) { // Sunday to Saturday
+      const date = new Date(sunday);
+      date.setDate(sunday.getDate() + i);
+      weekDates.push(date);
+    }
+    return weekDates;
+  };
 
-  // Redirect to login if not authenticated (but not while loading)
+  const weekDates = getWeekDates();
+
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && user === null) {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);
 
-  // Fetch tasks when user is available
+  // Fetch team data and weekly attendance
   useEffect(() => {
     if (user) {
-      fetchTasks();
-      fetchTodayAttendance();
-      
-      // Sync break state from localStorage (shared with attendance)
-      const breakState = localStorage.getItem('break-state');
-      if (breakState) {
-        const { isOnBreak: storedIsOnBreak, breakStartTime } = JSON.parse(breakState);
-        if (storedIsOnBreak) {
-          setIsOnBreak(true);
-          
-          if (breakStartTime) {
-            // Calculate current break duration
-            const currentTime = new Date();
-            const startTime = new Date(breakStartTime);
-            const currentBreakDuration = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
-            setBreakDuration(currentBreakDuration);
-            
-            // Start break timer
-            const breakInt = setInterval(() => {
-              setBreakDuration(prev => prev + 1);
-            }, 1000);
-            setBreakInterval(breakInt);
-          }
-        }
-      }
+      fetchWeeklyAttendance();
+      fetchTeamMembers();
     }
   }, [user]);
 
-  // Cleanup intervals on unmount
+  // Update current time every second for live progress bar
   useEffect(() => {
-    return () => {
-      if (workInterval) clearInterval(workInterval);
-      if (breakInterval) clearInterval(breakInterval);
-    };
-  }, [workInterval, breakInterval]);
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const fetchTasks = async () => {
+  const fetchWeeklyAttendance = async () => {
     try {
-      const response = await fetch('/api/tasks');
+      const response = await fetch('/api/attendance/weekly');
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched tasks:', data.tasks);
-        setTasks(data.tasks || []);
-      } else {
-        console.error('Failed to fetch tasks');
+        console.log('Weekly attendance data:', data);
+        console.log('Attendance array:', data.attendance);
+        setWeeklyAttendance(data.attendance || []);
       }
     } catch (error) {
-      console.error('Failed to fetch tasks:', error);
+      console.error('Failed to fetch weekly attendance:', error);
     }
   };
 
-  const fetchTodayAttendance = async () => {
+  const fetchTeamMembers = async () => {
     try {
-      const response = await fetch('/api/attendance');
+      const response = await fetch('/api/team/members');
+      console.log('Team members response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        const attendance = data.attendance;
-        
-        if (attendance && attendance.checkInTime && !attendance.checkOutTime) {
-          // User is already checked in today
-          setIsTimedIn(true);
-          setTimeInTime(new Date(attendance.checkInTime));
-          setTimeOutTime(null);
-          
-          // Calculate work duration from check-in time
-          const checkInTime = new Date(attendance.checkInTime);
-          const currentTime = new Date();
-          const durationInSeconds = Math.floor((currentTime.getTime() - checkInTime.getTime()) / 1000);
-          setWorkDuration(durationInSeconds);
-          
-          // Start work duration timer to continue tracking
-          const interval = setInterval(() => {
-            setWorkDuration(prev => prev + 1);
-          }, 1000);
-          setWorkInterval(interval);
-        } else if (attendance && attendance.checkOutTime) {
-          // User has completed today's shift
-          setIsTimedIn(false);
-          setTimeInTime(new Date(attendance.checkInTime));
-          setTimeOutTime(new Date(attendance.checkOutTime));
-          
-          // Calculate total work duration
-          const checkInTime = new Date(attendance.checkInTime);
-          const checkOutTime = new Date(attendance.checkOutTime);
-          const durationInSeconds = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / 1000);
-          setWorkDuration(durationInSeconds);
-        } else {
-          // No attendance record today
-          setIsTimedIn(false);
-          setTimeInTime(null);
-          setTimeOutTime(null);
-          setWorkDuration(0);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch today\'s attendance:', error);
-    }
-  };
-
-  // Attendance functions
-  const showWorkLocationSelection = () => {
-    setShowWorkLocationModal(true);
-  };
-
-  const timeIn = async () => {
-    try {
-      // Call attendance API to check in with work location
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'checkin',
-          workLocation: workLocation, // Send work location as separate field
-          notes: 'Dashboard check-in'
-        }),
-      });
-
-      if (response.ok) {
-        const now = new Date();
-        setIsTimedIn(true);
-        setTimeInTime(now);
-        setTimeOutTime(null);
-        setWorkDuration(0);
-
-        // Update all pending tasks to "in-progress" in database
-        const pendingTasks = tasks.filter(t => t.status === 'pending');
-        for (const task of pendingTasks) {
-          await updateTaskStatus(task.id, 'in_progress');
-        }
-
-        // Send start report automatically
-        await sendStartReport();
-
-        // Start work duration timer
-        const interval = setInterval(() => {
-          setWorkDuration(prev => prev + 1);
-        }, 1000);
-        setWorkInterval(interval);
-
-        // Close work location modal
-        setShowWorkLocationModal(false);
+        console.log('Team members data:', data);
+        setAllEmployees(data.employees || []);
       } else {
-        const data = await response.json();
-        alert(`Check-in failed: ${data.error}`);
+        console.error('Failed to fetch team members:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Check-in error:', error);
-      alert('Check-in failed. Please try again.');
-    }
-  };
-
-  const requestTimeOut = () => {
-    // Save original tasks state before showing modal for potential restore
-    setOriginalTasks(JSON.parse(JSON.stringify(tasks)));
-    // Show confirmation popup
-    setShowTimeOutConfirm(true);
-  };
-
-  // Save subtask remarks before timeout
-  const saveSubtaskRemarks = async () => {
-    try {
-      // For each task, compile all subtask remarks into a single remarks field
-      const remarkPromises = Object.entries(subtaskRemarks)
-        .map(([taskId, subtaskRemarksObj]) => {
-          // Get the task to access its subtasks
-          const task = tasks.find(t => t.id === taskId);
-          if (!task) return null;
-
-          const subTasks = task.description?.split('\n').filter(line => line.trim()) || [];
-          const compiledRemarks = subTasks.map((subtask, index) => {
-            const remark = subtaskRemarksObj[index];
-            if (remark && remark.trim()) {
-              return `${subtask.replace(/^[•✓]\s*/, '').trim()}: ${remark.trim()}`;
-            }
-            return null;
-          }).filter(Boolean).join('\n');
-
-          if (compiledRemarks) {
-            return fetch('/api/tasks', {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                id: taskId,
-                remarks: compiledRemarks
-              }),
-            });
-          }
-          return null;
-        })
-        .filter(Boolean);
-
-      await Promise.all(remarkPromises);
-    } catch (error) {
-      console.error('Failed to save subtask remarks:', error);
-    }
-  };
-
-  const confirmTimeOut = async () => {
-    try {
-      // Save subtask remarks before timeout
-      await saveSubtaskRemarks();
-
-      // Send EOD report before archiving tasks to capture final states
-      await sendEODReport();
-
-      // Clean up completed subtasks from task descriptions
-      await cleanupCompletedSubtasks();
-
-      // Archive completed tasks before checking out to keep history clean
-      await archiveCompletedTasks();
-
-      // Call attendance API to check out
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'checkout',
-          notes: 'Dashboard check-out'
-        }),
-      });
-
-      if (response.ok) {
-        const now = new Date();
-        setIsTimedIn(false);
-        setIsOnBreak(false);
-        setTimeOutTime(now);
-        setShowTimeOutConfirm(false);
-
-        // Stop work duration timer
-        if (workInterval) {
-          clearInterval(workInterval);
-          setWorkInterval(null);
-        }
-
-        // Stop break timer if running
-        if (breakInterval) {
-          clearInterval(breakInterval);
-          setBreakInterval(null);
-        }
-
-        // Clear subtask remarks after successful timeout
-        setSubtaskRemarks({});
-
-        // Refresh tasks to reflect archived status
-        await fetchTasks();
-
-        const data = await response.json();
-        if (data.totalHours) {
-          alert(`Successfully checked out. Total work hours: ${data.totalHours.toFixed(2)}`);
-        }
-      } else {
-        const data = await response.json();
-        alert(`Check-out failed: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Check-out error:', error);
-      alert('Check-out failed. Please try again.');
-    }
-  };
-
-  const cancelTimeOut = async () => {
-    // Restore original task states using existing updateTaskStatus function
-    try {
-      for (const originalTask of originalTasks) {
-        const currentTask = tasks.find(t => t.id === originalTask.id);
-        if (currentTask) {
-          // Restore status if changed
-          if (currentTask.status !== originalTask.status) {
-            await updateTaskStatus(originalTask.id, originalTask.status);
-          }
-
-          // Restore description (sub-tasks) if changed
-          if (currentTask.description !== originalTask.description) {
-            const response = await fetch('/api/tasks', {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                id: originalTask.id,
-                description: originalTask.description
-              }),
-            });
-            if (response.ok) {
-              await fetchTasks();
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to restore original task states:', error);
-    }
-
-    // Clear any unsaved remarks
-    setSubtaskRemarks({});
-
-    setShowTimeOutConfirm(false);
-  };
-
-  // Archive completed tasks to avoid errors and keep history clean
-  // Only archive tasks where ALL sub-tasks are completed
-  const cleanupCompletedSubtasks = async () => {
-    try {
-      for (const task of tasks) {
-        if (task.description && task.status !== 'archived') {
-          const lines = task.description.split('\n').filter(line => line.trim());
-          // Keep only incomplete subtasks (those that don't start with ✓)
-          const remainingSubtasks = lines.filter(line => !line.trim().startsWith('✓'));
-
-          // Only update if there are changes
-          if (remainingSubtasks.length !== lines.length) {
-            // Remove bullets from remaining subtasks to prevent double bullets when task starts again
-            const cleanedSubtasks = remainingSubtasks.map(line =>
-              line.replace(/^[•✓]\s*/, '').trim()
-            );
-            const newDescription = cleanedSubtasks.join('\n');
-
-            // Update task description via API
-            await fetch('/api/tasks', {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                id: task.id,
-                description: newDescription
-              }),
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to cleanup completed subtasks:', error);
-    }
-  };
-
-  const archiveCompletedTasks = async () => {
-    try {
-      // Helper function to check if all sub-tasks are completed
-      const areAllSubTasksCompleted = (description: string) => {
-        if (!description) return true; // No sub-tasks = fully completed
-
-        const lines = description.split('\n').filter(line => line.trim());
-        if (lines.length === 0) return true;
-
-        // Check if all lines are marked as completed (start with ✓)
-        return lines.every(line => line.trim().startsWith('✓'));
-      };
-
-      const fullyCompletedTasks = tasks.filter(task =>
-        (task.status === 'completed' || areAllSubTasksCompleted(task.description)) && task.status !== 'archived'
-      );
-
-      for (const task of fullyCompletedTasks) {
-        await updateTaskStatus(task.id, 'archived');
-      }
-
-      if (fullyCompletedTasks.length > 0) {
-        console.log(`Archived ${fullyCompletedTasks.length} fully completed tasks`);
-      }
-    } catch (error) {
-      console.error('Failed to archive completed tasks:', error);
-    }
-  };
-
-  const startBreak = async () => {
-    try {
-      const response = await fetch('/api/attendance/break/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const now = new Date();
-        setIsOnBreak(true);
-
-        // Save break state to localStorage (shared with attendance)
-        localStorage.setItem('break-state', JSON.stringify({
-          isOnBreak: true,
-          breakDuration: 0,
-          breakStartTime: now.toISOString()
-        }));
-
-        // Add new break record
-        const newBreakRecord = {
-          startTime: now,
-          duration: 0
-        };
-        setBreakRecords(prev => [...prev, newBreakRecord]);
-
-        // Stop work timer
-        if (workInterval) {
-          clearInterval(workInterval);
-          setWorkInterval(null);
-        }
-
-        // Start break timer
-        const interval = setInterval(() => {
-          setBreakDuration(prev => prev + 1);
-          // Update the current break record duration
-          setBreakRecords(prev => {
-            const updated = [...prev];
-            if (updated.length > 0) {
-              updated[updated.length - 1].duration += 1;
-            }
-            return updated;
-          });
-        }, 1000);
-        setBreakInterval(interval);
-      } else {
-        const data = await response.json();
-        alert(`Failed to start break: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Start break error:', error);
-      alert('Failed to start break. Please try again.');
-    }
-  };
-
-  const endBreak = async () => {
-    try {
-      const response = await fetch('/api/attendance/break/end', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setIsOnBreak(false);
-
-        // Clear break state from localStorage (shared with attendance)
-        localStorage.removeItem('break-state');
-
-        // Complete the current break record
-        const now = new Date();
-        setBreakRecords(prev => {
-          const updated = [...prev];
-          if (updated.length > 0 && !updated[updated.length - 1].endTime) {
-            updated[updated.length - 1].endTime = now;
-          }
-          return updated;
-        });
-
-        // Stop break timer
-        if (breakInterval) {
-          clearInterval(breakInterval);
-          setBreakInterval(null);
-        }
-
-        // Resume work timer
-        const interval = setInterval(() => {
-          setWorkDuration(prev => prev + 1);
-        }, 1000);
-        setWorkInterval(interval);
-      } else {
-        const data = await response.json();
-        alert(`Failed to end break: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('End break error:', error);
-      alert('Failed to end break. Please try again.');
-    }
-  };
-
-  // Check if user can time out (encourage task status updates)
-  const canTimeOut = () => {
-    // Must have tasks to time out
-    if (tasks.length === 0) return false;
-
-    // Can always time out, but encourage users to update task statuses
-    // This is more flexible - some tasks might be left as pending for next day
-    return true;
-  };
-
-  // Get warning message for time out
-  const getTimeOutWarning = () => {
-    const pendingTasks = tasks.filter(t => t.status === 'pending').length;
-    if (pendingTasks > 0) {
-      return `You have ${pendingTasks} pending task(s). Consider updating their status before timing out.`;
-    }
-    return 'End your work day';
-  };
-
-  // Send Start Report to WhatsApp
-  const sendStartReport = async () => {
-
-    const today = new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const timeInStr = timeInTime ? timeInTime.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }) : new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-
-    // Create task list for start of work - exclude completed and archived tasks
-    const activeTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'archived');
-    const taskList = activeTasks.map((task, index) => {
-      let taskText = `${index + 1}. ${task.title}`;
-      if (task.description) {
-        // Split description by line breaks and format as subtasks
-        const subtasks = task.description.split('\n').filter(line => line.trim());
-        const formattedSubtasks = subtasks.map(subtask => `   • ${subtask.trim()}`).join('\n');
-        taskText += `\n${formattedSubtasks}`;
-      }
-      return taskText;
-    });
-
-    // Get employee name and position from user profile
-    const employeeName = user?.employeeName || user?.name;
-    const employeePosition = user?.position || '';
-
-    const report = `*GoWater Tasks Report*
-
-Date: ${today}
-Time In: ${timeInStr}
-Employee: ${employeeName}
-Position: ${employeePosition}
-
-*Today's Tasks:*
-${taskList.length > 0 ? taskList.join('\n') : 'No tasks scheduled for today'}`;
-
-    await simpleWhatsAppService.sendReport(report, 'start');
-  };
-
-  // Send EOD Report to WhatsApp
-  // Delete today's attendance (for testing)
-  const deleteAttendance = async () => {
-    if (!confirm('Are you sure you want to delete today\'s attendance record? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          notes: 'Testing - delete attendance'
-        }),
-      });
-
-      if (response.ok) {
-        // Reset all state
-        setIsTimedIn(false);
-        setIsOnBreak(false);
-        setTimeInTime(null);
-        setTimeOutTime(null);
-        setWorkDuration(0);
-        setBreakDuration(0);
-        setBreakRecords([]);
-        
-        // Clear any running timers
-        if (workInterval) {
-          clearInterval(workInterval);
-          setWorkInterval(null);
-        }
-        if (breakInterval) {
-          clearInterval(breakInterval);
-          setBreakInterval(null);
-        }
-
-        alert('Today\'s attendance record deleted successfully! You can now time in again.');
-      } else {
-        const data = await response.json();
-        alert(`Delete failed: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Delete attendance error:', error);
-      alert('Failed to delete attendance. Please try again.');
-    }
-  };
-
-  const sendEODReport = async () => {
-
-    const today = new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const timeInStr = timeInTime ? timeInTime.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }) : 'N/A';
-
-    const timeOutStr = timeOutTime ? timeOutTime.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }) : new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-
-    // Filter out archived tasks for EOD report (same as start report logic)
-    const activeTasks = tasks.filter(task => task.status !== 'archived');
-    const taskList = activeTasks.map((task, index) => {
-      let taskText = `${index + 1}. ${task.title}`;
-      if (task.description) {
-        // Split description by line breaks and format as subtasks with status and remarks
-        const subtasks = task.description.split('\n').filter(line => line.trim());
-        const taskSubtaskRemarks = subtaskRemarks[task.id];
-
-        const formattedSubtasks = subtasks.map((subtask, index) => {
-          const cleanSubtask = subtask.replace(/^[•✓]\s*/, '').trim();
-          const isCompleted = subtask.trim().startsWith('✓');
-          const status = isCompleted ? '(done)' : '(ongoing)';
-          let subtaskLine = `   • ${cleanSubtask} ${status}`;
-
-          // Add remark if it exists for this subtask
-          const remark = taskSubtaskRemarks?.[index];
-          if (remark && remark.trim()) {
-            subtaskLine += `\n     ${remark.trim()}`;
-          }
-
-          return subtaskLine;
-        }).join('\n');
-        taskText += `\n${formattedSubtasks}`;
-      }
-
-      return taskText;
-    });
-
-    const totalWorkTime = formatTime(workDuration);
-    const totalBreakTime = formatTime(breakDuration);
-
-    // Format break records
-    const breakRecordsText = breakRecords.length > 0
-      ? `\n*Break Sessions (${breakRecords.length}):*\n` +
-      breakRecords.map((record, index) => {
-        const startTime = record.startTime.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        const endTime = record.endTime ? record.endTime.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        }) : 'Ongoing';
-        const duration = formatTime(record.duration);
-        return `${index + 1}. ${startTime} - ${endTime} (${duration})`;
-      }).join('\n')
-      : '';
-
-    const completedTasks = activeTasks.filter(t => t.status === 'completed').length;
-    const totalTasks = activeTasks.length;
-
-    // Get employee name and position from user profile
-    const employeeName = user?.employeeName || user?.name;
-    const employeePosition = user?.position || '';
-
-    const report = `*GoWater EOD Report*
-
-Date: ${today}
-Time In: ${timeInStr}
-Time Out: ${timeOutStr}
-Employee: ${employeeName}
-Position: ${employeePosition}
-
-*Today's Tasks:*
-${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
-`;
-
-    await simpleWhatsAppService.sendReport(report, 'eod');
-  };
-
-  const addTask = async (e?: React.MouseEvent) => {
-    // Prevent any default behavior if event is passed
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    if (!newTask.title.trim()) return;
-
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: newTask.title,
-          description: newTask.description,
-          priority: newTask.priority
-        }),
-      });
-
-      if (response.ok) {
-        const newTaskData = await response.json();
-        console.log('New task created:', newTaskData);
-        setNewTask({ title: '', description: '', priority: 'medium' });
-        setShowAddTask(false);
-        fetchTasks(); // Refresh tasks from database
-        console.log('Task added successfully - staying on dashboard');
-      } else {
-        console.error('Failed to create task');
-      }
-    } catch (error) {
-      console.error('Failed to create task:', error);
-    }
-  };
-
-  const updateTaskStatus = async (id: string, status: Task['status']) => {
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id, status }),
-      });
-
-      if (response.ok) {
-        fetchTasks(); // Refresh tasks from database
-      } else {
-        console.error('Failed to update task status');
-      }
-    } catch (error) {
-      console.error('Failed to update task status:', error);
-    }
-  };
-
-  const deleteTask = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) {
-      return;
-    }
-
-    try {
-      // Stop timer if running
-      if (timerIntervals[id]) {
-        clearInterval(timerIntervals[id]);
-        setTimerIntervals(prev => {
-          const newIntervals = { ...prev };
-          delete newIntervals[id];
-          return newIntervals;
-        });
-      }
-
-      const response = await fetch(`/api/tasks?id=${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchTasks(); // Refresh tasks from database
-      } else {
-        console.error('Failed to delete task');
-      }
-    } catch (error) {
-      console.error('Failed to delete task:', error);
-    }
-  };
-
-  const editTask = (task: Task) => {
-    setEditingTask(task);
-    setEditTaskForm({
-      title: task.title,
-      description: task.description || '',
-      priority: task.priority
-    });
-    setShowEditTaskModal(true);
-  };
-
-  const handleUpdateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingTask) return;
-
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: editingTask.id,
-          title: editTaskForm.title,
-          description: editTaskForm.description,
-          priority: editTaskForm.priority
-        }),
-      });
-
-      if (response.ok) {
-        setShowEditTaskModal(false);
-        setEditingTask(null);
-        setEditTaskForm({
-          title: '',
-          description: '',
-          priority: 'medium'
-        });
-        fetchTasks(); // Refresh tasks from database
-      } else {
-        console.error('Failed to update task');
-      }
-    } catch (error) {
-      console.error('Failed to update task:', error);
+      console.error('Failed to fetch team members:', error);
     }
   };
 
   const formatTime = (seconds: number) => {
-    const safeSeconds = seconds || 0;
-    const hours = Math.floor(safeSeconds / 3600);
-    const minutes = Math.floor((safeSeconds % 3600) / 60);
-    const secs = safeSeconds % 60;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getPriorityColor = (priority: 'low' | 'medium' | 'high' | 'urgent') => {
-    switch (priority) {
-      case 'urgent': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
+  const getInitials = (name: string) => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
     }
+    return name.substring(0, 2).toUpperCase();
   };
 
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
-
-  // Show loading while verifying authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-800">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
 
   if (!user) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
@@ -931,9 +148,136 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
         onToggle={toggleSidebar}
       />
 
+      {/* Profile Card - Fixed next to sidebar */}
+      {!sidebarCollapsed && (
+        <div className="hidden lg:flex flex-col fixed left-[336px] top-[88px] bottom-6 w-80 z-20">
+          {/* User Profile Card */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-4">
+            <div className="flex justify-center mb-4">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-bold text-3xl">
+                    {user?.name ? getInitials(user.name) : 'U'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="text-center mb-4">
+              <p className="text-lg font-bold text-gray-900">
+                {user?.employeeId || 'N/A'} - {user?.name}
+              </p>
+              <p className="text-sm text-gray-600">{user?.position || user?.role}</p>
+            </div>
+
+            <div className="text-center mb-4">
+              {!isTimedIn ? (
+                <p className="text-red-500 font-medium text-sm">Yet to check-in</p>
+              ) : (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <p className="text-green-600 font-medium text-sm">Working</p>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center mb-4">
+              <p className="text-3xl font-mono font-bold text-gray-900">
+                {formatTime(workDuration)}
+              </p>
+            </div>
+
+            {/* Check In/Out Button */}
+            {!isTimedIn ? (
+              <button
+                onClick={handleTimeIn}
+                className="w-full py-3 rounded-lg font-medium transition-colors bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg"
+              >
+                Check In
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to check out?')) {
+                    fetch('/api/attendance/checkout', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ notes: '' })
+                    }).then(() => {
+                      window.location.reload();
+                    });
+                  }
+                }}
+                className="w-full py-3 rounded-lg font-medium transition-colors bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-lg"
+              >
+                Check Out
+              </button>
+            )}
+          </div>
+
+          {/* Team Status Box - Full Height */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700">Team Status</h3>
+              <p className="text-xs text-gray-500 mt-1">{allEmployees.length} employees</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {allEmployees.length > 0 ? (
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {allEmployees.map((employee) => (
+                      <div key={employee.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div className={`w-12 h-12 bg-gradient-to-br ${
+                          employee.isBoss
+                            ? 'from-purple-500 to-purple-600'
+                            : 'from-blue-500 to-blue-600'
+                        } rounded-full flex items-center justify-center flex-shrink-0 shadow-md`}>
+                          <span className="text-white font-semibold text-base">
+                            {getInitials(employee.name)}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {employee.name}
+                            </p>
+                            {employee.isBoss && (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">
+                                Boss
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{employee.employeeId} • {employee.position}</p>
+                          <div className="flex items-center mt-1">
+                            <div className={`w-2 h-2 rounded-full mr-2 ${employee.isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-400'}`}></div>
+                            <p className={`text-xs font-medium ${employee.isOnline ? 'text-green-600' : 'text-red-500'}`}>
+                              {employee.isOnline ? 'Working' : 'Not yet signed in'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                  No employees found
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
-        {/* Header */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-80'}`}>
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
@@ -942,799 +286,237 @@ ${taskList.length > 0 ? taskList.join('\n') : 'No tasks for today'}
 
         {/* Dashboard Content */}
         <main className="p-6">
-          {/* Quick Stats */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-gray-700 font-medium">Welcome back, {user?.name}! Here&apos;s your work overview for today.</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setShowAddTask(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span>Add Task</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Attendance Controls Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Attendance</h2>
-              <div className="flex items-center space-x-2">
-                {!isTimedIn ? (
+          <div className={!sidebarCollapsed ? 'lg:ml-80' : ''}>
+            {/* Attendance Calendar View */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              {/* Tabs */}
+              <div className="border-b border-gray-200 px-6 pt-4">
+                <div className="flex space-x-8">
                   <button
-                    onClick={showWorkLocationSelection}
-                    disabled={tasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked').length === 0}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2 ${tasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked').length > 0
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : 'bg-gray-300 text-gray-800 cursor-not-allowed'
-                      }`}
-                    title={tasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked').length === 0 ? 'Add tasks first before timing in' : 'Start your work day'}
+                    onClick={() => setActiveTab('summary')}
+                    className={`pb-3 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'summary'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Time In</span>
+                    Attendance Summary
                   </button>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    {isOnBreak ? (
-                      <>
-                        <div className="text-sm text-orange-600 font-medium flex items-center space-x-1">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                          <span>Break: {formatTime(breakDuration || 0)}</span>
-                        </div>
-                        <button
-                          onClick={endBreak}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>Resume Work</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-green-600 font-medium flex items-center space-x-1">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span>Working: {formatTime(workDuration || 0)}</span>
-                        </div>
-                        <button
-                          onClick={startBreak}
-                          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a8.966 8.966 0 008.354-5.646z" />
-                          </svg>
-                          <span>Break</span>
-                        </button>
-                        <button
-                          onClick={requestTimeOut}
-                          disabled={!canTimeOut()}
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2 ${canTimeOut()
-                              ? 'bg-red-600 hover:bg-red-700 text-white'
-                              : 'bg-gray-300 text-gray-800 cursor-not-allowed'
-                            }`}
-                          title={getTimeOutWarning()}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>Time Out</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-            </div>
-
-            {/* WhatsApp Reports Section */}
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-              <div className="text-sm text-gray-800">
-                <span className="font-medium">WhatsApp Reports:</span> Send attendance reports with one click
-              </div>
-              <div className="flex items-center space-x-2">
-                {isTimedIn && (
                   <button
-                    onClick={sendStartReport}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
-                    title="Send start of work report to WhatsApp group"
+                    onClick={() => setActiveTab('regularization')}
+                    className={`pb-3 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'regularization'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.700" />
-                    </svg>
-                    <span>Send Start Report</span>
+                    Regularization
                   </button>
-                )}
-
-                <button
-                  onClick={sendEODReport}
-                  disabled={isTimedIn || !timeOutTime}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2 ${
-                    !isTimedIn && timeOutTime
-                      ? 'bg-green-500 hover:bg-green-600 text-white'
-                      : 'bg-gray-300 text-gray-800 cursor-not-allowed'
-                  }`}
-                  title={!isTimedIn && timeOutTime ? "Send end of day report to WhatsApp group" : "Complete your shift first before sending EOD report"}
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.700" />
-                  </svg>
-                  <span>Send EOD Report</span>
-                </button>
-
-                <button
-                  onClick={deleteAttendance}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
-                  title="Delete today's attendance record (for testing)"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  <span>Delete Attendance</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Today&apos;s Tasks</p>
-                  <p className="text-2xl font-bold text-gray-900">{tasks?.length || 0}</p>
-                </div>
-                <div className="bg-blue-100 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">In Progress</p>
-                  <p className="text-2xl font-bold text-blue-600">{tasks?.filter(t => t.status === 'in_progress')?.length || 0}</p>
-                </div>
-                <div className="bg-yellow-100 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{tasks?.filter(t => t.status === 'completed')?.length || 0}</p>
-                </div>
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Work Duration</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {formatTime(workDuration || 0)}
+              {/* Calendar Content */}
+              <div className="p-6">
+                {/* General shift info */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    General [<span className="font-medium">12:00 AM - 12:00 AM</span>]
                   </p>
-                  <p className="text-xs text-gray-800 mt-1">
-                    Break: {Math.floor((breakDuration || 0) / 60)} min
-                  </p>
-                  {breakRecords && breakRecords.length > 0 && (
-                    <p className="text-xs text-gray-800">
-                      Break Sessions: {breakRecords.length}
-                    </p>
-                  )}
-                  {timeInTime && (
-                    <p className="text-xs text-gray-800">
-                      Started: {timeInTime.toLocaleTimeString()}
-                    </p>
-                  )}
                 </div>
-                <div className="bg-purple-100 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Unfinished Tasks Section - Only shown after timeout scenarios */}
-          {/* This section is removed to prevent showing ongoing tasks immediately */}
-          {/* Tasks are displayed in the regular task grid below */}
+                {/* Week calendar */}
+                <div className="space-y-2 relative">
+                  {weekDates.map((date) => {
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    const dayNumber = date.getDate();
+                    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+                    const isSunday = dayOfWeek === 0;
+                    const isToday = date.toDateString() === currentTime.toDateString();
 
-          {/* Tasks Grid */}
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Today Tasks</h2>
-            <button
-              onClick={() => router.push('/dashboard/tasks')}
-              className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors duration-200 flex items-center space-x-1"
-            >
-              <span>View All Tasks</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* To Do */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                  <div className="w-3 h-3 bg-gray-400 rounded-full mr-3"></div>
-                  Pending ({tasks.filter(t => t.status === 'pending').length})
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                {tasks.filter(t => t.status === 'pending').length === 0 ? (
-                  <p className="text-gray-800 text-center py-4">No pending tasks</p>
-                ) : (
-                  tasks.filter(t => t.status === 'pending').map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onStatusChange={updateTaskStatus}
-                      onDeleteTask={deleteTask}
-                      onEditTask={editTask}
-                      getPriorityColor={getPriorityColor}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+                    // Check for saved attendance data for this day
+                    const savedAttendance = weeklyAttendance.find(a => {
+                      const attDate = new Date(a.date);
+                      return attDate.toDateString() === date.toDateString();
+                    });
 
-            {/* In Progress */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
-                  Ongoing ({tasks.filter(t => t.status === 'in_progress').length})
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                {tasks.filter(t => t.status === 'in_progress').map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onStatusChange={updateTaskStatus}
-                    onDeleteTask={deleteTask}
-                    onEditTask={editTask}
-                    getPriorityColor={getPriorityColor}
-                  />
-                ))}
-              </div>
-            </div>
+                    // Live calculation based on actual check-in time (only for today while clocked in)
+                    const hasLiveAttendance = !isSunday && isToday && isTimedIn && checkInTime;
+                    const hasSavedAttendance = savedAttendance && (savedAttendance.checkInTime || savedAttendance.sessions);
 
-            {/* Completed */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                  Done ({tasks.filter(t => t.status === 'completed').length})
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                {tasks.filter(t => t.status === 'completed').map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onStatusChange={updateTaskStatus}
-                    onDeleteTask={deleteTask}
-                    onEditTask={editTask}
-                    getPriorityColor={getPriorityColor}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+                    // Build sessions array for display (includes past sessions + current live session)
+                    const displaySessions: Array<{checkIn: Date, checkOut: Date | null, isLive: boolean}> = [];
 
-          {/* Add Task Modal */}
-          {showAddTask && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Add Task</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1">Title</label>
-                    <input
-                      type="text"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter task title"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1">Description</label>
-                    <textarea
-                      value={newTask.description}
-                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Enter task description"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1">Priority</label>
-                    <select
-                      value={newTask.priority}
-                      onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={(e) => addTask(e)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200"
-                  >
-                    Add Task
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddTask(false)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Edit Task Modal */}
-          {showEditTaskModal && editingTask && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Task</h3>
-                <form onSubmit={handleUpdateTask} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1">Title</label>
-                    <input
-                      type="text"
-                      value={editTaskForm.title}
-                      onChange={(e) => setEditTaskForm({ ...editTaskForm, title: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter task title"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1">Description / Subtasks</label>
-                    <textarea
-                      value={editTaskForm.description}
-                      onChange={(e) => setEditTaskForm({ ...editTaskForm, description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={6}
-                      placeholder="Enter task description or subtasks (use • for new subtasks, ✓ for completed)"
-                    />
-                    <p className="text-xs text-gray-600 mt-1">
-                      Use • for new subtasks, ✓ for completed ones. Add remarks or explanations for work done.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1">Priority</label>
-                    <select
-                      value={editTaskForm.priority}
-                      onChange={(e) => setEditTaskForm({ ...editTaskForm, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowEditTaskModal(false);
-                        setEditingTask(null);
-                        setEditTaskForm({
-                          title: '',
-                          description: '',
-                          priority: 'medium'
+                    if (hasSavedAttendance) {
+                      // Add completed sessions from history
+                      const sessions = savedAttendance.sessions || [];
+                      if (Array.isArray(sessions)) {
+                        sessions.forEach((session: { checkIn: string; checkOut: string }) => {
+                          displaySessions.push({
+                            checkIn: new Date(session.checkIn),
+                            checkOut: new Date(session.checkOut),
+                            isLive: false
+                          });
                         });
-                      }}
-                      className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                    >
-                      Update Task
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Time Out Confirmation Modal */}
-          {showTimeOutConfirm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
-                <h3 className="text-xl font-semibold mb-4 text-center">Confirm End of Work Day</h3>
-                <p className="text-gray-800 text-center mb-6">
-                  Please confirm the status of your tasks before timing out:
-                </p>
-
-                <div className="space-y-4 mb-6">
-                  {tasks.filter(task => task.status !== 'archived').map((task) => {
-                    // Parse sub-tasks to show progress in timeout modal
-                    const parseSubTasks = (description: string) => {
-                      if (!description) return [];
-                      return description.split('\n')
-                        .filter(line => line.trim())
-                        .map(line => ({
-                          text: line.replace(/^[•✓]\s*/, '').trim(),
-                          completed: line.trim().startsWith('✓')
-                        }));
-                    };
-
-                    // Toggle sub-task completion during timeout (using existing API)
-                    const toggleSubTaskInModal = async (taskId: string, taskDescription: string, index: number) => {
-                      const subTasks = parseSubTasks(taskDescription);
-                      subTasks[index].completed = !subTasks[index].completed;
-
-                      const newDescription = subTasks
-                        .map(st => `${st.completed ? '✓' : '•'} ${st.text}`)
-                        .join('\n');
-
-                      try {
-                        const response = await fetch('/api/tasks', {
-                          method: 'PUT',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({
-                            id: taskId,
-                            description: newDescription
-                          }),
-                        });
-
-                        if (response.ok) {
-                          fetchTasks();
-                        }
-                      } catch (error) {
-                        console.error('Failed to update sub-task:', error);
                       }
-                    };
 
-                    const subTasks = parseSubTasks(task.description);
-                    const completedSubTasks = subTasks.filter(st => st.completed).length;
+                      // Add current session (either live or completed)
+                      if (savedAttendance.checkInTime) {
+                        let currentCheckOut: Date | null = null;
+                        if (!hasLiveAttendance && savedAttendance.checkOutTime) {
+                          currentCheckOut = new Date(savedAttendance.checkOutTime);
+                        }
+                        displaySessions.push({
+                          checkIn: new Date(savedAttendance.checkInTime),
+                          checkOut: currentCheckOut,
+                          isLive: Boolean(hasLiveAttendance)
+                        });
+                      }
+                    }
+
+                    const hoursWorked = savedAttendance?.totalHours ?
+                      formatTime(Math.floor(savedAttendance.totalHours * 3600)) :
+                      (hasLiveAttendance ? formatTime(workDuration) : '00:00:00');
+
+                    const hasAttendance = displaySessions.length > 0;
 
                     return (
-                      <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2">
-                              <h4 className="font-medium text-gray-900">{task.title}</h4>
-                              {subTasks.length > 0 && (
-                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                  {completedSubTasks}/{subTasks.length} completed
-                                </span>
-                              )}
+                      <div
+                        key={date.toISOString()}
+                        className={`flex items-center py-4 border-b border-gray-100 ${
+                          isSunday ? 'bg-yellow-50' : ''
+                        } ${isToday ? 'bg-blue-50' : ''}`}
+                      >
+                        <div className="w-16 text-sm font-medium text-gray-700">{dayName}</div>
+                        <div className="w-12 text-sm text-gray-600">{dayNumber < 10 ? `0${dayNumber}` : dayNumber}</div>
+                        <div className="flex-1 px-2">
+                          {isSunday ? (
+                            <div className="flex items-center justify-center py-8">
+                              <span className="text-yellow-600 text-sm font-medium">Rest Day</span>
                             </div>
-                            {subTasks.length > 0 ? (
-                              <div className="mt-2 space-y-3">
-                                {subTasks.map((subTask, index) => (
-                                  <div key={index} className="space-y-1">
-                                    <div className="flex items-center space-x-2">
-                                      <button
-                                        onClick={() => toggleSubTaskInModal(task.id, task.description, index)}
-                                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                          subTask.completed
-                                            ? 'bg-green-500 border-green-500 text-white'
-                                            : 'border-gray-300 hover:border-gray-400'
-                                        }`}
-                                      >
-                                        {subTask.completed && (
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        )}
-                                      </button>
-                                      <span className={`text-sm ${
-                                        subTask.completed ? 'line-through text-gray-500' : 'text-gray-800'
-                                      }`}>
-                                        {subTask.text} {subTask.completed ? '(done)' : '(ongoing)'}
-                                      </span>
-                                    </div>
-                                    {/* Remarks field under each subtask */}
-                                    <div className="ml-6">
-                                      <label className="block text-xs text-gray-600 mb-1">
-                                        remarks:
-                                      </label>
-                                      <textarea
-                                        value={subtaskRemarks[task.id]?.[index] || ''}
-                                        onChange={(e) => setSubtaskRemarks(prev => ({
-                                          ...prev,
-                                          [task.id]: {
-                                            ...prev[task.id],
-                                            [index]: e.target.value
-                                          }
-                                        }))}
-                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                                        rows={1}
-                                        placeholder="What was accomplished for this subtask..."
-                                      />
-                                    </div>
+                          ) : (
+                            <div className="relative h-10 bg-gray-100 rounded-lg overflow-hidden">
+                              {/* Time grid lines (every 3 hours) */}
+                              {[0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5].map((percent) => (
+                                <div
+                                  key={percent}
+                                  className="absolute top-0 bottom-0 w-px bg-gray-200"
+                                  style={{ left: `${percent}%` }}
+                                />
+                              ))}
+
+                              {/* Check-in time labels above bars */}
+                              {hasAttendance && displaySessions.map((session, sessionIndex) => {
+                                const checkInHour = session.checkIn.getHours() + session.checkIn.getMinutes() / 60;
+                                const checkInPercent = (checkInHour / 24) * 100;
+
+                                return (
+                                  <div
+                                    key={`label-${sessionIndex}`}
+                                    className="absolute -top-5 text-xs text-gray-600 font-medium"
+                                    style={{ left: `${checkInPercent}%` }}
+                                  >
+                                    {session.checkIn.toLocaleTimeString('en-US', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: true
+                                    })}
                                   </div>
-                                ))}
-                              </div>
-                            ) : task.description && (
-                              <p className="text-sm text-gray-800 mt-1">{task.description}</p>
-                            )}
-                          </div>
-                          <select
-                            value={task.status}
-                            onChange={(e) => updateTaskStatus(task.id, e.target.value as Task['status'])}
-                            className="ml-4 text-sm border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
-                          >
-                            <option value="completed">Done</option>
-                            <option value="in_progress">Ongoing</option>
-                            <option value="pending">Pending</option>
-                            <option value="blocked">Blocked</option>
-                          </select>
+                                );
+                              })}
+
+                              {/* Green progress bars - Multiple sessions with gaps (Zoho style) */}
+                              {hasAttendance && displaySessions.map((session, sessionIndex) => {
+                                const checkInHour = session.checkIn.getHours() + session.checkIn.getMinutes() / 60;
+                                const checkInPercent = (checkInHour / 24) * 100;
+
+                                let checkOutHour = checkInHour;
+                                if (session.checkOut) {
+                                  checkOutHour = session.checkOut.getHours() + session.checkOut.getMinutes() / 60;
+                                } else if (session.isLive) {
+                                  checkOutHour = currentTime.getHours() + currentTime.getMinutes() / 60;
+                                }
+
+                                const durationPercent = ((checkOutHour - checkInHour) / 24) * 100;
+
+                                return (
+                                  <div key={sessionIndex}>
+                                    <div
+                                      className="absolute top-1 bottom-1 bg-gradient-to-r from-green-500 to-green-600 rounded flex items-center justify-between px-2"
+                                      style={{
+                                        left: `${checkInPercent}%`,
+                                        width: `${durationPercent}%`
+                                      }}
+                                    >
+                                      <span className="text-xs font-medium text-white">
+                                        {session.checkIn.toLocaleTimeString('en-US', {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          hour12: true
+                                        })}
+                                      </span>
+                                      {durationPercent > 5 && (
+                                        <span className="text-xs font-medium text-white">
+                                          {session.checkOut ?
+                                            session.checkOut.toLocaleTimeString('en-US', {
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                              hour12: true
+                                            }) :
+                                            currentTime.toLocaleTimeString('en-US', {
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                              hour12: true
+                                            })
+                                          }
+                                        </span>
+                                      )}
+                                    </div>
+                                    {/* Pulsing dot at the end of progress bar (only for live session) */}
+                                    {session.isLive && (
+                                      <div
+                                        className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-green-400 rounded-full animate-pulse"
+                                        style={{
+                                          left: `${checkInPercent + durationPercent}%`
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <div className="w-24 text-right text-sm font-medium text-gray-900">
+                          {hasAttendance ? hoursWorked : '00:00:00'}
+                        </div>
+                        <div className="w-32 text-right text-xs text-gray-500">
+                          Hrs worked
                         </div>
                       </div>
                     );
                   })}
-                </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="text-sm">
-                      <p className="text-blue-800 font-medium">Task Status Guide:</p>
-                      <ul className="text-blue-700 mt-1 space-y-1">
-                        <li><strong>Done:</strong> Task completed successfully</li>
-                        <li><strong>Ongoing:</strong> Task in progress, will continue tomorrow</li>
-                        <li><strong>Pending:</strong> Task not started or postponed</li>
-                      </ul>
+                  {/* Hour tracker labels at bottom */}
+                  <div className="flex items-center py-2 border-t-2 border-gray-300 mt-4">
+                    <div className="w-16"></div>
+                    <div className="w-12"></div>
+                    <div className="flex-1 px-2 relative">
+                      <div className="flex justify-between text-xs text-gray-500 font-medium">
+                        {['12AM', '02AM', '04AM', '06AM', '08AM', '10AM', '01PM', '03PM', '05PM', '07PM', '09PM', '11PM'].map((time) => (
+                          <span key={time} className="flex-shrink-0">
+                            {time}
+                          </span>
+                        ))}
+                      </div>
                     </div>
+                    <div className="w-24"></div>
+                    <div className="w-32"></div>
                   </div>
                 </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    onClick={confirmTimeOut}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg font-medium transition-colors duration-200"
-                  >
-                    Confirm Time Out
-                  </button>
-                  <button
-                    onClick={cancelTimeOut}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
             </div>
-          )}
-
-          {/* Work Location Selection Modal */}
-          {showWorkLocationModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-xl font-semibold mb-4 text-center">Select Work Location</h3>
-                <p className="text-gray-800 text-center mb-6">
-                  Where are you working today?
-                </p>
-
-                <div className="space-y-3 mb-6">
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="workLocation"
-                      value="WFH"
-                      checked={workLocation === 'WFH'}
-                      onChange={(e) => setWorkLocation(e.target.value as 'WFH' | 'Onsite')}
-                      className="text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                      </svg>
-                      <span className="font-medium text-gray-900">Work From Home</span>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="workLocation"
-                      value="Onsite"
-                      checked={workLocation === 'Onsite'}
-                      onChange={(e) => setWorkLocation(e.target.value as 'WFH' | 'Onsite')}
-                      className="text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span className="font-medium text-gray-900">Onsite Office</span>
-                    </div>
-                  </label>
-                </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    onClick={timeIn}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors duration-200"
-                  >
-                    Time In
-                  </button>
-                  <button
-                    onClick={() => setShowWorkLocationModal(false)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </main>
-      </div>
-    </div>
-  );
-}
-
-// Task Card Component
-function TaskCard({
-  task,
-  onStatusChange,
-  onDeleteTask,
-  onEditTask,
-  getPriorityColor
-}: {
-  task: Task;
-  onStatusChange: (id: string, status: Task['status']) => void;
-  onDeleteTask: (id: string) => void;
-  onEditTask: (task: Task) => void;
-  getPriorityColor: (priority: 'low' | 'medium' | 'high' | 'urgent') => string;
-}) {
-  // Parse sub-tasks from description using existing format conventions
-  const parseSubTasks = (description: string) => {
-    if (!description) return [];
-    return description.split('\n')
-      .filter(line => line.trim())
-      .map(line => ({
-        text: line.replace(/^[•✓]\s*/, '').trim(),
-        completed: line.trim().startsWith('✓')
-      }));
-  };
-
-  // Sub-tasks are read-only in normal view - only editable during timeout
-
-  const subTasks = parseSubTasks(task.description);
-  const completedSubTasks = subTasks.filter(st => st.completed).length;
-  const totalSubTasks = subTasks.length;
-
-  return (
-    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h4 className="font-medium text-gray-900">{task.title}</h4>
-          {totalSubTasks > 0 && (
-            <p className="text-xs text-gray-600 mt-1">
-              {completedSubTasks}/{totalSubTasks} sub-tasks completed
-            </p>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}>
-            {task.priority}
-          </span>
-          {(task.status === 'pending' || task.status === 'in_progress') && (
-            <button
-              onClick={() => onEditTask(task)}
-              className="text-gray-800 hover:text-blue-500 transition-colors"
-              title="Edit task"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-          )}
-          <button
-            onClick={() => onDeleteTask(task.id)}
-            className="text-gray-800 hover:text-red-500 transition-colors"
-            title="Delete task"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Sub-tasks display (read-only) */}
-      {subTasks.length > 0 && (
-        <div className="mb-3 space-y-2">
-          {subTasks.map((subTask, index) => (
-            <div key={index} className="flex items-start space-x-2">
-              <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center ${
-                subTask.completed
-                  ? 'bg-green-500 border-green-500 text-white'
-                  : 'border-gray-300'
-              }`}>
-                {subTask.completed && (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-              <span className={`text-sm flex-1 ${
-                subTask.completed
-                  ? 'line-through text-gray-500'
-                  : 'text-gray-800'
-              }`}>
-                {subTask.text}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Display plain description if no sub-tasks format found */}
-      {subTasks.length === 0 && task.description && (
-        <p className="text-sm text-gray-800 mb-3">{task.description}</p>
-      )}
-
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-800">
-            Created: {new Date(task.createdAt).toLocaleDateString()}
-          </span>
-        </div>
-
-        <select
-          value={task.status}
-          onChange={(e) => onStatusChange(task.id, e.target.value as Task['status'])}
-          className="text-sm border border-gray-300 rounded px-2 py-1 text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="pending">Pending</option>
-          <option value="in_progress">Ongoing</option>
-          <option value="completed">Done</option>
-          <option value="blocked">Blocked</option>
-        </select>
       </div>
     </div>
   );

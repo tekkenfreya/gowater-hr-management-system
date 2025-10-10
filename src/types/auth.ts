@@ -7,6 +7,7 @@ export interface User {
   position?: string;
   department?: string;
   employeeName?: string;
+  avatar?: string;
 }
 
 export interface LoginCredentials {

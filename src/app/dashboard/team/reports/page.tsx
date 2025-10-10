@@ -196,7 +196,7 @@ export default function TeamReportsPage() {
         <main className="p-6">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Team Reports</h1>
-            <p className="text-gray-700">Generate and download comprehensive team performance reports</p>
+            <p className="text-gray-800">Generate and download comprehensive team performance reports</p>
           </div>
 
           {/* Report Generator */}
@@ -297,7 +297,7 @@ export default function TeamReportsPage() {
                           <h3 className="font-medium text-gray-900">{report.type}</h3>
                           {getStatusBadge(report.status)}
                         </div>
-                        <div className="text-sm text-gray-700 mb-1">
+                        <div className="text-sm text-gray-800 mb-1">
                           <strong>Period:</strong> {report.period}
                         </div>
                         <div className="text-xs text-gray-800">

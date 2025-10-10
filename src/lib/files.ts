@@ -91,8 +91,8 @@ export class FileService {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `files/${userId}/${fileName}`;
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      // Upload to Supabase Storage using admin client to bypass RLS
+      const { error: uploadError } = await supabaseAdmin.storage
         .from('files')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -105,7 +105,7 @@ export class FileService {
       }
 
       // Get public URL
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = supabaseAdmin.storage
         .from('files')
         .getPublicUrl(filePath);
 
@@ -133,7 +133,7 @@ export class FileService {
       if (dbError) {
         console.error('Database error:', dbError);
         // Try to clean up uploaded file
-        await supabase.storage.from('files').remove([filePath]);
+        await supabaseAdmin.storage.from('files').remove([filePath]);
         return { success: false, error: 'Failed to save file metadata' };
       }
 
@@ -210,7 +210,7 @@ export class FileService {
       }
 
       // Delete from storage
-      const { error: storageError } = await supabase.storage
+      const { error: storageError } = await supabaseAdmin.storage
         .from('files')
         .remove([fileRecord.file_path]);
 
@@ -239,7 +239,7 @@ export class FileService {
 
   static async getFileDownloadUrl(filePath: string): Promise<string | null> {
     try {
-      const { data, error } = await supabase.storage
+      const { data, error } = await supabaseAdmin.storage
         .from('files')
         .createSignedUrl(filePath, 3600); // 1 hour expiry
 

@@ -183,7 +183,7 @@ export default function TasksPage() {
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-green-100 text-green-800';
       case 'blocked': return 'bg-red-100 text-red-800';
-      case 'archived': return 'bg-gray-100 text-gray-600';
+      case 'archived': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -237,7 +237,7 @@ export default function TasksPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
-              <p className="text-gray-700 font-medium">Organize and track your work tasks</p>
+              <p className="text-gray-800 font-medium">Organize and track your work tasks</p>
             </div>
 
             <button
@@ -254,37 +254,37 @@ export default function TasksPage() {
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="text-center">
                 <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-700">Total</p>
+                <p className="text-sm text-gray-800">Total</p>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="text-center">
-                <p className="text-2xl font-bold text-gray-600">{stats.pending}</p>
-                <p className="text-sm text-gray-700">Pending</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
+                <p className="text-sm text-gray-800">Pending</p>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="text-center">
                 <p className="text-2xl font-bold text-blue-600">{stats.in_progress}</p>
-                <p className="text-sm text-gray-700">In Progress</p>
+                <p className="text-sm text-gray-800">In Progress</p>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                <p className="text-sm text-gray-700">Completed</p>
+                <p className="text-sm text-gray-800">Completed</p>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="text-center">
                 <p className="text-2xl font-bold text-red-600">{stats.blocked}</p>
-                <p className="text-sm text-gray-700">Blocked</p>
+                <p className="text-sm text-gray-800">Blocked</p>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="text-center">
-                <p className="text-2xl font-bold text-gray-500">{stats.archived}</p>
-                <p className="text-sm text-gray-700">Archived</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.archived}</p>
+                <p className="text-sm text-gray-800">Archived</p>
               </div>
             </div>
           </div>
@@ -309,11 +309,11 @@ export default function TasksPage() {
                     className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2 ${
                       activeFilter === filter.key
                         ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     <span>{filter.label}</span>
-                    <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                    <span className="bg-gray-200 text-gray-800 text-xs px-2 py-0.5 rounded-full">
                       {filter.count}
                     </span>
                   </button>
@@ -354,7 +354,7 @@ export default function TasksPage() {
               <div className="p-6 text-center">
                 <TaskIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-800 mb-4">
                   {searchQuery ? 'Try adjusting your search or filters.' : 'Get started by creating your first task.'}
                 </p>
                 {!searchQuery && (
@@ -433,7 +433,7 @@ export default function TasksPage() {
                   </button>
                   <button
                     onClick={() => setShowAddTask(false)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors duration-200"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium transition-colors duration-200"
                   >
                     Cancel
                   </button>
@@ -482,10 +482,10 @@ function EnhancedTaskCard({
           </div>
 
           {task.description && (
-            <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+            <p className="text-sm text-gray-800 mb-3">{task.description}</p>
           )}
 
-          <div className="flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center justify-between text-sm text-gray-800">
             <span>
               Created: {new Date(task.createdAt).toLocaleDateString()}
             </span>
@@ -505,7 +505,7 @@ function EnhancedTaskCard({
                   </select>
                   <button
                     onClick={() => onArchive(task.id)}
-                    className="text-gray-500 hover:text-gray-700 transition-colors"
+                    className="text-gray-800 hover:text-gray-800 transition-colors"
                     title="Archive task"
                   >
                     <ArchiveIcon className="w-4 h-4" />
