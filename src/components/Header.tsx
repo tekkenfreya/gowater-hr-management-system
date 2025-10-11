@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { User } from '@/types/auth';
 
@@ -13,6 +13,51 @@ interface HeaderProps {
 export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [weather, setWeather] = useState<{ temp: number; condition: string } | null>(null);
+
+  // Update time every second for real-time display
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch weather data
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        // Using Open-Meteo API (free, no key required)
+        // Default location: Manila, Philippines (14.5995° N, 120.9842° E)
+        const response = await fetch(
+          'https://api.open-meteo.com/v1/forecast?latitude=14.5995&longitude=120.9842&current=temperature_2m,weather_code&timezone=Asia/Manila'
+        );
+        const data = await response.json();
+
+        // Map weather codes to conditions
+        const weatherCode = data.current.weather_code;
+        let condition = 'clear';
+        if (weatherCode >= 51 && weatherCode <= 67) condition = 'rainy';
+        else if (weatherCode >= 71 && weatherCode <= 77) condition = 'snowy';
+        else if (weatherCode >= 80 && weatherCode <= 99) condition = 'rainy';
+        else if (weatherCode >= 1 && weatherCode <= 3) condition = 'cloudy';
+
+        setWeather({
+          temp: Math.round(data.current.temperature_2m),
+          condition
+        });
+      } catch (error) {
+        // Silently fail - weather is not critical
+        setWeather({ temp: 28, condition: 'clear' });
+      }
+    };
+
+    fetchWeather();
+    // Refresh weather every 30 minutes
+    const weatherTimer = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => clearInterval(weatherTimer);
+  }, []);
 
   // Database-driven notifications
   const notifications: {
@@ -26,38 +71,55 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
   const unreadCount = notifications?.filter(n => n?.unread)?.length || 0;
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
+    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 relative">
+      {/* Current Date & Time - Absolute Position Near Sidebar */}
+      <div className="hidden lg:flex items-center space-x-3 absolute left-56 top-1/2 -translate-y-1/2 pl-4">
+        {/* Time Display */}
+        <span className="text-lg font-semibold text-gray-900 tabular-nums">
+          {currentTime.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          })}
+        </span>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-gray-300"></div>
+
+        {/* Date Display */}
+        <span className="text-sm font-medium text-gray-600">
+          {currentTime.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+          })}
+        </span>
+
+        {/* Weather Icon with Box */}
+        {weather && (
+          <>
+            <div className="h-6 w-px bg-gray-300"></div>
+            <div className="flex items-center space-x-2 bg-gradient-to-br from-blue-50 to-sky-50 px-3 py-1.5 rounded-lg border border-blue-100">
+              {weather.condition === 'clear' && <SunIcon className="w-5 h-5 text-amber-500" />}
+              {weather.condition === 'cloudy' && <CloudIcon className="w-5 h-5 text-gray-500" />}
+              {weather.condition === 'rainy' && <RainIcon className="w-5 h-5 text-blue-500" />}
+              {weather.condition === 'snowy' && <SnowIcon className="w-5 h-5 text-blue-300" />}
+              <span className="text-sm font-semibold text-gray-700">{weather.temp}°C</span>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="flex items-center justify-between px-4 lg:px-6 py-3">
-        
-        {/* Left Section - Mobile Menu & Breadcrumb */}
-        <div className="flex items-center space-x-4">
+
+        {/* Left Section - Mobile Menu */}
+        <div className="flex items-center space-x-4 lg:invisible">
           <button
             onClick={onToggleSidebar}
             className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
           >
             <MenuIcon />
           </button>
-          
-          {/* Desktop Toggle */}
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors hidden lg:block"
-          >
-            <MenuIcon />
-          </button>
-
-          {/* Current Date & Time - Modern Design */}
-          <div className="hidden sm:flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-2.5 rounded-xl border border-blue-100">
-            <ClockIcon className="w-6 h-6 text-blue-600" />
-            <div className="flex flex-col">
-              <span className="text-base font-semibold text-blue-600">
-                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              </span>
-              <span className="text-base font-bold text-blue-700">
-                {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Center Section - Quick Actions */}
@@ -279,6 +341,14 @@ function ClockIcon({ className }: { className?: string }) {
   );
 }
 
+function CalendarMiniIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
 function PlusIcon({ className }: { className?: string }) {
   return (
     <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,6 +418,39 @@ function LogoutIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    </svg>
+  );
+}
+
+// Weather Icons
+function SunIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-5 h-5"} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
+    </svg>
+  );
+}
+
+function CloudIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-5 h-5"} fill="currentColor" viewBox="0 0 24 24">
+      <path fillRule="evenodd" d="M4.5 9.75a6 6 0 0111.573-2.226 3.75 3.75 0 014.133 4.303A4.5 4.5 0 0118 20.25H6.75a5.25 5.25 0 01-2.23-10.004 6.072 6.072 0 01-.02-.496z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function RainIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z M8 21l1-4m3 4l1-4m3 4l1-4" />
+    </svg>
+  );
+}
+
+function SnowIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v20M2 12h20M6.34 6.34l11.32 11.32M17.66 6.34L6.34 17.66M8 12h8M12 8v8" />
     </svg>
   );
 }

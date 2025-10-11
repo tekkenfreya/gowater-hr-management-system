@@ -189,7 +189,7 @@ export default function TasksPage() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar user={user} isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
+      <div className="flex-1 transition-all duration-300 lg:ml-52">
         <Header user={user} onToggleSidebar={toggleSidebar} onLogout={logout} />
 
         {/* Trello-style Board */}
@@ -209,13 +209,15 @@ export default function TasksPage() {
           <div className="relative z-10 flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-white drop-shadow-lg">Tasks Board</h1>
 
-            <button
-              onClick={() => setShowBackgroundMenu(!showBackgroundMenu)}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
-            >
-              <BackgroundIcon />
-              <span>Change Background</span>
-            </button>
+            {user.role === 'admin' && (
+              <button
+                onClick={() => setShowBackgroundMenu(!showBackgroundMenu)}
+                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
+              >
+                <BackgroundIcon />
+                <span>Change Background</span>
+              </button>
+            )}
           </div>
 
           {/* Background Menu */}
@@ -425,7 +427,7 @@ function TrelloColumn({
             key={task.id}
             draggable
             onDragStart={() => onDragStart(task)}
-            className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-200 p-3 cursor-grab active:cursor-grabbing transition-all group"
+            className="bg-white/60 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md border border-white/40 p-3 cursor-grab active:cursor-grabbing transition-all group"
           >
             <div className="flex items-start justify-between mb-2">
               <h4 className="font-semibold text-gray-900 text-sm flex-1">{task.title}</h4>
@@ -444,8 +446,8 @@ function TrelloColumn({
 
             <div className="flex items-center justify-between">
               <div className={`w-10 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-              <span className="text-xs text-gray-500">
-                {new Date(task.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              <span className="text-xs text-gray-500 capitalize">
+                {task.priority}
               </span>
             </div>
           </div>

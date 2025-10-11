@@ -218,8 +218,25 @@ export default function LeaveTracker() {
           <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Leave Tracker</h1>
-          <p className="text-gray-800 font-medium">Manage your leave requests and track your balance</p>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Leave Tracker</h1>
+              <p className="text-gray-800 font-medium">Manage your leave requests and track your balance</p>
+            </div>
+            <a
+              href="https://forms.gle/5RVFw7DSpLrrfie16"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200 group"
+            >
+              <ExternalLinkIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span>Fill Leave Form</span>
+            </a>
+          </div>
+          <div className="mt-3 flex items-center space-x-2 text-sm text-gray-600">
+            <InfoIcon className="w-4 h-4" />
+            <span>Complete the external form for additional leave requirements</span>
+          </div>
         </div>
 
         {/* Leave Balance Cards */}
@@ -496,6 +513,22 @@ function UserIcon({ className }: { className?: string }) {
   return (
     <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+  );
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }
