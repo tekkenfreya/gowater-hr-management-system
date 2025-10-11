@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
+    // Verify token is valid
+    jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
 
     const { searchParams } = new URL(request.url);
     const filePath = searchParams.get('path');

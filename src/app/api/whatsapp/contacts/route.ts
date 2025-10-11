@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { whatsappService } from '@/lib/whatsapp';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     if (!whatsappService.isClientReady()) {
       return NextResponse.json(

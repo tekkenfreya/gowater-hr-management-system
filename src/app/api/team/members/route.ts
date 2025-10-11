@@ -57,9 +57,9 @@ export async function GET(request: NextRequest) {
     logger.debug('Number of attendance records:', Array.isArray(attendanceRecords) ? attendanceRecords.length : 0);
 
     // Create a map of user_id to attendance status
-    const attendanceMap = new Map();
+    const attendanceMap = new Map<number, { isOnline: boolean }>();
     if (Array.isArray(attendanceRecords)) {
-      attendanceRecords.forEach((record: any) => {
+      attendanceRecords.forEach((record: { user_id: number; check_in_time: string | null; check_out_time: string | null }) => {
         attendanceMap.set(record.user_id, {
           isOnline: !!record.check_in_time && !record.check_out_time
         });
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map users with their attendance status
-    const allEmployees = allUsers.map((user: any) => {
+    const allEmployees = allUsers.map((user: { id: number; name: string; email: string; employeeId?: string; employee_id?: string; role: string; position?: string; department?: string }) => {
       const attendance = attendanceMap.get(user.id) || { isOnline: false };
       return {
         id: user.id,
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Sort: bosses first, then by employee ID
-    allEmployees.sort((a: any, b: any) => {
+    allEmployees.sort((a: { isBoss: boolean; employeeId: string }, b: { isBoss: boolean; employeeId: string }) => {
       if (a.isBoss && !b.isBoss) return -1;
       if (!a.isBoss && b.isBoss) return 1;
       return (a.employeeId || '').localeCompare(b.employeeId || '');

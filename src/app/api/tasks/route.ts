@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getDb } from '@/lib/supabase';
-import { Task } from '@/types/attendance';
 import { logger } from '@/lib/logger';
 
 interface JWTPayload {
