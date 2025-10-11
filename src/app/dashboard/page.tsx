@@ -151,7 +151,7 @@ export default function Dashboard() {
 
       {/* Profile Card - Fixed next to sidebar */}
       {!sidebarCollapsed && (
-        <div className="hidden lg:flex flex-col fixed left-[336px] top-[88px] bottom-6 w-80 z-20">
+        <div className="hidden lg:flex flex-col fixed left-[224px] top-[120px] bottom-6 w-80 z-20 px-4">
           {/* User Profile Card */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-4">
             <div className="flex justify-center mb-4">
@@ -278,7 +278,7 @@ export default function Dashboard() {
       )}
 
       {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-80'}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
@@ -287,7 +287,7 @@ export default function Dashboard() {
 
         {/* Dashboard Content */}
         <main className="p-6">
-          <div className={!sidebarCollapsed ? 'lg:ml-80' : ''}>
+          <div className={!sidebarCollapsed ? 'lg:ml-80 lg:pr-4' : ''}>
             {/* Attendance Calendar View */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               {/* Tabs */}
@@ -406,6 +406,7 @@ export default function Dashboard() {
                               ))}
 
                               {/* Check-in time labels above bars */}
+
                               {hasAttendance && displaySessions.map((session, sessionIndex) => {
                                 const checkInHour = session.checkIn.getHours() + session.checkIn.getMinutes() / 60;
                                 const checkInPercent = (checkInHour / 24) * 100;

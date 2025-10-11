@@ -374,7 +374,7 @@ export default function FilesPage() {
         onToggle={toggleSidebar}
       />
 
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}

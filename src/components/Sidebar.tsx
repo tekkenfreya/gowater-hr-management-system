@@ -102,8 +102,7 @@ export default function Sidebar({
       id: 'leave',
       label: 'Leave Tracker',
       icon: <CalendarDaysIcon />,
-      href: '/dashboard/leave',
-      badge: user?.role === 'manager' ? 3 : 0
+      href: '/dashboard/leave'
     },
     ...((user?.role === 'admin' || user?.role === 'manager') ? [{
       id: 'team',
@@ -188,24 +187,24 @@ export default function Sidebar({
       {/* Sidebar - Modern Glassy Dark Gradient */}
       <div className={`
         fixed left-0 top-0 h-full bg-gradient-to-b from-[#1a2332] via-[#0f1824] to-[#0a111c] border-r border-gray-700/30 shadow-2xl z-40 transition-transform duration-300 overflow-y-auto flex flex-col backdrop-blur-xl
-        ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-16' : 'translate-x-0 w-80'}
+        ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-16' : 'translate-x-0 w-52'}
       `}>
-        {/* Header with Large Logo */}
-        <div className="flex flex-col items-center justify-center py-8 border-b border-gray-700/30">
+        {/* Header with Compact Logo */}
+        <div className="flex flex-col items-center justify-center py-4 border-b border-gray-700/30">
           {!isCollapsed && (
             <>
-              <Link href="/dashboard" className="flex items-center justify-center mb-3">
-                <img src="/gowater new logo.png" alt="GoWater" className="h-20 w-auto" />
+              <Link href="/dashboard" className="flex items-center justify-center mb-2">
+                <img src="/gowater new logo.png" alt="GoWater" className="h-10 w-auto" />
               </Link>
               <div className="text-center">
-                <p className="text-white text-lg font-semibold">gowater</p>
-                <p className="text-gray-400 text-sm">HR</p>
+                <p className="text-white text-sm font-semibold">gowater</p>
+                <p className="text-gray-400 text-xs">HR</p>
               </div>
             </>
           )}
           <button
             onClick={onToggle}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors lg:hidden absolute top-4 right-4"
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors lg:hidden absolute top-2 right-2"
           >
             <XIcon className="w-5 h-5 text-gray-300" />
           </button>
@@ -239,26 +238,12 @@ export default function Sidebar({
                         </div>
                         {!isCollapsed && <span>{item.label}</span>}
                       </div>
-                      {!isCollapsed && (
-                        <div className="flex items-center space-x-2">
-                          {item.badge && item.badge > 0 && (
-                            <span className="bg-red-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                              {item.badge || 0}
-                            </span>
-                          )}
-                          <ChevronRightIcon
-                            className={`w-4 h-4 transition-transform ${
-                              expandedItems.includes(item.id) ? 'rotate-90' : ''
-                            }`}
-                          />
-                        </div>
-                      )}
                     </button>
                   ) : (
                     <Link
                       href={item.href}
                       className={`
-                        flex items-center justify-between px-4 py-3 text-base font-normal rounded-xl transition-all
+                        flex items-center px-4 py-3 text-base font-normal rounded-xl transition-all
                         ${isActive(item.href)
                           ? 'bg-white/10 text-white backdrop-blur-sm'
                           : 'text-gray-400 hover:bg-white/5 hover:text-white'
@@ -271,11 +256,6 @@ export default function Sidebar({
                         </div>
                         {!isCollapsed && <span>{item.label}</span>}
                       </div>
-                      {!isCollapsed && item.badge && item.badge > 0 && (
-                        <span className="bg-red-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                          {item.badge || 0}
-                        </span>
-                      )}
                     </Link>
                   )}
 

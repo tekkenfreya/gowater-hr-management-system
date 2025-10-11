@@ -37,31 +37,7 @@ export default function TeamReportsPage() {
       return;
     }
     // TODO: Fetch existing reports from API
-    // For now, showing sample data
-    const sampleReports: ReportData[] = [
-      {
-        type: 'Team Attendance Summary',
-        period: 'November 2024',
-        generatedDate: '2024-12-01',
-        status: 'ready',
-        downloadUrl: '/reports/attendance-nov-2024.xlsx'
-      },
-      {
-        type: 'Leave Balance Report',
-        period: 'Q4 2024',
-        generatedDate: '2024-12-01',
-        status: 'ready',
-        downloadUrl: '/reports/leave-balance-q4-2024.pdf'
-      },
-      {
-        type: 'Productivity Report',
-        period: 'November 2024',
-        generatedDate: '2024-11-30',
-        status: 'generating'
-      }
-    ];
-    
-    setReports(sampleReports);
+    setReports([]);
     setLoading(false);
   }, [user, router]);
 
@@ -158,7 +134,7 @@ export default function TeamReportsPage() {
           isCollapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
         />
-        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
           <Header
             user={user}
             onToggleSidebar={toggleSidebar}
@@ -187,7 +163,7 @@ export default function TeamReportsPage() {
         onToggle={toggleSidebar}
       />
 
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
