@@ -73,7 +73,7 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 relative">
       {/* Current Date & Time - Absolute Position Near Sidebar */}
-      <div className="hidden lg:flex items-center space-x-3 absolute left-56 top-1/2 -translate-y-1/2 pl-4">
+      <div className="hidden lg:flex items-center space-x-3 absolute left-2 top-1/2 -translate-y-1/2 pl-4">
         {/* Time Display */}
         <span className="text-lg font-semibold text-gray-900 tabular-nums">
           {currentTime.toLocaleTimeString('en-US', {
@@ -141,7 +141,51 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
 
         {/* Right Section - Actions & Profile */}
         <div className="flex items-center space-x-3">
-          
+
+          {/* User Info & Status Panel */}
+          <div className="hidden lg:flex items-center space-x-4 bg-gradient-to-r from-slate-50 to-gray-50 px-4 py-2 rounded-xl border border-gray-200">
+            {/* Work Status Indicator */}
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="absolute inset-0 w-2.5 h-2.5 bg-green-400 rounded-full animate-ping"></div>
+              </div>
+              <span className="text-xs font-semibold text-green-700">Working</span>
+            </div>
+
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-300"></div>
+
+            {/* User Info */}
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-blue-100">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-semibold text-sm">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-900 leading-none">{user?.name}</span>
+                <span className="text-xs text-gray-500 capitalize leading-none mt-0.5">
+                  {user?.role === 'admin' ? (
+                    <span className="text-purple-600 font-medium">Admin</span>
+                  ) : user?.role === 'manager' ? (
+                    <span className="text-blue-600 font-medium">Manager</span>
+                  ) : (
+                    <span className="text-gray-600">Employee</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Notifications */}
           <div className="relative">
             <button
@@ -159,8 +203,8 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
             {/* Notifications Dropdown */}
             {showNotifications && (
               <>
-                <div 
-                  className="fixed inset-0 z-10" 
+                <div
+                  className="fixed inset-0 z-10"
                   onClick={() => setShowNotifications(false)}
                 />
                 <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
@@ -201,105 +245,6 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
                   <div className="p-3 text-center border-t border-gray-200">
                     <button className="text-sm font-medium text-blue-600 hover:text-blue-500">
                       View all notifications
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Export Button */}
-          <button className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-800 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-            <DownloadIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span>
-          </button>
-
-          {/* Profile Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center space-x-2 p-2 text-sm font-medium text-gray-800 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-                {user?.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.name || 'User'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-medium text-sm">
-                    {user?.name?.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <ChevronDownIcon />
-            </button>
-
-            {/* Profile Menu */}
-            {showProfileMenu && (
-              <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setShowProfileMenu(false)}
-                />
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-                        {user?.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt={user.name || 'User'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-white font-medium">
-                            {user?.name?.charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{user?.name}</p>
-                        <p className="text-sm text-gray-800">{user?.email}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="py-2">
-                    <Link
-                      href="/dashboard/profile"
-                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <UserIcon />
-                      <span>Profile</span>
-                    </Link>
-                    <Link
-                      href="/dashboard/settings"
-                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <SettingsIcon />
-                      <span>Settings</span>
-                    </Link>
-                    <Link
-                      href="/dashboard/help"
-                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <QuestionMarkCircleIcon />
-                      <span>Help & Support</span>
-                    </Link>
-                    <hr className="my-2" />
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        onLogout();
-                      }}
-                      className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <LogoutIcon />
-                      <span>Sign out</span>
                     </button>
                   </div>
                 </div>
