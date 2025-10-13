@@ -895,7 +895,7 @@ ${tasksSection}`;
 
                   {newTask.subTasks.length === 0 && (
                     <div className="text-center py-6 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
-                      No sub-tasks yet. Click "Add Sub-task" to get started.
+                      No sub-tasks yet. Click &ldquo;Add Sub-task&rdquo; to get started.
                     </div>
                   )}
                 </div>
@@ -1096,7 +1096,7 @@ ${tasksSection}`;
 
                   {(!editingTask.subTasks || editingTask.subTasks.length === 0) && (
                     <div className="text-center py-6 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
-                      No sub-tasks yet. Click "Add Sub-task" to get started.
+                      No sub-tasks yet. Click &ldquo;Add Sub-task&rdquo; to get started.
                     </div>
                   )}
                 </div>

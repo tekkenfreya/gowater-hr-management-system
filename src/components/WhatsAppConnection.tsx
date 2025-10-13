@@ -20,11 +20,6 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
   const [showContactSelector, setShowContactSelector] = useState(false);
   const [contactSearchTerm, setContactSearchTerm] = useState('');
 
-  useEffect(() => {
-    // Check if already connected
-    checkConnectionStatus();
-  }, [onConnectionChange]);
-
   const checkConnectionStatus = async () => {
     const status = await whatsappClientService.getStatus();
     if (status.isReady) {
@@ -36,6 +31,12 @@ export default function WhatsAppConnection({ onConnectionChange }: WhatsAppConne
       setIsConnecting(true);
     }
   };
+
+  useEffect(() => {
+    // Check if already connected
+    checkConnectionStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const connectWhatsApp = async () => {
     setIsConnecting(true);
