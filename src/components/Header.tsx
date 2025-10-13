@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { User } from '@/types/auth';
+import { logger } from '@/lib/logger';
 
 interface HeaderProps {
   user: User | null;
@@ -11,11 +11,36 @@ interface HeaderProps {
   isWorking?: boolean;
 }
 
-export default function Header({ user, onToggleSidebar, onLogout, isWorking = false }: HeaderProps) {
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+export default function Header({ user, onToggleSidebar }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<{ temp: number; condition: string } | null>(null);
+  const [isWorking, setIsWorking] = useState(false);
+
+  // Fetch working status (attendance check-in status)
+  useEffect(() => {
+    const fetchWorkingStatus = async () => {
+      try {
+        const response = await fetch('/api/attendance');
+        if (response.ok) {
+          const data = await response.json();
+          // User is working if they have checked in but not checked out
+          const hasCheckedIn = data.attendance && data.attendance.checkInTime;
+          const hasCheckedOut = data.attendance && data.attendance.checkOutTime;
+          setIsWorking(hasCheckedIn && !hasCheckedOut);
+        }
+      } catch (error) {
+        logger.error('Failed to fetch working status', error);
+      }
+    };
+
+    if (user) {
+      fetchWorkingStatus();
+      // Refresh every 30 seconds to keep status updated
+      const statusInterval = setInterval(fetchWorkingStatus, 30000);
+      return () => clearInterval(statusInterval);
+    }
+  }, [user]);
 
   // Update time every second for real-time display
   useEffect(() => {

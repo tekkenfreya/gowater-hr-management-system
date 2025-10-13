@@ -292,7 +292,6 @@ export default function Dashboard() {
           user={user}
           onToggleSidebar={toggleSidebar}
           onLogout={logout}
-          isWorking={isTimedIn}
         />
 
         {/* Dashboard Content */}
