@@ -57,10 +57,18 @@ export interface BreakRecord {
   notes?: string;
 }
 
+export interface SubTask {
+  id: string;
+  title: string;
+  notes: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
   description: string;
+  subTasks: SubTask[];
   status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   timeSpent: number; // seconds

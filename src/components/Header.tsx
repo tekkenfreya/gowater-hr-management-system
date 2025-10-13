@@ -8,9 +8,10 @@ interface HeaderProps {
   user: User | null;
   onToggleSidebar: () => void;
   onLogout: () => void;
+  isWorking?: boolean;
 }
 
-export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps) {
+export default function Header({ user, onToggleSidebar, onLogout, isWorking = false }: HeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -146,11 +147,20 @@ export default function Header({ user, onToggleSidebar, onLogout }: HeaderProps)
           <div className="hidden lg:flex items-center space-x-4 bg-gradient-to-r from-slate-50 to-gray-50 px-4 py-2 rounded-xl border border-gray-200">
             {/* Work Status Indicator */}
             <div className="flex items-center space-x-2">
-              <div className="relative">
-                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
-                <div className="absolute inset-0 w-2.5 h-2.5 bg-green-400 rounded-full animate-ping"></div>
-              </div>
-              <span className="text-xs font-semibold text-green-700">Working</span>
+              {isWorking ? (
+                <>
+                  <div className="relative">
+                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                    <div className="absolute inset-0 w-2.5 h-2.5 bg-green-400 rounded-full animate-ping"></div>
+                  </div>
+                  <span className="text-xs font-semibold text-green-700">Working</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                  <span className="text-xs font-semibold text-red-700">Offline</span>
+                </>
+              )}
             </div>
 
             {/* Divider */}

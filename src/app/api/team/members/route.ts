@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map users with their attendance status
-    const allEmployees = allUsers.map((user: { id: number; name: string; email: string; employeeId?: string; employee_id?: string; role: string; position?: string; department?: string }) => {
+    const allEmployees = allUsers.map((user: { id: number; name: string; email: string; employeeId?: string; employee_id?: string; role: string; position?: string; department?: string; avatar?: string }) => {
       const attendance = attendanceMap.get(user.id) || { isOnline: false };
       return {
         id: user.id,
@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
         role: user.role,
         position: user.position || '',
         department: user.department || '',
+        avatar: user.avatar || null,
         isOnline: attendance.isOnline,
         isBoss: user.employeeId === 'R-001' || user.employeeId === 'R-005' || user.employee_id === 'R-001' || user.employee_id === 'R-005'
       };

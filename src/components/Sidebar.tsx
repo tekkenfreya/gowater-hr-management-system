@@ -152,6 +152,11 @@ export default function Sidebar({
   };
 
   const isActive = (href: string) => {
+    // Exact match for home/dashboard
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    // For other routes, check if pathname matches exactly or starts with the href + /
     return pathname === href || pathname.startsWith(href + '/');
   };
 
@@ -190,17 +195,18 @@ export default function Sidebar({
         ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-16' : 'translate-x-0 w-52'}
       `}>
         {/* Header with Compact Logo */}
-        <div className="flex flex-col items-center justify-center py-4 border-b border-gray-700/30">
+        <div className="flex flex-col items-center justify-center border-b border-gray-700/30">
           {!isCollapsed && (
-            <>
-              <Link href="/dashboard" className="flex items-center justify-center mb-2">
-                <img src="/gowater new logo.png" alt="GoWater" className="h-10 w-auto" />
-              </Link>
-              <div className="text-center">
-                <p className="text-white text-sm font-semibold">gowater</p>
-                <p className="text-gray-400 text-xs">HR</p>
-              </div>
-            </>
+            <Link
+              href="/dashboard"
+              className="bg-white p-6 w-full flex items-center justify-center group transition-all duration-300 hover:shadow-xl"
+            >
+              <img
+                src="/gowater new logo.png"
+                alt="GoWater"
+                className="h-32 w-auto object-contain transform transition-all duration-500 group-hover:scale-110 animate-fade-in"
+              />
+            </Link>
           )}
           <button
             onClick={onToggle}

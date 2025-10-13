@@ -24,9 +24,11 @@ export default function TasksPage() {
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'my-tasks' | 'assigned-by-me' | 'completed'>('all');
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
+    subTasks: [] as { id: string; title: string; notes: string; completed: boolean }[],
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
 
@@ -91,7 +93,7 @@ export default function TasksPage() {
       });
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium' });
+        setNewTask({ title: '', description: '', subTasks: [], priority: 'medium' });
         setShowAddTask(null);
         await fetchTasks();
       } else {
@@ -149,6 +151,27 @@ export default function TasksPage() {
     }
   };
 
+  const updateTask = async () => {
+    if (!editingTask || !editingTask.title.trim()) return;
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingTask),
+      });
+
+      if (response.ok) {
+        setEditingTask(null);
+        await fetchTasks();
+      } else {
+        logger.error('Failed to update task', new Error('Response not ok'));
+      }
+    } catch (error) {
+      logger.error('Failed to update task', error);
+    }
+  };
+
   const sendWhatsAppReport = async (reportType: 'start' | 'eod') => {
     if (!user) return;
 
@@ -183,14 +206,28 @@ export default function TasksPage() {
       );
 
       if (todayTasks.length === 0) {
-        tasksSection = '  No tasks for today';
+        tasksSection = 'No tasks for today';
       } else {
-        tasksSection = todayTasks.map((task, index) => {
-          let taskText = `${index + 1}. ${task.title}`;
-          if (task.description) {
-            taskText += `\n   •  ${task.description}`;
+        tasksSection = todayTasks.map((task) => {
+          let projectText = task.title;
+
+          // Add sub-tasks
+          if (task.subTasks && task.subTasks.length > 0) {
+            projectText += '\n \n';  // Extra spacing after project title
+            projectText += task.subTasks.map((subTask, index) => {
+              let subTaskText = `${index + 1}. ${subTask.title}`;
+              if (subTask.notes) {
+                // Split notes by line and format each with a dash
+                const noteLines = subTask.notes.split('\n').filter(line => line.trim());
+                if (noteLines.length > 0) {
+                  subTaskText += '\n' + noteLines.map(line => `-${line.trim()}`).join('\n');
+                }
+              }
+              return subTaskText;
+            }).join('\n\n');
           }
-          return taskText;
+
+          return projectText;
         }).join('\n\n');
       }
     } else {
@@ -203,16 +240,31 @@ export default function TasksPage() {
       );
 
       if (todayTasks.length === 0) {
-        tasksSection = '  No tasks for today';
+        tasksSection = 'No tasks for today';
       } else {
-        tasksSection = todayTasks.map((task, index) => {
-          const statusText = task.status.replace(/_/g, ' ').toUpperCase();
+        tasksSection = todayTasks.map((task) => {
+          let projectText = task.title;
 
-          let taskText = `${index + 1}. ${task.title} [${statusText}]`;
-          if (task.description) {
-            taskText += `\n   •  ${task.description}`;
+          // Add sub-tasks with status
+          if (task.subTasks && task.subTasks.length > 0) {
+            projectText += '\n \n';  // Extra spacing after project title
+            projectText += task.subTasks.map((subTask, index) => {
+              // Add status tag [DONE] or [PENDING]
+              const statusTag = subTask.completed ? '[DONE]' : '[PENDING]';
+              let subTaskText = `${index + 1}. ${subTask.title} ${statusTag}`;
+
+              if (subTask.notes) {
+                // Split notes by line and format each with a dash
+                const noteLines = subTask.notes.split('\n').filter(line => line.trim());
+                if (noteLines.length > 0) {
+                  subTaskText += '\n' + noteLines.map(line => `-${line.trim()}`).join('\n');
+                }
+              }
+              return subTaskText;
+            }).join('\n\n');
           }
-          return taskText;
+
+          return projectText;
         }).join('\n\n');
       }
     }
@@ -649,6 +701,7 @@ ${tasksSection}`;
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, 'pending')}
               onAddTask={() => setShowAddTask('tasks')}
+              onEditTask={setEditingTask}
               onDeleteTask={deleteTask}
               getPriorityColor={getPriorityColor}
               isDraggingOver={draggedTask?.status !== 'pending' && draggedTask !== null}
@@ -663,6 +716,7 @@ ${tasksSection}`;
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, 'in_progress')}
               onAddTask={() => {}}
+              onEditTask={setEditingTask}
               onDeleteTask={deleteTask}
               getPriorityColor={getPriorityColor}
               isDraggingOver={draggedTask?.status !== 'in_progress' && draggedTask !== null}
@@ -677,6 +731,7 @@ ${tasksSection}`;
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, 'completed')}
               onAddTask={() => {}}
+              onEditTask={setEditingTask}
               onDeleteTask={deleteTask}
               getPriorityColor={getPriorityColor}
               isDraggingOver={draggedTask?.status !== 'completed' && draggedTask !== null}
@@ -758,32 +813,95 @@ ${tasksSection}`;
       {/* Add Task Modal */}
       {showAddTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               Add New Task
             </h3>
             <div className="space-y-4">
+              {/* Project/Main Task Title */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Project/Main Task Title</label>
                 <input
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter task title"
+                  placeholder="e.g., GoWater Dispenser"
                   autoFocus
                 />
               </div>
+
+              {/* Sub-tasks */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  rows={3}
-                  placeholder="Enter task description"
-                />
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-semibold text-gray-700">Sub-tasks</label>
+                  <button
+                    onClick={() => {
+                      const newSubTask = {
+                        id: `temp-${Date.now()}`,
+                        title: '',
+                        notes: '',
+                        completed: false
+                      };
+                      setNewTask({ ...newTask, subTasks: [...newTask.subTasks, newSubTask] });
+                    }}
+                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    <PlusIcon />
+                    <span>Add Sub-task</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {newTask.subTasks.map((subTask, index) => (
+                    <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-sm font-semibold text-gray-700">{index + 1}.</span>
+                        <input
+                          type="text"
+                          value={subTask.title}
+                          onChange={(e) => {
+                            const updated = [...newTask.subTasks];
+                            updated[index].title = e.target.value;
+                            setNewTask({ ...newTask, subTasks: updated });
+                          }}
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., Add Code"
+                        />
+                        <button
+                          onClick={() => {
+                            const updated = newTask.subTasks.filter((_, i) => i !== index);
+                            setNewTask({ ...newTask, subTasks: updated });
+                          }}
+                          className="p-1 hover:bg-red-100 rounded text-red-500"
+                          title="Remove"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                      <textarea
+                        value={subTask.notes}
+                        onChange={(e) => {
+                          const updated = [...newTask.subTasks];
+                          updated[index].notes = e.target.value;
+                          setNewTask({ ...newTask, subTasks: updated });
+                        }}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
+                        placeholder="Notes (one per line)&#10;e.g., added new function to rest&#10;added new function to refill"
+                      />
+                    </div>
+                  ))}
+
+                  {newTask.subTasks.length === 0 && (
+                    <div className="text-center py-6 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+                      No sub-tasks yet. Click "Add Sub-task" to get started.
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Priority */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
                 <div className="flex space-x-2">
@@ -811,7 +929,10 @@ ${tasksSection}`;
                 Add Task
               </button>
               <button
-                onClick={() => setShowAddTask(null)}
+                onClick={() => {
+                  setNewTask({ title: '', description: '', subTasks: [], priority: 'medium' });
+                  setShowAddTask(null);
+                }}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 px-4 rounded-lg font-semibold transition-colors"
               >
                 Cancel
@@ -886,6 +1007,138 @@ ${tasksSection}`;
           </div>
         </div>
       )}
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              Edit Task
+            </h3>
+            <div className="space-y-4">
+              {/* Project/Main Task Title */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Project/Main Task Title</label>
+                <input
+                  type="text"
+                  value={editingTask.title}
+                  onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., GoWater Dispenser"
+                  autoFocus
+                />
+              </div>
+
+              {/* Sub-tasks */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-semibold text-gray-700">Sub-tasks</label>
+                  <button
+                    onClick={() => {
+                      const newSubTask = {
+                        id: `temp-${Date.now()}`,
+                        title: '',
+                        notes: '',
+                        completed: false
+                      };
+                      setEditingTask({
+                        ...editingTask,
+                        subTasks: [...(editingTask.subTasks || []), newSubTask]
+                      });
+                    }}
+                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    <PlusIcon />
+                    <span>Add Sub-task</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {(editingTask.subTasks || []).map((subTask, index) => (
+                    <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-sm font-semibold text-gray-700">{index + 1}.</span>
+                        <input
+                          type="text"
+                          value={subTask.title}
+                          onChange={(e) => {
+                            const updated = [...(editingTask.subTasks || [])];
+                            updated[index].title = e.target.value;
+                            setEditingTask({ ...editingTask, subTasks: updated });
+                          }}
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., Add Code"
+                        />
+                        <button
+                          onClick={() => {
+                            const updated = (editingTask.subTasks || []).filter((_, i) => i !== index);
+                            setEditingTask({ ...editingTask, subTasks: updated });
+                          }}
+                          className="p-1 hover:bg-red-100 rounded text-red-500"
+                          title="Remove"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                      <textarea
+                        value={subTask.notes}
+                        onChange={(e) => {
+                          const updated = [...(editingTask.subTasks || [])];
+                          updated[index].notes = e.target.value;
+                          setEditingTask({ ...editingTask, subTasks: updated });
+                        }}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
+                        placeholder="Notes (one per line)&#10;e.g., added new function to rest&#10;added new function to refill"
+                      />
+                    </div>
+                  ))}
+
+                  {(!editingTask.subTasks || editingTask.subTasks.length === 0) && (
+                    <div className="text-center py-6 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+                      No sub-tasks yet. Click "Add Sub-task" to get started.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
+                <div className="flex space-x-2">
+                  {(['low', 'medium', 'high', 'urgent'] as const).map((priority) => (
+                    <button
+                      key={priority}
+                      onClick={() => setEditingTask({ ...editingTask, priority })}
+                      className={`flex-1 px-3 py-2 rounded-lg font-medium text-sm capitalize transition-all ${
+                        editingTask.priority === priority
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {priority}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={updateTask}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg font-semibold transition-colors"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => setEditingTask(null)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 px-4 rounded-lg font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -898,6 +1151,7 @@ function TrelloColumn({
   onDragOver,
   onDrop,
   onAddTask,
+  onEditTask,
   onDeleteTask,
   getPriorityColor,
   isDraggingOver,
@@ -909,6 +1163,7 @@ function TrelloColumn({
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
   onAddTask: () => void;
+  onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   getPriorityColor: (priority: 'low' | 'medium' | 'high' | 'urgent') => string;
   isDraggingOver: boolean;
@@ -939,12 +1194,16 @@ function TrelloColumn({
             key={task.id}
             draggable
             onDragStart={() => onDragStart(task)}
+            onDoubleClick={() => onEditTask(task)}
             className="bg-white/60 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md border border-white/40 p-3 cursor-grab active:cursor-grabbing transition-all group"
           >
             <div className="flex items-start justify-between mb-2">
               <h4 className="font-semibold text-gray-900 text-sm flex-1">{task.title}</h4>
               <button
-                onClick={() => onDeleteTask(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteTask(task.id);
+                }}
                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-500 transition-all"
                 title="Delete"
               >

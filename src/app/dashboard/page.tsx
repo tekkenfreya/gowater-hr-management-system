@@ -18,6 +18,7 @@ interface TeamMember {
   department: string;
   isOnline: boolean;
   isBoss: boolean;
+  avatar?: string;
 }
 
 interface WeeklyAttendanceData {
@@ -239,10 +240,18 @@ export default function Dashboard() {
                           employee.isBoss
                             ? 'from-purple-500 to-purple-600'
                             : 'from-blue-500 to-blue-600'
-                        } rounded-full flex items-center justify-center flex-shrink-0 shadow-md`}>
-                          <span className="text-white font-semibold text-base">
-                            {getInitials(employee.name)}
-                          </span>
+                        } rounded-full flex items-center justify-center flex-shrink-0 shadow-md overflow-hidden`}>
+                          {employee.avatar ? (
+                            <img
+                              src={employee.avatar}
+                              alt={employee.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white font-semibold text-base">
+                              {getInitials(employee.name)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -283,6 +292,7 @@ export default function Dashboard() {
           user={user}
           onToggleSidebar={toggleSidebar}
           onLogout={logout}
+          isWorking={isTimedIn}
         />
 
         {/* Dashboard Content */}

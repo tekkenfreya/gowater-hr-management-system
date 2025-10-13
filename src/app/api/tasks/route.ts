@@ -17,6 +17,8 @@ interface DbTask {
   due_date: string | null;
   status: string;
   remarks?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sub_tasks?: string | any; // JSON string or JSONB object of sub-tasks array
 }
 
 export async function GET(request: NextRequest) {
@@ -34,9 +36,32 @@ export async function GET(request: NextRequest) {
     const database = getDb();
     const tasks = await database.all('tasks', { user_id: userId });
 
-    return NextResponse.json({ 
-      tasks: tasks || [],
-      message: 'Tasks retrieved successfully' 
+    // Parse sub_tasks JSON string to array
+    const parsedTasks = (tasks || []).map((task: DbTask) => {
+      let subTasks = [];
+      try {
+        // Handle both string and already-parsed JSON
+        if (task.sub_tasks) {
+          if (typeof task.sub_tasks === 'string') {
+            subTasks = JSON.parse(task.sub_tasks);
+          } else {
+            subTasks = task.sub_tasks;
+          }
+        }
+      } catch (error) {
+        logger.error('Error parsing sub_tasks', error);
+        subTasks = [];
+      }
+
+      return {
+        ...task,
+        subTasks
+      };
+    });
+
+    return NextResponse.json({
+      tasks: parsedTasks,
+      message: 'Tasks retrieved successfully'
     });
 
   } catch (error) {
@@ -60,7 +85,7 @@ export async function POST(request: NextRequest) {
     const userId = decoded.userId;
 
     const body = await request.json();
-    const { title, description, priority, due_date, status } = body;
+    const { title, description, priority, due_date, status, subTasks } = body;
 
     // Validate required fields
     if (!title?.trim()) {
@@ -75,14 +100,19 @@ export async function POST(request: NextRequest) {
       description: description?.trim() || '',
       priority: priority || 'medium',
       due_date: due_date || null,
-      status: status || 'pending'
+      status: status || 'pending',
+      sub_tasks: subTasks ? JSON.stringify(subTasks) : JSON.stringify([])
     };
 
     const task = await database.insert('tasks', taskData);
 
-    return NextResponse.json({ 
-      task,
-      message: 'Task created successfully' 
+    // Return task with parsed subTasks
+    return NextResponse.json({
+      task: {
+        ...task,
+        subTasks: subTasks || []
+      },
+      message: 'Task created successfully'
     });
 
   } catch (error) {
@@ -106,7 +136,7 @@ export async function PUT(request: NextRequest) {
     const userId = decoded.userId;
 
     const body = await request.json();
-    const { id, title, description, priority, due_date, status, remarks } = body;
+    const { id, title, description, priority, due_date, status, remarks, subTasks } = body;
 
     // Convert frontend status values to database values
     const mapStatusToDb = (status: string) => {
@@ -132,7 +162,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update task
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       title: title?.trim() || existingTask.title,
       description: description?.trim() || existingTask.description,
       priority: priority || existingTask.priority,
@@ -141,11 +171,34 @@ export async function PUT(request: NextRequest) {
       remarks: remarks?.trim() !== undefined ? remarks?.trim() : existingTask.remarks
     };
 
+    // Handle subTasks update
+    if (subTasks !== undefined) {
+      updateData.sub_tasks = JSON.stringify(subTasks);
+    }
+
     const updatedTask = await database.update('tasks', updateData, { id, user_id: userId });
 
-    return NextResponse.json({ 
-      task: updatedTask,
-      message: 'Task updated successfully' 
+    // Parse existing subTasks if needed
+    let existingSubTasks = [];
+    try {
+      if (existingTask.sub_tasks) {
+        if (typeof existingTask.sub_tasks === 'string') {
+          existingSubTasks = JSON.parse(existingTask.sub_tasks);
+        } else {
+          existingSubTasks = existingTask.sub_tasks;
+        }
+      }
+    } catch (error) {
+      logger.error('Error parsing existing sub_tasks', error);
+    }
+
+    // Return task with parsed subTasks
+    return NextResponse.json({
+      task: {
+        ...updatedTask,
+        subTasks: subTasks !== undefined ? subTasks : existingSubTasks
+      },
+      message: 'Task updated successfully'
     });
 
   } catch (error) {
