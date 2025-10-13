@@ -111,7 +111,7 @@ export default function AdminPage() {
       } else {
         setError(data.error || 'Failed to create user');
       }
-    } catch (error) {
+    } catch {
       setError('Failed to create user. Please try again.');
     }
     setFormLoading(false);

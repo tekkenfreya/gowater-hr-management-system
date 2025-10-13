@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { whatsappService } from '@/lib/whatsapp';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     await whatsappService.disconnect();
     (global as unknown as Record<string, unknown>).whatsappReady = false;

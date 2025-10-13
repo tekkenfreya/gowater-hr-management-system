@@ -29,7 +29,7 @@ export default function LoginPage() {
       } else {
         setError(result.error || 'Login failed. Please check your credentials.');
       }
-    } catch (err) {
+    } catch {
       setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -43,6 +43,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8">
             <Link href="/" className="flex justify-center mb-8">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/gowater new logo.png" alt="GoWater Logo" className="h-64 w-auto" />
             </Link>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">
