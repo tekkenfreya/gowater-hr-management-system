@@ -245,12 +245,21 @@ export default function TasksPage() {
         tasksSection = todayTasks.map((task) => {
           let projectText = task.title;
 
-          // Add sub-tasks with status
+          // Add sub-tasks with status based on parent task column
           if (task.subTasks && task.subTasks.length > 0) {
             projectText += '\n \n';  // Extra spacing after project title
             projectText += task.subTasks.map((subTask, index) => {
-              // Add status tag [DONE] or [PENDING]
-              const statusTag = subTask.completed ? '[DONE]' : '[PENDING]';
+              // Add status tag based on parent task's column position
+              let statusTag = '[PENDING]';
+              if (task.status === 'completed') {
+                statusTag = '[DONE]';
+              } else if (task.status === 'in_progress') {
+                statusTag = '[IN PROGRESS]';
+              } else if (task.status === 'blocked') {
+                statusTag = '[BLOCKED]';
+              }
+              // pending and other statuses default to [PENDING]
+
               let subTaskText = `${index + 1}. ${subTask.title} ${statusTag}`;
 
               if (subTask.notes) {
