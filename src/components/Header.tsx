@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { logger } from '@/lib/logger';
+import { formatPhilippineTime } from '@/lib/timezone';
 
 interface HeaderProps {
   user: User | null;
@@ -102,11 +103,7 @@ export default function Header({ user, onToggleSidebar }: HeaderProps) {
       <div className="hidden lg:flex items-center space-x-3 absolute left-2 top-1/2 -translate-y-1/2 pl-4">
         {/* Time Display */}
         <span className="text-lg font-semibold text-gray-900 tabular-nums">
-          {currentTime.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          })}
+          {formatPhilippineTime(currentTime)}
         </span>
 
         {/* Divider */}

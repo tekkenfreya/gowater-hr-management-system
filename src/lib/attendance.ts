@@ -1,5 +1,6 @@
 import { getDb } from './supabase';
 import { logger } from './logger';
+import { getPhilippineHour } from './timezone';
 
 export interface AttendanceRecord {
   id: number;
@@ -39,8 +40,8 @@ export class AttendanceService {
       }
 
       const checkInTime = new Date().toISOString();
-      const currentHour = new Date().getHours();
-      const status = currentHour >= 10 ? 'late' : 'present'; // Assuming 10 AM is the standard time
+      const currentHour = getPhilippineHour(checkInTime);
+      const status = currentHour >= 10 ? 'late' : 'present'; // 10 AM Philippine Time is the standard time
 
       if (existing && existing.check_out_time) {
         // Already checked out today - this is a new session

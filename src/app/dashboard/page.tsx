@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import BreakModal from '@/components/BreakModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
+import { formatPhilippineTime } from '@/lib/timezone';
 
 interface TeamMember {
   id: number;
@@ -35,7 +37,7 @@ interface WeeklyAttendanceData {
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const { isTimedIn, workDuration, checkInTime, handleTimeIn } = useAttendance();
+  const { isTimedIn, isOnBreak, workDuration, breakStartTime, checkInTime, handleTimeIn, handleEndBreak } = useAttendance();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -46,6 +48,15 @@ export default function Dashboard() {
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
   const [activeTab, setActiveTab] = useState<'calendar' | 'summary'>('calendar');
   const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'year'>('week');
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    // Initialize to current week's Sunday
+    const today = new Date();
+    const currentDay = today.getDay();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - currentDay);
+    sunday.setHours(0, 0, 0, 0);
+    return sunday;
+  });
   const [attendanceSummary, setAttendanceSummary] = useState({
     totalHours: 0,
     daysPresent: 0,
@@ -55,25 +66,67 @@ export default function Dashboard() {
     expectedHours: 40
   });
 
-  // Get current week's dates (Sunday to Saturday)
+  // Get week dates based on currentWeekStart (Sunday to Saturday)
   const getWeekDates = () => {
-    const today = new Date();
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const sunday = new Date(today);
-
-    // Calculate days to subtract to get to Sunday
-    sunday.setDate(today.getDate() - currentDay);
-
     const weekDates = [];
     for (let i = 0; i < 7; i++) { // Sunday to Saturday
-      const date = new Date(sunday);
-      date.setDate(sunday.getDate() + i);
+      const date = new Date(currentWeekStart);
+      date.setDate(currentWeekStart.getDate() + i);
       weekDates.push(date);
     }
     return weekDates;
   };
 
   const weekDates = getWeekDates();
+
+  // Calculate real-time summary from weeklyAttendance
+  const calculateWeeklySummary = () => {
+    let totalHours = 0;
+    let daysPresent = 0;
+
+    weeklyAttendance.forEach(attendance => {
+      if (attendance.totalHours > 0) {
+        totalHours += attendance.totalHours;
+        daysPresent++;
+      }
+    });
+
+    const avgHoursPerDay = daysPresent > 0 ? totalHours / daysPresent : 0;
+    const expectedHours = 40; // 5 days * 8 hours
+    const progress = (totalHours / expectedHours) * 100;
+
+    return {
+      totalHours: Math.round(totalHours * 10) / 10,
+      daysPresent,
+      avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
+      progress: Math.min(Math.round(progress), 100),
+      expectedHours
+    };
+  };
+
+  const weeklySummary = calculateWeeklySummary();
+
+  // Navigation functions
+  const goToPreviousWeek = () => {
+    const newStart = new Date(currentWeekStart);
+    newStart.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(newStart);
+  };
+
+  const goToNextWeek = () => {
+    const newStart = new Date(currentWeekStart);
+    newStart.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(newStart);
+  };
+
+  const goToCurrentWeek = () => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - currentDay);
+    sunday.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(sunday);
+  };
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -88,7 +141,7 @@ export default function Dashboard() {
       fetchWeeklyAttendance();
       fetchTeamMembers();
     }
-  }, [user]);
+  }, [user, currentWeekStart]); // Re-fetch when week changes
 
   // Fetch summary when time period changes
   useEffect(() => {
@@ -107,7 +160,8 @@ export default function Dashboard() {
 
   const fetchWeeklyAttendance = async () => {
     try {
-      const response = await fetch('/api/attendance/weekly');
+      const startDateStr = currentWeekStart.toISOString().split('T')[0];
+      const response = await fetch(`/api/attendance/weekly?startDate=${startDateStr}`);
       if (response.ok) {
         const data = await response.json();
         logger.debug('Weekly attendance data:', data);
@@ -276,22 +330,47 @@ export default function Dashboard() {
                 Check In
               </button>
             ) : (
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to check out?')) {
-                    fetch('/api/attendance/checkout', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ notes: '' })
+              <>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to check out?')) {
+                      fetch('/api/attendance/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ notes: '' })
+                      }).then(() => {
+                        window.location.reload();
+                      });
+                    }
+                  }}
+                  disabled={isOnBreak}
+                  className={`w-full py-3 rounded-lg font-medium transition-colors mb-2 shadow-lg ${
+                    isOnBreak
+                      ? 'bg-gray-400 cursor-not-allowed text-white'
+                      : 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white'
+                  }`}
+                >
+                  Check Out
+                </button>
+
+                {/* Start/End Break Button */}
+                <button
+                  onClick={isOnBreak ? handleEndBreak : () => {
+                    fetch('/api/attendance/break/start', {
+                      method: 'POST'
                     }).then(() => {
                       window.location.reload();
                     });
-                  }
-                }}
-                className="w-full py-3 rounded-lg font-medium transition-colors bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-lg"
-              >
-                Check Out
-              </button>
+                  }}
+                  className={`w-full py-3 rounded-lg font-medium transition-colors shadow-lg ${
+                    isOnBreak
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
+                  }`}
+                >
+                  {isOnBreak ? 'End Break' : 'Start Break'}
+                </button>
+              </>
             )}
           </div>
 
@@ -401,6 +480,47 @@ export default function Dashboard() {
               <div className="p-6">
                 {activeTab === 'calendar' ? (
                   <>
+                    {/* Week Navigation Header */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={goToPreviousWeek}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Previous week"
+                        >
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+
+                        <div className="flex items-center space-x-2">
+                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="font-semibold text-gray-900">
+                            {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={goToNextWeek}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Next week"
+                        >
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={goToCurrentWeek}
+                        className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        Today
+                      </button>
+                    </div>
+
                     {/* General shift info */}
                     <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                       <p className="text-sm text-gray-600">
@@ -500,11 +620,7 @@ export default function Dashboard() {
                                     className="absolute -top-5 text-xs text-gray-600 font-medium"
                                     style={{ left: `${checkInPercent}%` }}
                                   >
-                                    {session.checkIn.toLocaleTimeString('en-US', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: true
-                                    })}
+                                    {formatPhilippineTime(session.checkIn)}
                                   </div>
                                 );
                               })}
@@ -533,25 +649,13 @@ export default function Dashboard() {
                                       }}
                                     >
                                       <span className="text-xs font-medium text-white">
-                                        {session.checkIn.toLocaleTimeString('en-US', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                          hour12: true
-                                        })}
+                                        {formatPhilippineTime(session.checkIn)}
                                       </span>
                                       {durationPercent > 5 && (
                                         <span className="text-xs font-medium text-white">
                                           {session.checkOut ?
-                                            session.checkOut.toLocaleTimeString('en-US', {
-                                              hour: '2-digit',
-                                              minute: '2-digit',
-                                              hour12: true
-                                            }) :
-                                            currentTime.toLocaleTimeString('en-US', {
-                                              hour: '2-digit',
-                                              minute: '2-digit',
-                                              hour12: true
-                                            })
+                                            formatPhilippineTime(session.checkOut) :
+                                            formatPhilippineTime(currentTime)
                                           }
                                         </span>
                                       )}
@@ -602,140 +706,117 @@ export default function Dashboard() {
                 ) : (
                   /* Attendance Summary View */
                   <div className="space-y-6">
-                    {/* Time Period Tabs */}
-                    <div className="flex items-center justify-center space-x-2 bg-gray-100 rounded-lg p-1">
+                    {/* Week Navigation Header - Same as Calendar */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={goToPreviousWeek}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Previous week"
+                        >
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+
+                        <div className="flex items-center space-x-2">
+                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="font-semibold text-gray-900">
+                            {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={goToNextWeek}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Next week"
+                        >
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+
                       <button
-                        onClick={() => setTimePeriod('week')}
-                        className={`flex-1 px-6 py-2.5 rounded-md font-medium text-sm transition-all ${
-                          timePeriod === 'week'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
+                        onClick={goToCurrentWeek}
+                        className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       >
-                        This Week
-                      </button>
-                      <button
-                        onClick={() => setTimePeriod('month')}
-                        className={`flex-1 px-6 py-2.5 rounded-md font-medium text-sm transition-all ${
-                          timePeriod === 'month'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        This Month
-                      </button>
-                      <button
-                        onClick={() => setTimePeriod('year')}
-                        className={`flex-1 px-6 py-2.5 rounded-md font-medium text-sm transition-all ${
-                          timePeriod === 'year'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        This Year
+                        Today
                       </button>
                     </div>
 
                     {/* Summary Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Total Hours Card */}
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5 border border-blue-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-blue-700 mb-1">Total Hours</p>
-                            <p className="text-3xl font-bold text-blue-900">{attendanceSummary.totalHours}h</p>
-                          </div>
-                          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-xs text-blue-600 mt-2">
-                          {timePeriod === 'week' ? 'This week (Sun - Sat)' : timePeriod === 'month' ? 'This month' : 'This year'}
-                        </p>
+                        <p className="text-sm font-medium text-blue-700 mb-2">Total Hours Worked</p>
+                        <p className="text-4xl font-bold text-blue-900 mb-1">{weeklySummary.totalHours}h</p>
+                        <p className="text-xs text-blue-600">This week</p>
                       </div>
 
                       {/* Days Present Card */}
-                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-5 border border-green-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-green-700 mb-1">Days Present</p>
-                            <p className="text-3xl font-bold text-green-900">
-                              {attendanceSummary.daysPresent}
-                              {timePeriod === 'week' ? '/5' : ''}
-                            </p>
-                          </div>
-                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-xs text-green-600 mt-2">Working days attended</p>
+                        <p className="text-sm font-medium text-green-700 mb-2">Days Present</p>
+                        <p className="text-4xl font-bold text-green-900 mb-1">{weeklySummary.daysPresent}<span className="text-2xl text-green-700">/5</span></p>
+                        <p className="text-xs text-green-600">Working days</p>
                       </div>
 
                       {/* Average Hours Card */}
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5 border border-purple-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-purple-700 mb-1">Avg Hours/Day</p>
-                            <p className="text-3xl font-bold text-purple-900">{attendanceSummary.avgHoursPerDay}h</p>
-                          </div>
-                          <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-xs text-purple-600 mt-2">Daily average</p>
-                      </div>
-
-                      {/* Week Progress Card */}
-                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-5 border border-orange-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-orange-700 mb-1">Week Progress</p>
-                            <p className="text-3xl font-bold text-orange-900">{attendanceSummary.weekProgress}%</p>
-                          </div>
-                          <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <p className="text-xs text-orange-600 mt-2">{attendanceSummary.totalHours}/{attendanceSummary.expectedHours}h expected</p>
+                        <p className="text-sm font-medium text-purple-700 mb-2">Average Per Day</p>
+                        <p className="text-4xl font-bold text-purple-900 mb-1">{weeklySummary.avgHoursPerDay}h</p>
+                        <p className="text-xs text-purple-600">Daily average</p>
                       </div>
                     </div>
 
-                    {/* Period Progress Bar */}
-                    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-gray-700">
-                          {timePeriod === 'week' ? 'Weekly' : timePeriod === 'month' ? 'Monthly' : 'Yearly'} Target Progress
-                        </h3>
-                        <span className="text-sm font-medium text-gray-600">
-                          {attendanceSummary.totalHours}h / {attendanceSummary.expectedHours}h
-                        </span>
+                    {/* Weekly Target Progress Bar */}
+                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-orange-800 mb-1">Weekly Target Progress</h3>
+                          <p className="text-xs text-orange-600">{weeklySummary.totalHours}h of {weeklySummary.expectedHours}h expected</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-3xl font-bold text-orange-900">{weeklySummary.progress}%</p>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                      <div className="w-full bg-orange-200 rounded-full h-3 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-                          style={{ width: `${attendanceSummary.weekProgress}%` }}
-                        >
-                          {attendanceSummary.weekProgress > 10 && (
-                            <span className="text-xs font-bold text-white">{attendanceSummary.weekProgress}%</span>
-                          )}
-                        </div>
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${weeklySummary.progress}%` }}
+                        />
                       </div>
                     </div>
 
-                    {/* Daily Breakdown Table - Only show for week view */}
-                    {timePeriod === 'week' ? (
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
-                          <h3 className="text-sm font-semibold text-gray-700">Daily Breakdown</h3>
-                        </div>
+                    {/* Daily Breakdown Table */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                        <h3 className="text-base font-semibold text-gray-800">Daily Breakdown</h3>
+                        <p className="text-xs text-gray-600 mt-1">Detailed attendance for the week</p>
+                      </div>
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
@@ -775,11 +856,7 @@ export default function Dashboard() {
                                     {isSunday ? (
                                       <span className="text-gray-400">Rest Day</span>
                                     ) : hasAttendance && savedAttendance.checkInTime ? (
-                                      new Date(savedAttendance.checkInTime).toLocaleTimeString('en-US', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: true
-                                      })
+                                      formatPhilippineTime(savedAttendance.checkInTime)
                                     ) : (
                                       <span className="text-gray-400">--</span>
                                     )}
@@ -788,11 +865,7 @@ export default function Dashboard() {
                                     {isSunday ? (
                                       <span className="text-gray-400">Rest Day</span>
                                     ) : hasAttendance && savedAttendance.checkOutTime ? (
-                                      new Date(savedAttendance.checkOutTime).toLocaleTimeString('en-US', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: true
-                                      })
+                                      formatPhilippineTime(savedAttendance.checkOutTime)
                                     ) : hasAttendance && !savedAttendance.checkOutTime && isToday ? (
                                       <span className="text-green-600 font-medium">Working...</span>
                                     ) : (
@@ -841,35 +914,6 @@ export default function Dashboard() {
                         </table>
                       </div>
                     </div>
-                    ) : (
-                      /* Month/Year Summary Info */
-                      <div className="bg-white rounded-lg border border-gray-200 p-8">
-                        <div className="text-center">
-                          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            {timePeriod === 'month' ? 'Monthly' : 'Yearly'} Summary
-                          </h3>
-                          <p className="text-gray-600 max-w-md mx-auto">
-                            The summary statistics above show your {timePeriod === 'month' ? 'monthly' : 'yearly'} attendance data.
-                            For detailed daily breakdown, switch to &ldquo;This Week&rdquo; view.
-                          </p>
-                          <div className="mt-6 grid grid-cols-2 gap-4 max-w-md mx-auto">
-                            <div className="bg-gray-50 rounded-lg p-4">
-                              <p className="text-sm text-gray-600 mb-1">Total Days</p>
-                              <p className="text-2xl font-bold text-gray-900">{attendanceSummary.daysPresent}</p>
-                            </div>
-                            <div className="bg-gray-50 rounded-lg p-4">
-                              <p className="text-sm text-gray-600 mb-1">Avg Daily</p>
-                              <p className="text-2xl font-bold text-gray-900">{attendanceSummary.avgHoursPerDay}h</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -877,6 +921,15 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
+
+      {/* Break Modal */}
+      {isOnBreak && breakStartTime && (
+        <BreakModal
+          isOpen={isOnBreak}
+          breakStartTime={breakStartTime}
+          onEndBreak={handleEndBreak}
+        />
+      )}
     </div>
   );
 }

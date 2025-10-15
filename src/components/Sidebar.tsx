@@ -205,7 +205,7 @@ export default function Sidebar({
                 src="/gowater new logo.png"
                 alt="GoWater"
                 className="h-32 w-auto object-contain transform transition-all duration-500 group-hover:scale-110 animate-fade-in"
-              />
+               />
             </Link>
           )}
           <button
@@ -215,7 +215,6 @@ export default function Sidebar({
             <XIcon className="w-5 h-5 text-gray-300" />
           </button>
         </div>
-
 
         {/* Navigation */}
         <nav className="py-6 flex-1">

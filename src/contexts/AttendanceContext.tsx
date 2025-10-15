@@ -10,6 +10,7 @@ interface AttendanceContextType {
   workDuration: number;
   breakDuration: number;
   checkInTime: Date | null;
+  breakStartTime: Date | null;
   handleTimeIn: () => Promise<void>;
   handleTimeOut: () => Promise<void>;
   handleStartBreak: () => Promise<void>;
@@ -28,6 +29,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   const [workInterval, setWorkInterval] = useState<NodeJS.Timeout | null>(null);
   const [breakInterval, setBreakInterval] = useState<NodeJS.Timeout | null>(null);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
+  const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
 
   // Fetch attendance when user is available
   useEffect(() => {
@@ -67,8 +69,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
           // Check break state
           if (attendance.breakStartTime && !attendance.breakEndTime) {
             setIsOnBreak(true);
-            const breakStartTime = new Date(attendance.breakStartTime);
-            const currentBreakDuration = Math.floor((currentTime.getTime() - breakStartTime.getTime()) / 1000);
+            const breakStart = new Date(attendance.breakStartTime);
+            setBreakStartTime(breakStart);
+            const currentBreakDuration = Math.floor((currentTime.getTime() - breakStart.getTime()) / 1000);
             setBreakDuration(currentBreakDuration);
             const breakInt = setInterval(() => {
               setBreakDuration(prev => prev + 1);
@@ -137,6 +140,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         setIsOnBreak(true);
+        setBreakStartTime(new Date());
         setBreakDuration(0);
         if (workInterval) clearInterval(workInterval);
         const breakInt = setInterval(() => {
@@ -157,6 +161,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         setIsOnBreak(false);
+        setBreakStartTime(null);
         if (breakInterval) clearInterval(breakInterval);
         const interval = setInterval(() => {
           setWorkDuration(prev => prev + 1);
@@ -174,6 +179,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     workDuration,
     breakDuration,
     checkInTime,
+    breakStartTime,
     handleTimeIn,
     handleTimeOut,
     handleStartBreak,
