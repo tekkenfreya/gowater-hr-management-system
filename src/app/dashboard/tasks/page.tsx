@@ -979,7 +979,7 @@ ${tasksSection}`;
                   setReportType('start');
                   // Initialize report tasks from current tasks (exclude archived)
                   const reportData = tasks
-                    .filter(t => (t.status === 'pending' || t.status === 'blocked') && t.status !== 'archived')
+                    .filter(t => t.status !== 'archived' && (t.status === 'pending' || t.status === 'blocked'))
                     .map(task => ({
                       task,
                       status: task.status as 'pending' | 'blocked',
@@ -1019,10 +1019,11 @@ ${tasksSection}`;
                   // Initialize report tasks from current tasks (exclude archived)
                   const reportData = tasks
                     .filter(t =>
+                      t.status !== 'archived' &&
                       (t.status === 'pending' ||
                       t.status === 'in_progress' ||
                       t.status === 'completed' ||
-                      t.status === 'blocked') && t.status !== 'archived'
+                      t.status === 'blocked')
                     )
                     .map(task => ({
                       task,
