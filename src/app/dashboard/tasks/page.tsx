@@ -977,12 +977,12 @@ ${tasksSection}`;
               <button
                 onClick={() => {
                   setReportType('start');
-                  // Initialize report tasks from current tasks
+                  // Initialize report tasks from current tasks (exclude archived)
                   const reportData = tasks
-                    .filter(t => t.status === 'pending' || t.status === 'blocked')
+                    .filter(t => (t.status === 'pending' || t.status === 'blocked') && t.status !== 'archived')
                     .map(task => ({
                       task,
-                      status: task.status,
+                      status: task.status as 'pending' | 'blocked',
                       subTasks: (task.subTasks || []).map(st => ({
                         id: st.id,
                         title: st.title,
@@ -1016,17 +1016,17 @@ ${tasksSection}`;
               <button
                 onClick={() => {
                   setReportType('eod');
-                  // Initialize report tasks from current tasks
+                  // Initialize report tasks from current tasks (exclude archived)
                   const reportData = tasks
                     .filter(t =>
-                      t.status === 'pending' ||
+                      (t.status === 'pending' ||
                       t.status === 'in_progress' ||
                       t.status === 'completed' ||
-                      t.status === 'blocked'
+                      t.status === 'blocked') && t.status !== 'archived'
                     )
                     .map(task => ({
                       task,
-                      status: task.status,
+                      status: task.status as 'pending' | 'in_progress' | 'completed' | 'blocked',
                       subTasks: (task.subTasks || []).map(st => ({
                         id: st.id,
                         title: st.title,
