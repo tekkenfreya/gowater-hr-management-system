@@ -20,11 +20,23 @@ export default function TasksPage() {
   const [showAddTask, setShowAddTask] = useState<'tasks' | 'pending' | 'in_progress' | 'completed' | null>(null);
   const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
   const [showReportTypeModal, setShowReportTypeModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportType, setReportType] = useState<'start' | 'eod'>('eod');
   const [background, setBackground] = useState<BoardBackground>('gradient-blue');
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'my-tasks' | 'assigned-by-me' | 'completed'>('all');
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [reportTasks, setReportTasks] = useState<Array<{
+    task: Task;
+    status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+    subTasks: Array<{
+      id: string;
+      title: string;
+      status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+      description: string;
+    }>;
+  }>>([]);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -749,6 +761,15 @@ ${tasksSection}`;
           </div>
           </div>
 
+          {/* Mobile Floating Action Button - Report */}
+          <button
+            onClick={() => setShowReportTypeModal(true)}
+            className="lg:hidden fixed bottom-6 right-6 z-40 w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-95"
+            title="Send WhatsApp Report"
+          >
+            <WhatsAppIcon className="w-8 h-8" />
+          </button>
+
           {/* Right Action Bar - Dark Vertical Sidebar */}
           <div className="hidden lg:flex flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 w-16 border-l border-gray-700/30 shadow-2xl">
           {/* WhatsApp - Send Report */}
@@ -864,7 +885,7 @@ ${tasksSection}`;
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {newTask.subTasks.map((subTask, index) => (
                     <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                      <div className="flex items-center space-x-2 mb-2">
+                      <div className="flex items-center space-x-2">
                         <span className="text-sm font-semibold text-gray-700">{index + 1}.</span>
                         <input
                           type="text"
@@ -888,17 +909,6 @@ ${tasksSection}`;
                           <TrashIcon />
                         </button>
                       </div>
-                      <textarea
-                        value={subTask.notes}
-                        onChange={(e) => {
-                          const updated = [...newTask.subTasks];
-                          updated[index].notes = e.target.value;
-                          setNewTask({ ...newTask, subTasks: updated });
-                        }}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        rows={2}
-                        placeholder="Notes (one per line)&#10;e.g., added new function to rest&#10;added new function to refill"
-                      />
                     </div>
                   ))}
 
@@ -965,7 +975,25 @@ ${tasksSection}`;
             <div className="space-y-3">
               {/* Start Report Button */}
               <button
-                onClick={() => sendWhatsAppReport('start')}
+                onClick={() => {
+                  setReportType('start');
+                  // Initialize report tasks from current tasks
+                  const reportData = tasks
+                    .filter(t => t.status === 'pending' || t.status === 'blocked')
+                    .map(task => ({
+                      task,
+                      status: task.status,
+                      subTasks: (task.subTasks || []).map(st => ({
+                        id: st.id,
+                        title: st.title,
+                        status: 'pending' as const,
+                        description: ''
+                      }))
+                    }));
+                  setReportTasks(reportData);
+                  setShowReportTypeModal(false);
+                  setShowReportModal(true);
+                }}
                 className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-4 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-3">
@@ -986,7 +1014,30 @@ ${tasksSection}`;
 
               {/* EOD Report Button */}
               <button
-                onClick={() => sendWhatsAppReport('eod')}
+                onClick={() => {
+                  setReportType('eod');
+                  // Initialize report tasks from current tasks
+                  const reportData = tasks
+                    .filter(t =>
+                      t.status === 'pending' ||
+                      t.status === 'in_progress' ||
+                      t.status === 'completed' ||
+                      t.status === 'blocked'
+                    )
+                    .map(task => ({
+                      task,
+                      status: task.status,
+                      subTasks: (task.subTasks || []).map(st => ({
+                        id: st.id,
+                        title: st.title,
+                        status: 'pending' as const,
+                        description: ''
+                      }))
+                    }));
+                  setReportTasks(reportData);
+                  setShowReportTypeModal(false);
+                  setShowReportModal(true);
+                }}
                 className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-4 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-3">
@@ -1065,7 +1116,7 @@ ${tasksSection}`;
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {(editingTask.subTasks || []).map((subTask, index) => (
                     <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                      <div className="flex items-center space-x-2 mb-2">
+                      <div className="flex items-center space-x-2">
                         <span className="text-sm font-semibold text-gray-700">{index + 1}.</span>
                         <input
                           type="text"
@@ -1089,17 +1140,6 @@ ${tasksSection}`;
                           <TrashIcon />
                         </button>
                       </div>
-                      <textarea
-                        value={subTask.notes}
-                        onChange={(e) => {
-                          const updated = [...(editingTask.subTasks || [])];
-                          updated[index].notes = e.target.value;
-                          setEditingTask({ ...editingTask, subTasks: updated });
-                        }}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        rows={2}
-                        placeholder="Notes (one per line)&#10;e.g., added new function to rest&#10;added new function to refill"
-                      />
                     </div>
                   ))}
 
@@ -1141,6 +1181,215 @@ ${tasksSection}`;
               <button
                 onClick={() => setEditingTask(null)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 px-4 rounded-lg font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal with Status Dropdowns */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {reportType === 'eod' ? 'End of Day Report' : 'Start of Day Report'}
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Review and update task statuses, then send your report
+            </p>
+
+            <div className="space-y-4 mb-6">
+              {reportTasks.map((reportTask, taskIndex) => (
+                <div key={reportTask.task.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  {/* Main Task */}
+                  <div className="mb-3">
+                    <h4 className="font-bold text-gray-900 text-base">{reportTask.task.title}</h4>
+                  </div>
+
+                  {/* Sub-tasks */}
+                  {reportTask.subTasks.length > 0 && (
+                    <div className="space-y-2 ml-4">
+                      {reportTask.subTasks.map((subTask, subIndex) => (
+                        <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+                          <div className="flex items-start space-x-2 mb-2">
+                            <span className="text-sm font-semibold text-gray-700 mt-1">{subIndex + 1}.</span>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className={`text-sm font-medium flex-1 ${
+                                  subTask.status === 'completed'
+                                    ? 'line-through text-gray-500'
+                                    : 'text-gray-900'
+                                }`}>
+                                  {subTask.title}
+                                </p>
+                                <select
+                                  value={subTask.status}
+                                  onChange={(e) => {
+                                    const updated = [...reportTasks];
+                                    updated[taskIndex].subTasks[subIndex].status = e.target.value as 'pending' | 'in_progress' | 'completed' | 'blocked';
+                                    setReportTasks(updated);
+                                  }}
+                                  className={`ml-2 px-2.5 py-1 border-2 rounded-md text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all cursor-pointer ${
+                                    subTask.status === 'pending'
+                                      ? 'bg-orange-50 border-orange-300 text-orange-700 focus:ring-orange-500'
+                                      : subTask.status === 'in_progress'
+                                      ? 'bg-blue-50 border-blue-300 text-blue-700 focus:ring-blue-500'
+                                      : 'bg-green-50 border-green-300 text-green-700 focus:ring-green-500'
+                                  }`}
+                                >
+                                  <option value="pending" className="bg-white text-orange-700 font-semibold">Pending</option>
+                                  <option value="in_progress" className="bg-white text-blue-700 font-semibold">In Progress</option>
+                                  <option value="completed" className="bg-white text-green-700 font-semibold">Completed</option>
+                                </select>
+                              </div>
+                              <textarea
+                                value={subTask.description}
+                                onChange={(e) => {
+                                  const updated = [...reportTasks];
+                                  updated[taskIndex].subTasks[subIndex].description = e.target.value;
+                                  setReportTasks(updated);
+                                }}
+                                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-all"
+                                rows={2}
+                                placeholder="Input your notes here"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {reportTasks.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-lg font-medium">No tasks to report</p>
+                  <p className="text-sm mt-2">Add some tasks to your board first</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  // Generate and send report
+                  if (!user) return;
+
+                  // Check which tasks will be archived
+                  const tasksToArchive = reportTasks.filter(reportTask => {
+                    return reportTask.subTasks.length > 0 &&
+                           reportTask.subTasks.every(st => st.status === 'completed');
+                  });
+
+                  // Show confirmation if there are tasks to archive
+                  if (tasksToArchive.length > 0) {
+                    const taskNames = tasksToArchive.map(t => `• ${t.task.title}`).join('\n');
+                    const confirmMessage = `The following ${tasksToArchive.length} task(s) will be archived because all subtasks are completed:\n\n${taskNames}\n\nDo you want to proceed with sending the report and archiving these tasks?`;
+
+                    if (!confirm(confirmMessage)) {
+                      return; // User cancelled
+                    }
+                  }
+
+                  const now = new Date();
+                  const dateOptions: Intl.DateTimeFormatOptions = {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  };
+                  const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+
+                  const timeIn = checkInTime
+                    ? new Date(checkInTime).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    : 'Not checked in';
+
+                  const tasksSection = reportTasks.map((reportTask) => {
+                    let projectText = reportTask.task.title;
+
+                    if (reportTask.subTasks.length > 0) {
+                      projectText += '\n \n';
+                      projectText += reportTask.subTasks.map((subTask, index) => {
+                        let statusTag = '[PENDING]';
+                        if (subTask.status === 'completed') statusTag = '[DONE]';
+                        else if (subTask.status === 'in_progress') statusTag = '[IN PROGRESS]';
+                        else if (subTask.status === 'blocked') statusTag = '[BLOCKED]';
+
+                        let subTaskText = `${index + 1}. ${subTask.title} ${statusTag}`;
+
+                        if (subTask.description.trim()) {
+                          const noteLines = subTask.description.split('\n').filter(line => line.trim());
+                          if (noteLines.length > 0) {
+                            subTaskText += '\n' + noteLines.map(line => `  ${line.trim()}`).join('\n');
+                          }
+                        }
+                        return subTaskText;
+                      }).join('\n\n');
+                    }
+
+                    return projectText;
+                  }).join('\n\n');
+
+                  const reportTitle = reportType === 'eod' ? 'GoWater EOD Tasks Report' : 'GoWater Tasks Report';
+                  const report = `${reportTitle}
+
+Date: ${formattedDate}
+Time In: ${timeIn}
+Employee: ${user.employeeName || user.name}
+Position: ${user.position || user.role}
+
+Today's Tasks:
+${tasksSection || 'No tasks for today'}`;
+
+                  // Archive tasks where all subtasks are completed
+                  const archivePromises = tasksToArchive.map(reportTask => {
+                    // Archive this task
+                    return fetch('/api/tasks', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        id: reportTask.task.id,
+                        status: 'archived'
+                      }),
+                    });
+                  });
+
+                  // Execute all archive operations
+                  Promise.all(archivePromises)
+                    .then(() => {
+                      // Send via WhatsApp after archiving
+                      return simpleWhatsAppService.sendReport(report, reportType);
+                    })
+                    .then(() => {
+                      logger.info(`WhatsApp ${reportType} report sent successfully`);
+                      // Refresh tasks to reflect archived status
+                      fetchTasks();
+                      setShowReportModal(false);
+                    })
+                    .catch((error) => {
+                      logger.error('Failed to send WhatsApp report or archive tasks', error);
+                      alert('Failed to send report. Please try again.');
+                    });
+                }}
+                disabled={reportTasks.length === 0}
+                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${
+                  reportTasks.length === 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                Send WhatsApp Report
+              </button>
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-semibold transition-colors"
               >
                 Cancel
               </button>
