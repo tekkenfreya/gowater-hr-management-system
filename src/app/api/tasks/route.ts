@@ -55,7 +55,11 @@ export async function GET(request: NextRequest) {
 
       return {
         ...task,
-        subTasks
+        subTasks,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        createdAt: (task as any).created_at || new Date().toISOString(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        updatedAt: (task as any).updated_at || new Date().toISOString()
       };
     });
 
@@ -110,7 +114,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       task: {
         ...task,
-        subTasks: subTasks || []
+        subTasks: subTasks || [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        createdAt: (task as any).created_at || new Date().toISOString(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        updatedAt: (task as any).updated_at || new Date().toISOString()
       },
       message: 'Task created successfully'
     });
@@ -196,7 +204,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       task: {
         ...updatedTask,
-        subTasks: subTasks !== undefined ? subTasks : existingSubTasks
+        subTasks: subTasks !== undefined ? subTasks : existingSubTasks,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        createdAt: (updatedTask as any).created_at || (existingTask as any).created_at || new Date().toISOString(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        updatedAt: (updatedTask as any).updated_at || new Date().toISOString()
       },
       message: 'Task updated successfully'
     });

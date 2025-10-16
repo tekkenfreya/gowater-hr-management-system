@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Task } from '@/types/attendance';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import TaskTimelineView from '@/components/TaskTimelineView';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/lib/logger';
 import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
@@ -23,9 +24,9 @@ export default function TasksPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportType, setReportType] = useState<'start' | 'eod'>('eod');
   const [background, setBackground] = useState<BoardBackground>('gradient-blue');
-  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'my-tasks' | 'assigned-by-me' | 'completed'>('all');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'my-tasks' | 'assigned-by-me' | 'completed' | 'archived'>('all');
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [breakDuration, setBreakDuration] = useState<number>(0);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [reportTasks, setReportTasks] = useState<Array<{
     task: Task;
@@ -67,11 +68,22 @@ export default function TasksPage() {
         const data = await response.json();
         if (data.attendance && data.attendance.checkInTime) {
           setCheckInTime(data.attendance.checkInTime);
+          setBreakDuration(data.attendance.breakDuration || 0);
         }
       }
     } catch (error) {
       logger.error('Failed to fetch attendance', error);
     }
+  };
+
+  const formatBreakTime = (seconds: number): string => {
+    if (seconds === 0) return 'No break';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
   const fetchTasks = async () => {
@@ -181,6 +193,34 @@ export default function TasksPage() {
       }
     } catch (error) {
       logger.error('Failed to update task', error);
+    }
+  };
+
+  // Handle updates from timeline view
+  const handleTaskUpdate = async (id: string, updates: Partial<Task>) => {
+    try {
+      // Optimistic update
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === id ? { ...task, ...updates } : task
+        )
+      );
+
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      });
+
+      if (!response.ok) {
+        logger.error('Failed to update task', new Error('Response not ok'));
+        // Revert on failure
+        await fetchTasks();
+      }
+    } catch (error) {
+      logger.error('Failed to update task', error);
+      // Revert on error
+      await fetchTasks();
     }
   };
 
@@ -313,22 +353,6 @@ ${tasksSection}`;
     }
   };
 
-  const handleDragStart = (task: Task) => {
-    setDraggedTask(task);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = async (e: React.DragEvent, newStatus: 'pending' | 'in_progress' | 'completed') => {
-    e.preventDefault();
-    if (draggedTask && draggedTask.status !== newStatus) {
-      await updateTaskStatus(draggedTask.id, newStatus);
-    }
-    setDraggedTask(null);
-  };
-
   const changeBackground = (bg: BoardBackground) => {
     setBackground(bg);
     localStorage.setItem('tasksBoardBackground', bg);
@@ -393,27 +417,22 @@ ${tasksSection}`;
   const getFilteredTasks = () => {
     switch (taskFilter) {
       case 'my-tasks':
-        // Show only active (not completed) tasks
+        // Show only active (not completed, not archived) tasks
         return tasks.filter(t => t.status !== 'completed' && t.status !== 'archived');
       case 'assigned-by-me':
         // Show tasks in progress
         return tasks.filter(t => t.status === 'in_progress');
       case 'completed':
         return tasks.filter(t => t.status === 'completed');
+      case 'archived':
+        return tasks.filter(t => t.status === 'archived');
       default:
-        return tasks;
+        // Show all tasks except archived (unless archived filter is selected)
+        return tasks.filter(t => t.status !== 'archived');
     }
   };
 
   const filteredTasks = getFilteredTasks();
-
-  // Organize tasks by status
-  // Tasks column shows all pending/blocked tasks (backlog), other columns show their respective statuses
-  const tasksByStatus = {
-    tasks: filteredTasks.filter(t => t.status === 'pending' || t.status === 'blocked'),
-    in_progress: filteredTasks.filter(t => t.status === 'in_progress'),
-    completed: filteredTasks.filter(t => t.status === 'completed'),
-  };
 
   if (isLoading) {
     return (
@@ -561,6 +580,17 @@ ${tasksSection}`;
                 >
                   <CompletedIcon />
                   <span>Completed Tasks</span>
+                </button>
+                <button
+                  onClick={() => setTaskFilter('archived')}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2 ${
+                    taskFilter === 'archived'
+                      ? 'bg-blue-100 text-blue-700 font-semibold'
+                      : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
+                >
+                  <ArchiveIcon />
+                  <span>Archived Tasks</span>
                 </button>
               </div>
             </div>
@@ -712,52 +742,32 @@ ${tasksSection}`;
             </>
           )}
 
-          {/* Trello Columns */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 h-full p-4">
-            {/* Tasks Column (Backlog) - Only place to add new tasks */}
-            <TrelloColumn
-              title="Tasks"
-              tasks={tasksByStatus.tasks}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, 'pending')}
-              onAddTask={() => setShowAddTask('tasks')}
-              onEditTask={setEditingTask}
-              onDeleteTask={deleteTask}
-              getPriorityColor={getPriorityColor}
-              isDraggingOver={draggedTask?.status !== 'pending' && draggedTask !== null}
-              showAddButton={true}
-            />
+          {/* Timeline View */}
+          <div className="relative z-10 h-full overflow-y-auto p-6">
+            <div className="max-w-5xl mx-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Tasks Timeline</h2>
+                  <p className="text-white/70 text-sm mt-1">Manage your tasks and track progress</p>
+                </div>
+                <button
+                  onClick={() => setShowAddTask('tasks')}
+                  className="flex items-center space-x-2 bg-white hover:bg-gray-100 text-gray-900 px-4 py-2 rounded-lg font-semibold transition-all shadow-lg"
+                >
+                  <PlusIcon />
+                  <span>Add Task</span>
+                </button>
+              </div>
 
-            {/* In Progress Column */}
-            <TrelloColumn
-              title="In Progress"
-              tasks={tasksByStatus.in_progress}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, 'in_progress')}
-              onAddTask={() => {}}
-              onEditTask={setEditingTask}
-              onDeleteTask={deleteTask}
-              getPriorityColor={getPriorityColor}
-              isDraggingOver={draggedTask?.status !== 'in_progress' && draggedTask !== null}
-              showAddButton={false}
-            />
-
-            {/* Completed Column */}
-            <TrelloColumn
-              title="Completed"
-              tasks={tasksByStatus.completed}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, 'completed')}
-              onAddTask={() => {}}
-              onEditTask={setEditingTask}
-              onDeleteTask={deleteTask}
-              getPriorityColor={getPriorityColor}
-              isDraggingOver={draggedTask?.status !== 'completed' && draggedTask !== null}
-              showAddButton={false}
-            />
+              {/* Timeline View Component */}
+              <TaskTimelineView
+                tasks={filteredTasks}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskDelete={deleteTask}
+                getPriorityColor={getPriorityColor}
+              />
+            </div>
           </div>
           </div>
 
@@ -1343,6 +1353,7 @@ ${tasksSection}`;
 
 Date: ${formattedDate}
 Time In: ${timeIn}
+Break Time: ${formatBreakTime(breakDuration)}
 Employee: ${user.employeeName || user.name}
 Position: ${user.position || user.role}
 
@@ -1398,102 +1409,6 @@ ${tasksSection || 'No tasks for today'}`;
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// Trello Column Component
-function TrelloColumn({
-  title,
-  tasks,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onAddTask,
-  onEditTask,
-  onDeleteTask,
-  getPriorityColor,
-  isDraggingOver,
-  showAddButton = true
-}: {
-  title: string;
-  tasks: Task[];
-  onDragStart: (task: Task) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
-  onAddTask: () => void;
-  onEditTask: (task: Task) => void;
-  onDeleteTask: (id: string) => void;
-  getPriorityColor: (priority: 'low' | 'medium' | 'high' | 'urgent') => string;
-  isDraggingOver: boolean;
-  showAddButton?: boolean;
-}) {
-  return (
-    <div className="flex flex-col h-full">
-      {/* Column Header */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-sm px-4 py-3 mb-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide">{title}</h2>
-          <span className="bg-gray-200 text-gray-700 text-xs font-bold px-2.5 py-1 rounded-full">
-            {tasks.length}
-          </span>
-        </div>
-      </div>
-
-      {/* Cards Container */}
-      <div
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        className={`flex-1 bg-white/90 backdrop-blur-sm rounded-lg p-3 overflow-y-auto space-y-3 transition-all ${
-          isDraggingOver ? 'ring-4 ring-blue-400 bg-blue-50/90' : ''
-        }`}
-      >
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            draggable
-            onDragStart={() => onDragStart(task)}
-            onDoubleClick={() => onEditTask(task)}
-            className="bg-white/60 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md border border-white/40 p-3 cursor-grab active:cursor-grabbing transition-all group"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <h4 className="font-semibold text-gray-900 text-sm flex-1">{task.title}</h4>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteTask(task.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-500 transition-all"
-                title="Delete"
-              >
-                <TrashIcon />
-              </button>
-            </div>
-
-            {task.description && (
-              <p className="text-xs text-gray-600 mb-3 line-clamp-3">{task.description}</p>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div className={`w-10 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-              <span className="text-xs text-gray-500 capitalize">
-                {task.priority}
-              </span>
-            </div>
-          </div>
-        ))}
-
-        {/* Add Card Button - Only show in Tasks column */}
-        {showAddButton && (
-          <button
-            onClick={onAddTask}
-            className="w-full bg-white/50 hover:bg-white/80 border-2 border-dashed border-gray-300 hover:border-gray-400 rounded-lg p-3 text-gray-600 hover:text-gray-900 font-medium text-sm transition-all flex items-center justify-center space-x-2"
-          >
-            <PlusIcon />
-            <span>Add a card</span>
-          </button>
-        )}
-      </div>
     </div>
   );
 }
@@ -1586,6 +1501,14 @@ function CompletedIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
     </svg>
   );
 }

@@ -99,13 +99,17 @@ export class AttendanceService {
       const checkInTime = new Date(record.check_in_time);
       const sessionHours = (new Date(checkOutTime).getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
 
-      // Add current session hours to existing total_hours (accumulate)
+      // Subtract break time from session hours
+      const breakDurationHours = (record.break_duration || 0) / 3600; // Convert seconds to hours
+      const workingSessionHours = sessionHours - breakDurationHours;
+
+      // Add current session working hours to existing total_hours (accumulate)
       const previousTotalHours = record.total_hours || 0;
-      const newTotalHours = previousTotalHours + sessionHours;
+      const newTotalHours = previousTotalHours + workingSessionHours;
 
       await this.db.update('attendance', {
         check_out_time: checkOutTime,
-        total_hours: newTotalHours, // Accumulate hours
+        total_hours: newTotalHours, // Accumulate hours (excluding break time)
         notes: notes ? `${record.notes || ''}\n${notes}` : record.notes,
         updated_at: new Date()
       }, { id: record.id });
