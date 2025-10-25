@@ -104,6 +104,12 @@ export default function Sidebar({
       icon: <CalendarDaysIcon />,
       href: '/dashboard/leave'
     },
+    {
+      id: 'leads',
+      label: 'Leads',
+      icon: <LeadsIcon />,
+      href: '/dashboard/leads'
+    },
     ...((user?.role === 'admin' || user?.role === 'manager') ? [{
       id: 'team',
       label: 'Team',
@@ -129,6 +135,12 @@ export default function Sidebar({
           href: '/dashboard/team/reports'
         }
       ]
+    }] : []),
+    ...((user?.role === 'admin' || user?.role === 'manager' || user?.role === 'boss') ? [{
+      id: 'lead-analytics',
+      label: 'Lead Analytics',
+      icon: <ChartIcon />,
+      href: '/dashboard/leads/analytics'
     }] : []),
     {
       id: 'files',
@@ -478,6 +490,23 @@ function AdminIcon() {
   return (
     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  );
+}
+
+function LeadsIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
     </svg>
   );
 }
