@@ -136,7 +136,7 @@ export default function Sidebar({
         }
       ]
     }] : []),
-    ...((user?.role === 'admin' || user?.role === 'manager' || user?.role === 'boss') ? [{
+    ...((user?.role === 'admin' || user?.role === 'manager') ? [{
       id: 'lead-analytics',
       label: 'Lead Analytics',
       icon: <ChartIcon />,

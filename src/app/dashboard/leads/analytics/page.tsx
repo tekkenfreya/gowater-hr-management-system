@@ -23,7 +23,7 @@ export default function LeadAnalyticsPage() {
 
   useEffect(() => {
     // Check if user has permission to view analytics
-    if (user && user.role !== 'admin' && user.role !== 'boss') {
+    if (user && user.role !== 'admin' && user.role !== 'manager') {
       router.push('/dashboard');
       return;
     }

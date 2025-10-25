@@ -29,7 +29,7 @@ export class LeadService {
       updated_at: now,
     };
 
-    await this.db.insert('leads', lead);
+    await this.db.insert('leads', lead as unknown as Record<string, unknown>);
     return lead;
   }
 
@@ -88,7 +88,7 @@ export class LeadService {
       created_at: new Date().toISOString(),
     };
 
-    await this.db.insert('lead_activities', activity);
+    await this.db.insert('lead_activities', activity as unknown as Record<string, unknown>);
 
     // Update lead's updated_at timestamp
     await this.db.update('leads', { updated_at: new Date().toISOString() }, { id: leadId });
