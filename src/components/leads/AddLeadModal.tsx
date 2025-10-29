@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { LeadCategory, ProductType, LeadFormData } from '@/types/leads';
+import { LeadCategory, LeadType, ProductType, LeadFormData } from '@/types/leads';
 import { logger } from '@/lib/logger';
 
 interface AddLeadModalProps {
   category: LeadCategory;
+  leadType: LeadType;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -25,9 +26,10 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadModalProps) {
+export default function AddLeadModal({ category, leadType, onClose, onSuccess }: AddLeadModalProps) {
   const [formData, setFormData] = useState<LeadFormData>({
     category,
+    lead_type: leadType,
     company_name: '',
     location: '',
     contact_person: '',
@@ -39,6 +41,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
     product: undefined,
     status: 'not-started',
     remarks: '',
+    next_action: '',
     assigned_to: '',
   });
   const [loading, setLoading] = useState(false);
@@ -101,10 +104,10 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          {/* Company Name */}
+          {/* Name Field - Dynamic Label */}
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Company Name <span className="text-red-500">*</span>
+              {leadType === 'company' ? 'Company Name' : 'Full Name'} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -113,7 +116,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
-              placeholder="Enter company name"
+              placeholder={leadType === 'company' ? 'Enter company name' : 'Enter full name'}
             />
           </div>
 
@@ -130,18 +133,20 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Contact Person */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Contact Person</label>
-            <input
-              type="text"
-              name="contact_person"
-              value={formData.contact_person}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
-              placeholder="Enter contact person"
-            />
-          </div>
+          {/* Contact Person - Only show for company */}
+          {leadType === 'company' && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">Contact Person</label>
+              <input
+                type="text"
+                name="contact_person"
+                value={formData.contact_person}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
+                placeholder="Enter contact person"
+              />
+            </div>
+          )}
 
           {/* Mobile Number */}
           <div>
@@ -182,16 +187,18 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Type of Business */}
+          {/* Type of Business / Occupation - Dynamic Label */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Type of Business</label>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              {leadType === 'company' ? 'Type of Business' : 'Occupation'}
+            </label>
             <input
               type="text"
               name="type_of_business"
               value={formData.type_of_business}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
-              placeholder="e.g., Manufacturing, Education"
+              placeholder={leadType === 'company' ? 'e.g., Manufacturing, Education' : 'e.g., Engineer, Manager'}
             />
           </div>
 
@@ -266,6 +273,19 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-gray-900"
               placeholder="Add any additional notes"
+            />
+          </div>
+
+          {/* Next Action */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">Next Action</label>
+            <textarea
+              name="next_action"
+              value={formData.next_action}
+              onChange={handleChange}
+              rows={2}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-gray-900"
+              placeholder="What should be done next with this lead?"
             />
           </div>
 

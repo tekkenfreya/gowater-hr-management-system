@@ -12,6 +12,7 @@ export class LeadService {
     const lead: Lead = {
       id: randomUUID(),
       category: leadData.category,
+      lead_type: leadData.lead_type || 'company',
       company_name: leadData.company_name,
       location: leadData.location || null,
       contact_person: leadData.contact_person || null,
@@ -23,6 +24,7 @@ export class LeadService {
       product: leadData.product || null,
       status: leadData.status || 'not-started',
       remarks: leadData.remarks || null,
+      next_action: leadData.next_action || null,
       assigned_to: leadData.assigned_to || employeeName,
       created_by: employeeName,
       created_at: now,
@@ -54,6 +56,7 @@ export class LeadService {
     };
 
     if (updates.company_name !== undefined) updateData.company_name = updates.company_name;
+    if (updates.lead_type !== undefined) updateData.lead_type = updates.lead_type;
     if (updates.location !== undefined) updateData.location = updates.location || null;
     if (updates.contact_person !== undefined) updateData.contact_person = updates.contact_person || null;
     if (updates.mobile_number !== undefined) updateData.mobile_number = updates.mobile_number || null;
@@ -64,6 +67,7 @@ export class LeadService {
     if (updates.product !== undefined) updateData.product = updates.product || null;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.remarks !== undefined) updateData.remarks = updates.remarks || null;
+    if (updates.next_action !== undefined) updateData.next_action = updates.next_action || null;
     if (updates.assigned_to !== undefined) updateData.assigned_to = updates.assigned_to || null;
 
     await this.db.update('leads', updateData, { id: leadId });

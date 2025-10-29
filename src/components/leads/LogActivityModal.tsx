@@ -86,15 +86,15 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 rounded-t-2xl">
+        <div className="sticky top-0 bg-slate-700 px-8 py-6 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-white">Log Activity</h2>
-              <p className="text-blue-100 mt-1">{lead.company_name}</p>
+              <p className="text-zinc-400 mt-1">{lead.company_name}</p>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:text-blue-100 transition-colors"
+              className="text-white hover:text-zinc-200 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -118,7 +118,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
                   onClick={() => setFormData((prev) => ({ ...prev, activity_type: type.value }))}
                   className={`p-4 border-2 rounded-xl transition-all text-left ${
                     formData.activity_type === type.value
-                      ? 'border-blue-600 bg-blue-50'
+                      ? 'border-emerald-500 bg-emerald-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -142,7 +142,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
               onChange={handleChange}
               required
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all resize-none text-gray-900"
               placeholder="Describe what you did... (e.g., 'Called Mr. Santos to discuss pricing for 3 vending machines. He requested a formal quote by Friday.')"
             />
           </div>
@@ -155,7 +155,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
               name="start_date"
               value={formData.start_date}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all text-gray-900"
             />
           </div>
 
@@ -167,7 +167,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
               name="end_date"
               value={formData.end_date}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all text-gray-900"
             />
           </div>
 
@@ -178,7 +178,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
               name="status_update"
               value={formData.status_update}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all text-gray-900"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -192,14 +192,14 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
           </div>
 
           {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4">
             <div className="flex items-start space-x-3">
-              <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-5 h-5 text-zinc-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
               <div>
-                <p className="text-sm font-medium text-blue-900">Activity will be tracked</p>
-                <p className="text-sm text-blue-700 mt-1">
+                <p className="text-sm font-medium text-zinc-900">Activity will be tracked</p>
+                <p className="text-sm text-zinc-600 mt-1">
                   This activity will be logged with your name and timestamp. Your boss can see all activities in the dashboard.
                 </p>
               </div>
@@ -218,7 +218,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+              className="flex-1 px-6 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-800 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Logging...' : 'Log Activity'}
             </button>

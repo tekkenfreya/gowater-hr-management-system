@@ -1,10 +1,12 @@
 export type LeadCategory = 'factory' | 'school' | 'cooperative' | 'dti' | 'rotary' | 'event';
+export type LeadType = 'company' | 'individual';
 export type ProductType = 'both' | 'vending' | 'dispenser';
 export type ActivityType = 'call' | 'email' | 'meeting' | 'site-visit' | 'follow-up' | 'remark' | 'other';
 
 export interface Lead {
   id: string;
   category: LeadCategory;
+  lead_type: LeadType;
   company_name: string;
   location: string | null;
   contact_person: string | null;
@@ -16,6 +18,7 @@ export interface Lead {
   product: ProductType | null;
   status: string;
   remarks: string | null;
+  next_action: string | null;
   assigned_to: string | null; // Employee name
   created_by: string;
   created_at: string;
@@ -42,6 +45,7 @@ export interface LeadWithActivities extends Lead {
 
 export interface LeadFormData {
   category: LeadCategory;
+  lead_type?: LeadType;
   company_name: string;
   location?: string;
   contact_person?: string;
@@ -53,6 +57,7 @@ export interface LeadFormData {
   product?: ProductType;
   status?: string;
   remarks?: string;
+  next_action?: string;
   assigned_to?: string;
 }
 

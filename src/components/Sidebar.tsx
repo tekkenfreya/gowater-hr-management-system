@@ -108,7 +108,15 @@ export default function Sidebar({
       id: 'leads',
       label: 'Leads',
       icon: <LeadsIcon />,
-      href: '/dashboard/leads'
+      href: '/dashboard/leads',
+      subItems: [
+        ...((user?.role === 'admin' || user?.role === 'manager') ? [{
+          id: 'lead-analytics',
+          label: 'Lead Analytics',
+          icon: <ChartIcon />,
+          href: '/dashboard/leads/analytics'
+        }] : [])
+      ]
     },
     ...((user?.role === 'admin' || user?.role === 'manager') ? [{
       id: 'team',
@@ -135,12 +143,6 @@ export default function Sidebar({
           href: '/dashboard/team/reports'
         }
       ]
-    }] : []),
-    ...((user?.role === 'admin' || user?.role === 'manager') ? [{
-      id: 'lead-analytics',
-      label: 'Lead Analytics',
-      icon: <ChartIcon />,
-      href: '/dashboard/leads/analytics'
     }] : []),
     {
       id: 'files',
@@ -239,23 +241,42 @@ export default function Sidebar({
                 {/* Main Item */}
                 <div className="relative">
                   {item.subItems ? (
-                    <button
-                      onClick={() => toggleExpanded(item.id)}
+                    <div
                       className={`
-                        w-full flex items-center justify-between px-4 py-3 text-base font-normal rounded-xl transition-all
+                        flex items-center rounded-xl transition-all
                         ${isActive(item.href) || hasActiveSubItem(item) || expandedItems.includes(item.id)
                           ? 'bg-white/10 text-white backdrop-blur-sm'
                           : 'text-gray-400 hover:bg-white/5 hover:text-white'
                         }
                       `}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 flex-shrink-0">
-                          {item.icon}
+                      <Link
+                        href={item.href}
+                        className="flex-1 flex items-center px-4 py-3 text-base font-normal"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-6 h-6 flex-shrink-0">
+                            {item.icon}
+                          </div>
+                          {!isCollapsed && <span>{item.label}</span>}
                         </div>
-                        {!isCollapsed && <span>{item.label}</span>}
-                      </div>
-                    </button>
+                      </Link>
+                      {!isCollapsed && (
+                        <button
+                          onClick={() => toggleExpanded(item.id)}
+                          className="px-3 py-3 hover:bg-white/5 transition-colors"
+                        >
+                          <svg
+                            className={`w-4 h-4 transition-transform ${expandedItems.includes(item.id) ? 'rotate-90' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <Link
                       href={item.href}
