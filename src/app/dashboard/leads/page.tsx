@@ -8,19 +8,21 @@ import AddLeadModal from '@/components/leads/AddLeadModal';
 import LeadTypeSelectionModal from '@/components/leads/LeadTypeSelectionModal';
 import LogActivityModal from '@/components/leads/LogActivityModal';
 import ViewActivitiesModal from '@/components/leads/ViewActivitiesModal';
+import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye } from 'lucide-react';
 
 const CATEGORIES: { value: LeadCategory; label: string }[] = [
   { value: 'lead', label: 'Leads' },
   { value: 'event', label: 'Events' },
 ];
 
+// Microsoft 365 Status Colors
 const STATUS_COLORS: Record<string, string> = {
-  'not-started': 'bg-zinc-100 text-zinc-700 border border-zinc-200',
-  'contacted': 'bg-sky-100 text-sky-700 border border-sky-200',
-  'quoted': 'bg-amber-100 text-amber-700 border border-amber-200',
-  'negotiating': 'bg-indigo-100 text-indigo-700 border border-indigo-200',
-  'closed-deal': 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  'rejected': 'bg-rose-100 text-rose-700 border border-rose-200',
+  'not-started': 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]',
+  'contacted': 'bg-[#E6F3FF] text-[#005A9E] border border-[#0078D4]',
+  'quoted': 'bg-[#FFF4E5] text-[#8A5100] border border-[#F59B00]',
+  'negotiating': 'bg-[#F0E6FF] text-[#5A2D91] border border-[#8764B8]',
+  'closed-deal': 'bg-[#E6F4EA] text-[#0B5A10] border border-[#107C10]',
+  'rejected': 'bg-[#FDE7E9] text-[#A4262C] border border-[#D13438]',
 };
 
 export default function LeadsPage() {
@@ -87,34 +89,33 @@ export default function LeadsPage() {
   const categoryLabel = CATEGORIES.find(c => c.value === selectedCategory)?.label || '';
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex">
-      {/* Sidebar Navigation */}
-      <div className="w-64 bg-white shadow-sm border-r border-zinc-200 p-6 flex flex-col">
-        <h2 className="text-xl font-bold text-zinc-900 mb-4">Categories</h2>
+    <div className="min-h-screen bg-[#F3F2F1] flex">
+      {/* Sidebar Navigation - Microsoft Style */}
+      <div className="w-64 bg-white border-r border-[#E1DFDD] p-6 flex flex-col">
+        <h2 className="text-lg font-semibold text-[#323130] mb-6">Categories</h2>
 
-        {/* Add Item Button */}
+        {/* Add Item Button - Microsoft Primary */}
         <button
           onClick={openAddFlow}
-          className="w-full px-4 py-2.5 mb-6 bg-white border-2 border-dashed border-zinc-300 text-slate-700 rounded-lg font-medium hover:bg-emerald-50 hover:border-emerald-600 hover:text-emerald-700 transition-all duration-200 flex items-center justify-center gap-2"
+          className="w-full px-4 py-2 mb-6 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center justify-center gap-2"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="w-4 h-4" />
           Add Item
         </button>
 
         {/* Category Navigation */}
-        <nav className="flex-1 space-y-1.5">
+        <nav className="flex-1 space-y-1">
           {CATEGORIES.map((category) => (
             <button
               key={category.value}
               onClick={() => setSelectedCategory(category.value)}
-              className={`w-full text-left px-4 py-2.5 rounded-lg font-medium transition-all duration-200 relative ${
+              className={`w-full text-left px-3 py-2 rounded font-medium transition-colors duration-150 text-sm flex items-center gap-2 ${
                 selectedCategory === category.value
-                  ? 'bg-slate-700 text-white shadow-sm before:absolute before:left-0 before:top-1 before:bottom-1 before:w-1 before:bg-emerald-500 before:rounded-r'
-                  : 'text-zinc-700 hover:bg-zinc-100'
+                  ? 'bg-[#E6F3FF] text-[#0078D4] border-l-4 border-[#0078D4]'
+                  : 'text-[#323130] hover:bg-[#F3F2F1]'
               }`}
             >
+              {category.value === 'lead' ? <Building2 className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
               {category.label}
             </button>
           ))}
@@ -123,11 +124,9 @@ export default function LeadsPage() {
         {/* Back to Dashboard Button */}
         <a
           href="/dashboard"
-          className="w-full px-4 py-2.5 mt-4 text-zinc-600 hover:bg-zinc-100 border border-zinc-200 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
+          className="w-full px-4 py-2 mt-4 text-[#323130] hover:bg-[#F3F2F1] border border-[#C8C6C4] rounded font-medium transition-colors duration-150 flex items-center justify-center gap-2 text-sm"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
+          <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </a>
       </div>
@@ -136,32 +135,33 @@ export default function LeadsPage() {
       <div className="flex-1 p-8">
         <div className="max-w-full">
           {/* Category Title Header */}
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-zinc-900 mb-2">{categoryLabel}</h1>
-              <p className="text-zinc-600">Manage and track your {categoryLabel.toLowerCase()}</p>
+              <h1 className="text-3xl font-semibold text-[#323130] mb-1">{categoryLabel}</h1>
+              <p className="text-[#605E5C] text-sm">Manage and track your {categoryLabel.toLowerCase()}</p>
             </div>
             <button
               onClick={openAddFlow}
-              className="px-6 py-3 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-800 hover:shadow-md transform hover:scale-[1.02] transition-all duration-200"
+              className="px-4 py-2 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2"
             >
+              <Plus className="w-4 h-4" />
               Add {isLeadCategory ? 'Lead' : 'Event'}
             </button>
           </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-[#E1DFDD] overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
-              <p className="mt-4 text-zinc-600">Loading {categoryLabel.toLowerCase()}...</p>
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#0078D4]"></div>
+              <p className="mt-4 text-[#605E5C] text-sm">Loading {categoryLabel.toLowerCase()}...</p>
             </div>
           ) : leads.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-zinc-500 text-lg">No {categoryLabel.toLowerCase()} found</p>
+              <p className="text-[#605E5C] text-base">No {categoryLabel.toLowerCase()} found</p>
               <button
                 onClick={openAddFlow}
-                className="mt-4 px-6 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-all duration-200"
+                className="mt-4 px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150"
               >
                 Add First {isLeadCategory ? 'Lead' : 'Event'}
               </button>
@@ -169,97 +169,99 @@ export default function LeadsPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-zinc-50 border-b border-zinc-200">
+                <thead className="bg-[#F3F2F1] border-b border-[#E1DFDD]">
                   <tr>
                     {/* Dynamic headers based on category */}
                     {isLeadCategory && (
                       <>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Company Name</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Location</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Contact</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Mobile</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Email</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Lead Source</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Business Type</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Product</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Assigned To</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Next Action</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Actions</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Company Name</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Lead Source</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Business Type</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
                     {isEventCategory && (
                       <>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Event Name</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Venue</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Date</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Time</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Contact</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Mobile</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Email</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Attendees</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Product Needed</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Assigned To</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Next Action</th>
-                        <th className="px-4 py-3.5 text-left text-xs font-semibold text-zinc-600 uppercase tracking-wider">Actions</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Event Name</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Venue</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Date</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Time</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Attendees</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product Needed</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200">
+                <tbody className="divide-y divide-[#E1DFDD]">
                   {leads.map((lead) => (
-                    <tr key={lead.id} className="hover:bg-zinc-50 transition-colors duration-150">
+                    <tr key={lead.id} className="hover:bg-[#F3F2F1] transition-colors duration-100">
                       {/* Dynamic row data based on category */}
                       {isLeadCategory && (
                         <>
-                          <td className="px-4 py-3.5">
-                            <div className="font-medium text-zinc-900 text-sm">{lead.company_name || 'N/A'}</div>
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-[#323130] text-sm">{lead.company_name || 'N/A'}</div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.location || ''}>
                               {lead.location || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.contact_person || 'N/A'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.mobile_number || 'N/A'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.contact_person || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.mobile_number || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.email_address || ''}>
                               {lead.email_address || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.lead_source || 'N/A'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.lead_source || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.type_of_business || ''}>
                               {lead.type_of_business || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5">
-                            <span className="text-sm text-zinc-900 capitalize">{lead.product || 'N/A'}</span>
+                          <td className="px-3 py-3">
+                            <span className="text-sm text-[#323130] capitalize">{lead.product || 'N/A'}</span>
                           </td>
-                          <td className="px-4 py-3.5">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[lead.status] || 'bg-zinc-100 text-zinc-800'}`}>
+                          <td className="px-3 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.assigned_to || 'Unassigned'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.next_action || ''}>
                               {lead.next_action || '-'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5">
+                          <td className="px-3 py-3">
                             <div className="flex space-x-2">
                               <button
                                 onClick={() => openActivityModal(lead)}
-                                className="px-3 py-1.5 bg-slate-700 text-white text-xs rounded-lg font-medium hover:bg-slate-800 hover:shadow-sm transition-all duration-200"
+                                className="px-3 py-1.5 bg-[#0078D4] text-white text-xs rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
                               >
+                                <FileText className="w-3 h-3" />
                                 Log Activity
                               </button>
                               <button
                                 onClick={() => openViewActivitiesModal(lead)}
-                                className="px-3 py-1.5 bg-zinc-100 text-zinc-700 text-xs rounded-lg font-medium hover:bg-zinc-200 transition-all duration-200 border border-zinc-200"
+                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
+                                <Eye className="w-3 h-3" />
                                 View
                               </button>
                             </div>
@@ -268,52 +270,54 @@ export default function LeadsPage() {
                       )}
                       {isEventCategory && (
                         <>
-                          <td className="px-4 py-3.5">
-                            <div className="font-medium text-zinc-900 text-sm">{lead.event_name || 'N/A'}</div>
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-[#323130] text-sm">{lead.event_name || 'N/A'}</div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.venue || ''}>
                               {lead.venue || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">
+                          <td className="px-3 py-3 text-sm text-[#323130]">
                             {lead.event_date ? new Date(lead.event_date).toLocaleDateString() : 'N/A'}
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.event_time || 'N/A'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.contact_person || 'N/A'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.mobile_number || 'N/A'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.event_time || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.contact_person || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.mobile_number || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.email_address || ''}>
                               {lead.email_address || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.number_of_attendees || 'N/A'}</td>
-                          <td className="px-4 py-3.5">
-                            <span className="text-sm text-zinc-900 capitalize">{lead.product || 'N/A'}</span>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.number_of_attendees || 'N/A'}</td>
+                          <td className="px-3 py-3">
+                            <span className="text-sm text-[#323130] capitalize">{lead.product || 'N/A'}</span>
                           </td>
-                          <td className="px-4 py-3.5">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[lead.status] || 'bg-zinc-100 text-zinc-800'}`}>
+                          <td className="px-3 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900">{lead.assigned_to || 'Unassigned'}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-900 max-w-xs">
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
                             <div className="truncate" title={lead.next_action || ''}>
                               {lead.next_action || '-'}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5">
+                          <td className="px-3 py-3">
                             <div className="flex space-x-2">
                               <button
                                 onClick={() => openActivityModal(lead)}
-                                className="px-3 py-1.5 bg-slate-700 text-white text-xs rounded-lg font-medium hover:bg-slate-800 hover:shadow-sm transition-all duration-200"
+                                className="px-3 py-1.5 bg-[#0078D4] text-white text-xs rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
                               >
+                                <FileText className="w-3 h-3" />
                                 Log Activity
                               </button>
                               <button
                                 onClick={() => openViewActivitiesModal(lead)}
-                                className="px-3 py-1.5 bg-zinc-100 text-zinc-700 text-xs rounded-lg font-medium hover:bg-zinc-200 transition-all duration-200 border border-zinc-200"
+                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
+                                <Eye className="w-3 h-3" />
                                 View
                               </button>
                             </div>

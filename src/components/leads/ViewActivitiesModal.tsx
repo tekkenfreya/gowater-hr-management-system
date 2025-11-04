@@ -3,30 +3,31 @@
 import { useState, useEffect } from 'react';
 import { Lead, LeadActivity, ActivityType } from '@/types/leads';
 import { logger } from '@/lib/logger';
+import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, MapPin, User, Calendar, Loader2 } from 'lucide-react';
 
 interface ViewActivitiesModalProps {
   lead: Lead;
   onClose: () => void;
 }
 
-const ACTIVITY_ICONS: Record<ActivityType, string> = {
-  call: '📞',
-  email: '📧',
-  meeting: '🤝',
-  'site-visit': '🏢',
-  'follow-up': '📋',
-  remark: '📝',
-  other: '✨',
+const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
+  call: <Phone className="w-5 h-5" />,
+  email: <Mail className="w-5 h-5" />,
+  meeting: <Users className="w-5 h-5" />,
+  'site-visit': <Building className="w-5 h-5" />,
+  'follow-up': <ClipboardCheck className="w-5 h-5" />,
+  remark: <FileText className="w-5 h-5" />,
+  other: <Sparkles className="w-5 h-5" />,
 };
 
 const ACTIVITY_COLORS: Record<ActivityType, string> = {
-  call: 'bg-blue-100 text-blue-800',
-  email: 'bg-purple-100 text-purple-800',
-  meeting: 'bg-green-100 text-green-800',
-  'site-visit': 'bg-orange-100 text-orange-800',
-  'follow-up': 'bg-yellow-100 text-yellow-800',
-  remark: 'bg-gray-100 text-gray-800',
-  other: 'bg-pink-100 text-pink-800',
+  call: 'bg-[#E6F3FF] text-[#0078D4] border-[#0078D4]',
+  email: 'bg-[#F0E6FF] text-[#5A2D91] border-[#8764B8]',
+  meeting: 'bg-[#E6F4EA] text-[#107C10] border-[#107C10]',
+  'site-visit': 'bg-[#FFF4E5] text-[#F59B00] border-[#F59B00]',
+  'follow-up': 'bg-[#FFF9E6] text-[#8A5100] border-[#F59B00]',
+  remark: 'bg-[#F3F2F1] text-[#605E5C] border-[#C8C6C4]',
+  other: 'bg-[#FFE6F0] text-[#A4262C] border-[#D13438]',
 };
 
 export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesModalProps) {
@@ -81,78 +82,86 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-8 py-6">
+        <div className="bg-white border-b border-[#E1DFDD] px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-white">Activity Timeline</h2>
-              <p className="text-gray-300 mt-1">{lead.company_name}</p>
-              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
-                <span>📍 {lead.location || 'N/A'}</span>
-                <span>👤 {lead.contact_person || 'N/A'}</span>
+              <h2 className="text-xl font-semibold text-[#323130]">Activity Timeline</h2>
+              <p className="text-[#605E5C] text-sm mt-1">{lead.company_name || lead.event_name}</p>
+              <div className="flex items-center space-x-4 mt-2 text-xs text-[#605E5C]">
+                {lead.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {lead.location}
+                  </span>
+                )}
+                {lead.contact_person && (
+                  <span className="flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {lead.contact_person}
+                  </span>
+                )}
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-[#605E5C] hover:text-[#323130] transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Timeline */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-6 bg-[#F3F2F1]">
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading activities...</p>
+              <Loader2 className="inline-block animate-spin h-10 w-10 text-[#0078D4]" />
+              <p className="mt-4 text-[#605E5C] text-sm">Loading activities...</p>
             </div>
           ) : activities.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">📭</div>
-              <p className="text-gray-500 text-lg">No activities logged yet</p>
-              <p className="text-gray-400 text-sm mt-2">Start logging activities to track progress on this lead</p>
+              <FileText className="w-16 h-16 text-[#C8C6C4] mx-auto mb-4" />
+              <p className="text-[#605E5C] text-base">No activities logged yet</p>
+              <p className="text-[#8A8886] text-sm mt-2">Start logging activities to track progress on this lead</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {activities.map((activity, index) => (
                 <div key={activity.id} className="relative">
                   {/* Timeline Line */}
                   {index < activities.length - 1 && (
-                    <div className="absolute left-6 top-14 bottom-0 w-0.5 bg-gray-200"></div>
+                    <div className="absolute left-5 top-12 bottom-0 w-px bg-[#E1DFDD]"></div>
                   )}
 
                   {/* Activity Card */}
-                  <div className="flex space-x-4">
+                  <div className="flex space-x-3">
                     {/* Icon */}
                     <div className="flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-2xl shadow-lg">
+                      <div className="w-10 h-10 rounded bg-[#0078D4] flex items-center justify-center text-white">
                         {ACTIVITY_ICONS[activity.activity_type]}
                       </div>
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 bg-gray-50 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex-1 bg-white rounded-lg p-4 border border-[#E1DFDD]">
                       {/* Header */}
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${ACTIVITY_COLORS[activity.activity_type]}`}>
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${ACTIVITY_COLORS[activity.activity_type]}`}>
                               {activity.activity_type.replace('-', ' ')}
                             </span>
                             {activity.status_update && (
-                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-[#E6F4EA] text-[#107C10] border border-[#107C10]">
                                 Status updated
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">
-                            <span className="font-semibold text-gray-900">{activity.employee_name}</span>
+                          <p className="text-xs text-[#605E5C]">
+                            <span className="font-semibold text-[#323130]">{activity.employee_name}</span>
                             {' '}&bull;{' '}
                             {formatDate(activity.created_at)}
                           </p>
@@ -160,21 +169,21 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
                       </div>
 
                       {/* Description */}
-                      <p className="text-gray-900 whitespace-pre-wrap mb-4">{activity.activity_description}</p>
+                      <p className="text-sm text-[#323130] whitespace-pre-wrap mb-3">{activity.activity_description}</p>
 
                       {/* Dates */}
                       {(activity.start_date || activity.end_date) && (
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center space-x-4 text-xs text-[#605E5C] mb-2">
                           {activity.start_date && (
                             <div className="flex items-center space-x-1">
-                              <span>📅 Start:</span>
-                              <span className="font-medium">{formatDateOnly(activity.start_date)}</span>
+                              <Calendar className="w-3 h-3" />
+                              <span>Start: {formatDateOnly(activity.start_date)}</span>
                             </div>
                           )}
                           {activity.end_date && (
                             <div className="flex items-center space-x-1">
-                              <span>📅 End:</span>
-                              <span className="font-medium">{formatDateOnly(activity.end_date)}</span>
+                              <Calendar className="w-3 h-3" />
+                              <span>End: {formatDateOnly(activity.end_date)}</span>
                             </div>
                           )}
                         </div>
@@ -182,10 +191,10 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
 
                       {/* Status Update */}
                       {activity.status_update && (
-                        <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <p className="text-sm text-gray-600">
-                            <span className="font-semibold">Status changed to:</span>{' '}
-                            <span className="text-gray-900 capitalize">{activity.status_update.replace('-', ' ')}</span>
+                        <div className="bg-[#F3F2F1] rounded p-2 border border-[#E1DFDD]">
+                          <p className="text-xs text-[#605E5C]">
+                            <span className="font-semibold text-[#323130]">Status changed to:</span>{' '}
+                            <span className="capitalize">{activity.status_update.replace('-', ' ')}</span>
                           </p>
                         </div>
                       )}
@@ -198,10 +207,10 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-8 py-4 bg-gray-50">
+        <div className="border-t border-[#E1DFDD] px-6 py-4 bg-white">
           <button
             onClick={onClose}
-            className="w-full px-6 py-3 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-900 transition-all"
+            className="w-full px-4 py-2 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors"
           >
             Close
           </button>

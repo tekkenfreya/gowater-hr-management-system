@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Lead, ActivityType, ActivityFormData } from '@/types/leads';
 import { logger } from '@/lib/logger';
+import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, Info } from 'lucide-react';
 
 interface LogActivityModalProps {
   lead: Lead;
@@ -10,14 +11,14 @@ interface LogActivityModalProps {
   onSuccess: () => void;
 }
 
-const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: string }[] = [
-  { value: 'call', label: 'Phone Call', icon: '📞' },
-  { value: 'email', label: 'Email', icon: '📧' },
-  { value: 'meeting', label: 'Meeting', icon: '🤝' },
-  { value: 'site-visit', label: 'Site Visit', icon: '🏢' },
-  { value: 'follow-up', label: 'Follow-up', icon: '📋' },
-  { value: 'remark', label: 'Remark', icon: '📝' },
-  { value: 'other', label: 'Other', icon: '✨' },
+const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNode }[] = [
+  { value: 'call', label: 'Phone Call', icon: <Phone className="w-5 h-5" /> },
+  { value: 'email', label: 'Email', icon: <Mail className="w-5 h-5" /> },
+  { value: 'meeting', label: 'Meeting', icon: <Users className="w-5 h-5" /> },
+  { value: 'site-visit', label: 'Site Visit', icon: <Building className="w-5 h-5" /> },
+  { value: 'follow-up', label: 'Follow-up', icon: <ClipboardCheck className="w-5 h-5" /> },
+  { value: 'remark', label: 'Remark', icon: <FileText className="w-5 h-5" /> },
+  { value: 'other', label: 'Other', icon: <Sparkles className="w-5 h-5" /> },
 ];
 
 const STATUS_OPTIONS = [
@@ -83,48 +84,46 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-slate-700 px-8 py-6 rounded-t-2xl">
+        <div className="sticky top-0 bg-white border-b border-[#E1DFDD] px-6 py-4 rounded-t-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-white">Log Activity</h2>
-              <p className="text-zinc-400 mt-1">{lead.company_name}</p>
+              <h2 className="text-xl font-semibold text-[#323130]">Log Activity</h2>
+              <p className="text-[#605E5C] text-sm mt-1">{lead.company_name || lead.event_name}</p>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:text-zinc-200 transition-colors"
+              className="text-[#605E5C] hover:text-[#323130] transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Activity Type */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-3">
-              Activity Type <span className="text-red-500">*</span>
+            <label className="block text-sm font-semibold text-[#323130] mb-2">
+              Activity Type <span className="text-[#D13438]">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {ACTIVITY_TYPES.map((type) => (
                 <button
                   key={type.value}
                   type="button"
                   onClick={() => setFormData((prev) => ({ ...prev, activity_type: type.value }))}
-                  className={`p-4 border-2 rounded-xl transition-all text-left ${
+                  className={`p-3 border rounded text-left transition-colors ${
                     formData.activity_type === type.value
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-[#0078D4] bg-[#E6F3FF] text-[#0078D4]'
+                      : 'border-[#C8C6C4] hover:border-[#8A8886] text-[#323130]'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{type.icon}</span>
-                    <span className="font-medium text-gray-900">{type.label}</span>
+                  <div className="flex items-center space-x-2">
+                    {type.icon}
+                    <span className="font-medium text-sm">{type.label}</span>
                   </div>
                 </button>
               ))}
@@ -133,8 +132,8 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
 
           {/* Activity Description */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Activity Description <span className="text-red-500">*</span>
+            <label className="block text-sm font-semibold text-[#323130] mb-1.5">
+              Activity Description <span className="text-[#D13438]">*</span>
             </label>
             <textarea
               name="activity_description"
@@ -142,43 +141,43 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
               onChange={handleChange}
               required
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all resize-none text-gray-900"
+              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
               placeholder="Describe what you did... (e.g., 'Called Mr. Santos to discuss pricing for 3 vending machines. He requested a formal quote by Friday.')"
             />
           </div>
 
           {/* Start Date */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Start Date</label>
+            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Start Date</label>
             <input
               type="date"
               name="start_date"
               value={formData.start_date}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all text-gray-900"
+              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
             />
           </div>
 
           {/* End Date */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">End Date (Optional)</label>
+            <label className="block text-sm font-semibold text-[#323130] mb-1.5">End Date (Optional)</label>
             <input
               type="date"
               name="end_date"
               value={formData.end_date}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all text-gray-900"
+              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
             />
           </div>
 
           {/* Status Update */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Update Lead Status</label>
+            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Update Lead Status</label>
             <select
               name="status_update"
               value={formData.status_update}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all text-gray-900"
+              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -186,20 +185,18 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-1.5 text-xs text-[#605E5C]">
               Optionally update the lead status based on this activity
             </p>
           </div>
 
           {/* Info Box */}
-          <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4">
-            <div className="flex items-start space-x-3">
-              <svg className="w-5 h-5 text-zinc-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+          <div className="bg-[#F3F2F1] border border-[#E1DFDD] rounded p-3">
+            <div className="flex items-start space-x-2">
+              <Info className="w-4 h-4 text-[#605E5C] mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-zinc-900">Activity will be tracked</p>
-                <p className="text-sm text-zinc-600 mt-1">
+                <p className="text-sm font-medium text-[#323130]">Activity will be tracked</p>
+                <p className="text-xs text-[#605E5C] mt-1">
                   This activity will be logged with your name and timestamp. Your boss can see all activities in the dashboard.
                 </p>
               </div>
@@ -207,18 +204,18 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
           </div>
 
           {/* Actions */}
-          <div className="flex space-x-4 pt-4">
+          <div className="flex space-x-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+              className="flex-1 px-4 py-2 border border-[#C8C6C4] text-[#323130] rounded font-medium hover:bg-[#F3F2F1] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-800 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Logging...' : 'Log Activity'}
             </button>
