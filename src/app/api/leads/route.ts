@@ -51,10 +51,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const leadData: LeadFormData = body;
 
-    // Validation
-    if (!leadData.category || !leadData.company_name) {
+    // Validation - different required fields based on category
+    if (!leadData.category) {
       return NextResponse.json(
-        { error: 'Missing required fields: category, company_name' },
+        { error: 'Missing required field: category' },
+        { status: 400 }
+      );
+    }
+
+    if (leadData.category === 'lead' && !leadData.company_name) {
+      return NextResponse.json(
+        { error: 'Missing required field for lead: company_name' },
+        { status: 400 }
+      );
+    }
+
+    if (leadData.category === 'event' && !leadData.event_name) {
+      return NextResponse.json(
+        { error: 'Missing required field for event: event_name' },
         { status: 400 }
       );
     }
