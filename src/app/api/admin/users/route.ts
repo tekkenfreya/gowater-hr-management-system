@@ -69,8 +69,7 @@ export async function POST(request: NextRequest) {
 
     const authService = getAuthService();
     const result = await authService.createUser(
-      { email, password, name, role: role || 'employee', department },
-      admin.id
+      { email, password, name, role: role || 'employee', department }
     );
 
     if (!result.success) {

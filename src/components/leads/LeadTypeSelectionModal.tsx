@@ -16,7 +16,7 @@ export default function LeadTypeSelectionModal({ onSelect, onClose }: LeadTypeSe
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-[#323130]">Choose Category</h2>
-            <p className="text-[#605E5C] text-sm mt-1">Select whether you're adding a lead or an event</p>
+            <p className="text-[#605E5C] text-sm mt-1">Select whether you&apos;re adding a lead or an event</p>
           </div>
           <button
             onClick={onClose}

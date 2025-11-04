@@ -138,7 +138,7 @@ export class AuthService {
     }
   }
 
-  async createUser(userData: CreateUserData, _createdBy?: number): Promise<{ success: boolean; error?: string; userId?: number }> {
+  async createUser(userData: CreateUserData): Promise<{ success: boolean; error?: string; userId?: number }> {
     try {
       // Check if user already exists by email
       const existingUser = await this.db.get('users', { email: userData.email });
@@ -317,7 +317,6 @@ export class AuthService {
       const hasUpperCase = /[A-Z]/.test(newPassword);
       const hasLowerCase = /[a-z]/.test(newPassword);
       const hasNumbers = /\d/.test(newPassword);
-      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
 
       if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
         return {

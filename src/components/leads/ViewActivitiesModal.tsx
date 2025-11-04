@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Lead, LeadActivity, ActivityType } from '@/types/leads';
 import { logger } from '@/lib/logger';
 import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, MapPin, User, Calendar, Loader2 } from 'lucide-react';
@@ -34,11 +34,7 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
   const [activities, setActivities] = useState<LeadActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchActivities();
-  }, []);
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/leads/activities?leadId=${lead.id}`);
@@ -59,7 +55,11 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
     } finally {
       setLoading(false);
     }
-  };
+  }, [lead.id]);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

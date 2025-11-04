@@ -39,7 +39,7 @@ export class SupabaseDatabase {
   }
 
   // SQLite-compatible methods for easy migration
-  async run(sql: string, _params: unknown[] = []): Promise<void> {
+  async run(): Promise<void> {
     // For INSERT/UPDATE/DELETE operations, convert to Supabase operations
     // This is a simplified approach - you may need to enhance based on actual SQL used
     throw new Error('Use Supabase table operations instead of raw SQL');

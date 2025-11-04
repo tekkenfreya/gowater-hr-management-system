@@ -35,7 +35,8 @@ export function useAuth() {
           error: null
         });
       }
-    } catch (_error) {
+    } catch (error) {
+      logger.error('Auth verification failed', error);
       setAuthState({
         user: null,
         isLoading: false,
@@ -73,7 +74,8 @@ export function useAuth() {
         });
         return { success: false, error: data.error || 'Login failed' };
       }
-    } catch (_error) {
+    } catch (error) {
+      logger.error('Login network error', error);
       const errorMsg = 'Network error. Please try again.';
       setAuthState({
         user: null,

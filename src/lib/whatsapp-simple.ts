@@ -29,7 +29,7 @@ export class SimpleWhatsAppService {
   }
 
   // Send with options: try WhatsApp first, fallback to clipboard
-  async sendReport(message: string, _reportType: 'start' | 'eod') {
+  async sendReport(message: string) {
     try {
       // First try to send to WhatsApp
       this.sendToGroup(message);
@@ -39,7 +39,8 @@ export class SimpleWhatsAppService {
       
       // No alert - silent operation
       
-    } catch (_error) {
+    } catch (error) {
+      logger.error('WhatsApp send failed', error);
       // Fallback: just copy to clipboard
       const success = await this.copyToClipboard(message);
       if (!success) {

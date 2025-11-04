@@ -344,7 +344,7 @@ ${tasksSection}`;
 
     // Send via WhatsApp
     try {
-      await simpleWhatsAppService.sendReport(report, reportType);
+      await simpleWhatsAppService.sendReport(report);
       logger.info(`WhatsApp ${reportType} report sent successfully`);
       setShowReportTypeModal(false);
     } catch (error) {
@@ -1377,7 +1377,7 @@ ${tasksSection || 'No tasks for today'}`;
                   Promise.all(archivePromises)
                     .then(() => {
                       // Send via WhatsApp after archiving
-                      return simpleWhatsAppService.sendReport(report, reportType);
+                      return simpleWhatsAppService.sendReport(report);
                     })
                     .then(() => {
                       logger.info(`WhatsApp ${reportType} report sent successfully`);
