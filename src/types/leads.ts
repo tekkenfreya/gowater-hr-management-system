@@ -1,20 +1,29 @@
-export type LeadCategory = 'factory' | 'school' | 'cooperative' | 'dti' | 'rotary' | 'event';
-export type LeadType = 'company' | 'individual';
+export type LeadCategory = 'lead' | 'event';
 export type ProductType = 'both' | 'vending' | 'dispenser';
 export type ActivityType = 'call' | 'email' | 'meeting' | 'site-visit' | 'follow-up' | 'remark' | 'other';
 
 export interface Lead {
   id: string;
   category: LeadCategory;
-  lead_type: LeadType;
-  company_name: string;
+
+  // LEAD-SPECIFIC FIELDS (used when category = 'lead')
+  company_name: string | null;
   location: string | null;
-  contact_person: string | null;
-  mobile_number: string | null;
-  email_address: string | null;
   lead_source: string | null;
   type_of_business: string | null;
   number_of_employees: string | null;
+
+  // EVENT-SPECIFIC FIELDS (used when category = 'event')
+  event_name: string | null;
+  venue: string | null;
+  event_date: string | null;
+  event_time: string | null;
+  number_of_attendees: string | null;
+
+  // SHARED FIELDS (used by both leads and events)
+  contact_person: string | null;
+  mobile_number: string | null;
+  email_address: string | null;
   product: ProductType | null;
   status: string;
   remarks: string | null;
@@ -45,15 +54,25 @@ export interface LeadWithActivities extends Lead {
 
 export interface LeadFormData {
   category: LeadCategory;
-  lead_type?: LeadType;
-  company_name: string;
+
+  // LEAD-SPECIFIC FIELDS
+  company_name?: string;
   location?: string;
-  contact_person?: string;
-  mobile_number?: string;
-  email_address?: string;
   lead_source?: string;
   type_of_business?: string;
   number_of_employees?: string;
+
+  // EVENT-SPECIFIC FIELDS
+  event_name?: string;
+  venue?: string;
+  event_date?: string;
+  event_time?: string;
+  number_of_attendees?: string;
+
+  // SHARED FIELDS
+  contact_person?: string;
+  mobile_number?: string;
+  email_address?: string;
   product?: ProductType;
   status?: string;
   remarks?: string;

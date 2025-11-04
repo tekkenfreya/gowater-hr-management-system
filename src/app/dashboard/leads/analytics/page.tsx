@@ -7,11 +7,7 @@ import { DashboardStats, LeadCategory } from '@/types/leads';
 import { logger } from '@/lib/logger';
 
 const CATEGORY_COLORS: Record<LeadCategory, string> = {
-  factory: '#3B82F6',
-  school: '#10B981',
-  cooperative: '#F59E0B',
-  dti: '#8B5CF6',
-  rotary: '#EC4899',
+  lead: '#3B82F6',
   event: '#EF4444',
 };
 
