@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Lead, LeadCategory, LeadWithActivities } from '@/types/leads';
 import { logger } from '@/lib/logger';
 import AddLeadModal from '@/components/leads/AddLeadModal';
-import LeadTypeSelectionModal from '@/components/leads/LeadTypeSelectionModal';
 import LogActivityModal from '@/components/leads/LogActivityModal';
 import ViewActivitiesModal from '@/components/leads/ViewActivitiesModal';
 import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye } from 'lucide-react';
@@ -30,7 +29,6 @@ export default function LeadsPage() {
   const [selectedCategory, setSelectedCategory] = useState<LeadCategory>('lead');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCategorySelection, setShowCategorySelection] = useState(false);
   const [selectedCategoryForAdd, setSelectedCategoryForAdd] = useState<LeadCategory | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
@@ -60,12 +58,8 @@ export default function LeadsPage() {
   };
 
   const openAddFlow = () => {
-    setShowCategorySelection(true);
-  };
-
-  const handleCategorySelection = (category: LeadCategory) => {
-    setSelectedCategoryForAdd(category);
-    setShowCategorySelection(false);
+    // Directly open the add modal with the current category
+    setSelectedCategoryForAdd(selectedCategory);
     setShowAddModal(true);
   };
 
@@ -335,12 +329,6 @@ export default function LeadsPage() {
       </div>
 
       {/* Modals */}
-      {showCategorySelection && (
-        <LeadTypeSelectionModal
-          onSelect={handleCategorySelection}
-          onClose={() => setShowCategorySelection(false)}
-        />
-      )}
       {showAddModal && selectedCategoryForAdd && (
         <AddLeadModal
           category={selectedCategoryForAdd}
