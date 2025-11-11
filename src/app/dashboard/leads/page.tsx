@@ -5,9 +5,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Lead, LeadCategory, LeadWithActivities } from '@/types/leads';
 import { logger } from '@/lib/logger';
 import AddLeadModal from '@/components/leads/AddLeadModal';
+import EditLeadModal from '@/components/leads/EditLeadModal';
 import LogActivityModal from '@/components/leads/LogActivityModal';
 import ViewActivitiesModal from '@/components/leads/ViewActivitiesModal';
-import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye, Package } from 'lucide-react';
+import DeleteConfirmationModal from '@/components/leads/DeleteConfirmationModal';
+import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye, Package, Pencil, Trash2 } from 'lucide-react';
 
 const CATEGORIES: { value: LeadCategory; label: string }[] = [
   { value: 'lead', label: 'Leads' },
@@ -32,6 +34,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategoryForAdd, setSelectedCategoryForAdd] = useState<LeadCategory | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showViewActivitiesModal, setShowViewActivitiesModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -77,6 +81,24 @@ export default function LeadsPage() {
   const openViewActivitiesModal = (lead: Lead) => {
     setSelectedLead(lead);
     setShowViewActivitiesModal(true);
+  };
+
+  const openEditModal = (lead: Lead) => {
+    setSelectedLead(lead);
+    setShowEditModal(true);
+  };
+
+  const openDeleteModal = (lead: Lead) => {
+    setSelectedLead(lead);
+    setShowDeleteModal(true);
+  };
+
+  const handleEditSuccess = () => {
+    fetchLeads(); // Refresh the leads list
+  };
+
+  const handleDeleteSuccess = () => {
+    fetchLeads(); // Refresh the leads list
   };
 
   const isLeadCategory = selectedCategory === 'lead';
@@ -278,6 +300,20 @@ export default function LeadsPage() {
                                 <Eye className="w-3 h-3" />
                                 View
                               </button>
+                              <button
+                                onClick={() => openEditModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Delete
+                              </button>
                             </div>
                           </td>
                         </>
@@ -334,6 +370,20 @@ export default function LeadsPage() {
                                 <Eye className="w-3 h-3" />
                                 View
                               </button>
+                              <button
+                                onClick={() => openEditModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Delete
+                              </button>
                             </div>
                           </td>
                         </>
@@ -385,6 +435,20 @@ export default function LeadsPage() {
                                 <Eye className="w-3 h-3" />
                                 View
                               </button>
+                              <button
+                                onClick={() => openEditModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Delete
+                              </button>
                             </div>
                           </td>
                         </>
@@ -425,6 +489,34 @@ export default function LeadsPage() {
           lead={selectedLead}
           onClose={() => {
             setShowViewActivitiesModal(false);
+            setSelectedLead(null);
+          }}
+        />
+      )}
+      {showEditModal && selectedLead && (
+        <EditLeadModal
+          lead={selectedLead}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedLead(null);
+          }}
+          onSuccess={() => {
+            handleEditSuccess();
+            setShowEditModal(false);
+            setSelectedLead(null);
+          }}
+        />
+      )}
+      {showDeleteModal && selectedLead && (
+        <DeleteConfirmationModal
+          lead={selectedLead}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setSelectedLead(null);
+          }}
+          onSuccess={() => {
+            handleDeleteSuccess();
+            setShowDeleteModal(false);
             setSelectedLead(null);
           }}
         />
