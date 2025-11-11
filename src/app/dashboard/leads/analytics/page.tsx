@@ -10,6 +10,7 @@ import { BarChart3, Target, CheckCircle, FileText, Zap, AlertTriangle, TrendingU
 const CATEGORY_COLORS: Record<LeadCategory, string> = {
   lead: '#0078D4',
   event: '#D13438',
+  supply: '#107C10',
 };
 
 export default function LeadAnalyticsPage() {

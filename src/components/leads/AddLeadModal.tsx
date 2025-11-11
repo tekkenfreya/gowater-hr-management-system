@@ -17,6 +17,15 @@ const PRODUCT_OPTIONS: { value: ProductType; label: string }[] = [
   { value: 'dispenser', label: 'Water Dispenser' },
 ];
 
+const UNIT_TYPE_OPTIONS = [
+  { value: 'per-piece', label: 'Per Piece' },
+  { value: 'per-box', label: 'Per Box' },
+  { value: 'per-unit', label: 'Per Unit' },
+  { value: 'per-kg', label: 'Per Kilogram' },
+  { value: 'per-liter', label: 'Per Liter' },
+  { value: 'other', label: 'Other' },
+];
+
 const STATUS_OPTIONS = [
   { value: 'not-started', label: 'Not Started' },
   { value: 'contacted', label: 'Contacted' },
@@ -41,6 +50,12 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
     event_date: '',
     event_time: '',
     number_of_attendees: '',
+    // SUPPLY FIELDS
+    supplier_name: '',
+    supplier_location: '',
+    supplier_product: '',
+    price: '',
+    unit_type: '',
     // SHARED FIELDS
     contact_person: '',
     mobile_number: '',
@@ -64,6 +79,11 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
 
     if (category === 'event' && !formData.event_name?.trim()) {
       alert('Event name is required for events');
+      return;
+    }
+
+    if (category === 'supply' && !formData.supplier_name?.trim()) {
+      alert('Supplier name is required for supplies');
       return;
     }
 
@@ -99,8 +119,9 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
 
   const isLead = category === 'lead';
   const isEvent = category === 'event';
-  const modalTitle = isLead ? 'Add New Lead' : 'Add New Event';
-  const submitButtonText = loading ? 'Creating...' : isLead ? 'Create Lead' : 'Create Event';
+  const isSupply = category === 'supply';
+  const modalTitle = isLead ? 'Add New Lead' : isEvent ? 'Add New Event' : 'Add New Supply';
+  const submitButtonText = loading ? 'Creating...' : isLead ? 'Create Lead' : isEvent ? 'Create Event' : 'Create Supply';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
@@ -264,7 +285,85 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             </>
           )}
 
-          {/* SHARED FIELDS (both lead and event) */}
+          {/* SUPPLY FIELDS */}
+          {isSupply && (
+            <>
+              {/* Supplier Name */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">
+                  Supplier Name <span className="text-[#D13438]">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="supplier_name"
+                  value={formData.supplier_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter supplier name"
+                />
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Location</label>
+                <input
+                  type="text"
+                  name="supplier_location"
+                  value={formData.supplier_location}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter supplier location"
+                />
+              </div>
+
+              {/* Product */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Product</label>
+                <input
+                  type="text"
+                  name="supplier_product"
+                  value={formData.supplier_product}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter product/item"
+                />
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Price</label>
+                <input
+                  type="text"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter price (e.g., $10.00)"
+                />
+              </div>
+
+              {/* Unit Type */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Unit Type</label>
+                <select
+                  name="unit_type"
+                  value={formData.unit_type || ''}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                >
+                  <option value="">Select unit type</option>
+                  {UNIT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* SHARED FIELDS (used by leads, events, and supplies) */}
 
           {/* Contact Person */}
           <div>
@@ -305,25 +404,27 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Product */}
-          <div>
-            <label className="block text-sm font-semibold text-[#323130] mb-1.5">
-              {isLead ? 'Product Interest' : 'Product Needed'}
-            </label>
-            <select
-              name="product"
-              value={formData.product || ''}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-            >
-              <option value="">Select product</option>
-              {PRODUCT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Product (only for lead and event, not supply) */}
+          {!isSupply && (
+            <div>
+              <label className="block text-sm font-semibold text-[#323130] mb-1.5">
+                {isLead ? 'Product Interest' : 'Product Needed'}
+              </label>
+              <select
+                name="product"
+                value={formData.product || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+              >
+                <option value="">Select product</option>
+                {PRODUCT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Status */}
           <div>
@@ -377,7 +478,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
               onChange={handleChange}
               rows={2}
               className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
-              placeholder={isLead ? 'What should be done next with this lead?' : 'What should be done next for this event?'}
+              placeholder={isLead ? 'What should be done next with this lead?' : isEvent ? 'What should be done next for this event?' : 'What should be done next with this supplier?'}
             />
           </div>
 

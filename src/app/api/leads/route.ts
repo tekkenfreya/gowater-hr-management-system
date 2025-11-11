@@ -73,6 +73,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (leadData.category === 'supply' && !leadData.supplier_name) {
+      return NextResponse.json(
+        { error: 'Missing required field for supply: supplier_name' },
+        { status: 400 }
+      );
+    }
+
     const leadService = getLeadService();
     const lead = await leadService.createLead(employeeName, leadData);
 

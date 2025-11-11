@@ -28,6 +28,13 @@ export class LeadService {
       event_time: leadData.category === 'event' ? leadData.event_time || null : null,
       number_of_attendees: leadData.category === 'event' ? leadData.number_of_attendees || null : null,
 
+      // SUPPLY-SPECIFIC FIELDS
+      supplier_name: leadData.category === 'supply' ? leadData.supplier_name || null : null,
+      supplier_location: leadData.category === 'supply' ? leadData.supplier_location || null : null,
+      supplier_product: leadData.category === 'supply' ? leadData.supplier_product || null : null,
+      price: leadData.category === 'supply' ? leadData.price || null : null,
+      unit_type: leadData.category === 'supply' ? leadData.unit_type || null : null,
+
       // SHARED FIELDS
       contact_person: leadData.contact_person || null,
       mobile_number: leadData.mobile_number || null,
@@ -79,6 +86,13 @@ export class LeadService {
     if (updates.event_date !== undefined) updateData.event_date = updates.event_date || null;
     if (updates.event_time !== undefined) updateData.event_time = updates.event_time || null;
     if (updates.number_of_attendees !== undefined) updateData.number_of_attendees = updates.number_of_attendees || null;
+
+    // SUPPLY-SPECIFIC FIELDS
+    if (updates.supplier_name !== undefined) updateData.supplier_name = updates.supplier_name || null;
+    if (updates.supplier_location !== undefined) updateData.supplier_location = updates.supplier_location || null;
+    if (updates.supplier_product !== undefined) updateData.supplier_product = updates.supplier_product || null;
+    if (updates.price !== undefined) updateData.price = updates.price || null;
+    if (updates.unit_type !== undefined) updateData.unit_type = updates.unit_type || null;
 
     // SHARED FIELDS
     if (updates.contact_person !== undefined) updateData.contact_person = updates.contact_person || null;
@@ -187,6 +201,7 @@ export class LeadService {
     const categoryCounts: Record<LeadCategory, number> = {
       lead: 0,
       event: 0,
+      supply: 0,
     };
 
     leads.forEach(lead => {

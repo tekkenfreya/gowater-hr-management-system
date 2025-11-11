@@ -7,11 +7,12 @@ import { logger } from '@/lib/logger';
 import AddLeadModal from '@/components/leads/AddLeadModal';
 import LogActivityModal from '@/components/leads/LogActivityModal';
 import ViewActivitiesModal from '@/components/leads/ViewActivitiesModal';
-import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye } from 'lucide-react';
+import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye, Package } from 'lucide-react';
 
 const CATEGORIES: { value: LeadCategory; label: string }[] = [
   { value: 'lead', label: 'Leads' },
   { value: 'event', label: 'Events' },
+  { value: 'supply', label: 'Supplies' },
 ];
 
 // Microsoft 365 Status Colors
@@ -80,6 +81,7 @@ export default function LeadsPage() {
 
   const isLeadCategory = selectedCategory === 'lead';
   const isEventCategory = selectedCategory === 'event';
+  const isSupplyCategory = selectedCategory === 'supply';
   const categoryLabel = CATEGORIES.find(c => c.value === selectedCategory)?.label || '';
 
   return (
@@ -109,7 +111,9 @@ export default function LeadsPage() {
                   : 'text-[#323130] hover:bg-[#F3F2F1]'
               }`}
             >
-              {category.value === 'lead' ? <Building2 className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
+              {category.value === 'lead' ? <Building2 className="w-4 h-4" /> :
+               category.value === 'event' ? <Calendar className="w-4 h-4" /> :
+               <Package className="w-4 h-4" />}
               {category.label}
             </button>
           ))}
@@ -139,7 +143,7 @@ export default function LeadsPage() {
               className="px-4 py-2 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Add {isLeadCategory ? 'Lead' : 'Event'}
+              Add {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supply'}
             </button>
           </div>
 
@@ -157,7 +161,7 @@ export default function LeadsPage() {
                 onClick={openAddFlow}
                 className="mt-4 px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150"
               >
-                Add First {isLeadCategory ? 'Lead' : 'Event'}
+                Add First {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supply'}
               </button>
             </div>
           ) : (
@@ -193,6 +197,22 @@ export default function LeadsPage() {
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Attendees</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product Needed</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                      </>
+                    )}
+                    {isSupplyCategory && (
+                      <>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Supplier Name</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Price</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Unit Type</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
@@ -286,6 +306,57 @@ export default function LeadsPage() {
                           <td className="px-3 py-3 text-sm text-[#323130]">{lead.number_of_attendees || 'N/A'}</td>
                           <td className="px-3 py-3">
                             <span className="text-sm text-[#323130] capitalize">{lead.product || 'N/A'}</span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>
+                              {lead.status.replace('-', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                            <div className="truncate" title={lead.next_action || ''}>
+                              {lead.next_action || '-'}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => openActivityModal(lead)}
+                                className="px-3 py-1.5 bg-[#0078D4] text-white text-xs rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Log Activity
+                              </button>
+                              <button
+                                onClick={() => openViewActivitiesModal(lead)}
+                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                              >
+                                <Eye className="w-3 h-3" />
+                                View
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                      {isSupplyCategory && (
+                        <>
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-[#323130] text-sm">{lead.supplier_name || 'N/A'}</div>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                            <div className="truncate" title={lead.supplier_location || ''}>
+                              {lead.supplier_location || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.supplier_product || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.price || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.unit_type || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.contact_person || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.mobile_number || 'N/A'}</td>
+                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                            <div className="truncate" title={lead.email_address || ''}>
+                              {lead.email_address || 'N/A'}
+                            </div>
                           </td>
                           <td className="px-3 py-3">
                             <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>

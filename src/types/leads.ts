@@ -1,4 +1,4 @@
-export type LeadCategory = 'lead' | 'event';
+export type LeadCategory = 'lead' | 'event' | 'supply';
 export type ProductType = 'both' | 'vending' | 'dispenser';
 export type ActivityType = 'call' | 'email' | 'meeting' | 'site-visit' | 'follow-up' | 'remark' | 'other';
 
@@ -20,7 +20,14 @@ export interface Lead {
   event_time: string | null;
   number_of_attendees: string | null;
 
-  // SHARED FIELDS (used by both leads and events)
+  // SUPPLY-SPECIFIC FIELDS (used when category = 'supply')
+  supplier_name: string | null;
+  supplier_location: string | null;
+  supplier_product: string | null;
+  price: string | null;
+  unit_type: string | null;
+
+  // SHARED FIELDS (used by leads, events, and supplies)
   contact_person: string | null;
   mobile_number: string | null;
   email_address: string | null;
@@ -68,6 +75,13 @@ export interface LeadFormData {
   event_date?: string;
   event_time?: string;
   number_of_attendees?: string;
+
+  // SUPPLY-SPECIFIC FIELDS
+  supplier_name?: string;
+  supplier_location?: string;
+  supplier_product?: string;
+  price?: string;
+  unit_type?: string;
 
   // SHARED FIELDS
   contact_person?: string;
