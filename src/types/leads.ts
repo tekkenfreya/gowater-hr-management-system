@@ -1,6 +1,6 @@
 export type LeadCategory = 'lead' | 'event' | 'supply';
 export type ProductType = 'both' | 'vending' | 'dispenser';
-export type ActivityType = 'call' | 'email' | 'meeting' | 'site-visit' | 'follow-up' | 'remark' | 'other';
+export type ActivityType = 'call' | 'email' | 'meeting' | 'site-visit' | 'follow-up' | 'remark' | 'other' | 'active-supplier' | 'recording' | 'checking';
 
 export interface Lead {
   id: string;

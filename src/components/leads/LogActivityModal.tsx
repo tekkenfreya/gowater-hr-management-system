@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Lead, ActivityType, ActivityFormData } from '@/types/leads';
 import { logger } from '@/lib/logger';
-import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, Info } from 'lucide-react';
+import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, Info, CheckCircle, Package, ClipboardList } from 'lucide-react';
 
 interface LogActivityModalProps {
   lead: Lead;
@@ -11,7 +11,8 @@ interface LogActivityModalProps {
   onSuccess: () => void;
 }
 
-const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNode }[] = [
+// Activity types for Lead and Event categories
+const LEAD_EVENT_ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNode }[] = [
   { value: 'call', label: 'Phone Call', icon: <Phone className="w-5 h-5" /> },
   { value: 'email', label: 'Email', icon: <Mail className="w-5 h-5" /> },
   { value: 'meeting', label: 'Meeting', icon: <Users className="w-5 h-5" /> },
@@ -19,6 +20,13 @@ const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNod
   { value: 'follow-up', label: 'Follow-up', icon: <ClipboardCheck className="w-5 h-5" /> },
   { value: 'remark', label: 'Remark', icon: <FileText className="w-5 h-5" /> },
   { value: 'other', label: 'Other', icon: <Sparkles className="w-5 h-5" /> },
+];
+
+// Activity types for Supply category
+const SUPPLY_ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNode }[] = [
+  { value: 'active-supplier', label: 'Active supplier', icon: <CheckCircle className="w-5 h-5" /> },
+  { value: 'recording', label: 'For recording purposes', icon: <ClipboardList className="w-5 h-5" /> },
+  { value: 'checking', label: 'For checking', icon: <Package className="w-5 h-5" /> },
 ];
 
 const STATUS_OPTIONS = [
@@ -32,8 +40,12 @@ const STATUS_OPTIONS = [
 ];
 
 export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivityModalProps) {
+  // Determine which activity types to show based on lead category
+  const activityTypes = lead.category === 'supply' ? SUPPLY_ACTIVITY_TYPES : LEAD_EVENT_ACTIVITY_TYPES;
+  const defaultActivityType = lead.category === 'supply' ? 'active-supplier' : 'call';
+
   const [formData, setFormData] = useState<ActivityFormData>({
-    activity_type: 'call',
+    activity_type: defaultActivityType as ActivityType,
     activity_description: '',
     start_date: '',
     end_date: '',
@@ -110,7 +122,7 @@ export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivi
               Activity Type <span className="text-[#D13438]">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {ACTIVITY_TYPES.map((type) => (
+              {activityTypes.map((type) => (
                 <button
                   key={type.value}
                   type="button"

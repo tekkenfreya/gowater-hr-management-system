@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Lead, LeadActivity, ActivityType } from '@/types/leads';
 import { logger } from '@/lib/logger';
-import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, MapPin, User, Calendar, Loader2 } from 'lucide-react';
+import { X, Phone, Mail, Users, Building, ClipboardCheck, FileText, Sparkles, MapPin, User, Calendar, Loader2, CheckCircle, Package, ClipboardList } from 'lucide-react';
 
 interface ViewActivitiesModalProps {
   lead: Lead;
@@ -18,6 +18,9 @@ const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
   'follow-up': <ClipboardCheck className="w-5 h-5" />,
   remark: <FileText className="w-5 h-5" />,
   other: <Sparkles className="w-5 h-5" />,
+  'active-supplier': <CheckCircle className="w-5 h-5" />,
+  'recording': <ClipboardList className="w-5 h-5" />,
+  'checking': <Package className="w-5 h-5" />,
 };
 
 const ACTIVITY_COLORS: Record<ActivityType, string> = {
@@ -28,6 +31,9 @@ const ACTIVITY_COLORS: Record<ActivityType, string> = {
   'follow-up': 'bg-[#FFF9E6] text-[#8A5100] border-[#F59B00]',
   remark: 'bg-[#F3F2F1] text-[#605E5C] border-[#C8C6C4]',
   other: 'bg-[#FFE6F0] text-[#A4262C] border-[#D13438]',
+  'active-supplier': 'bg-[#E6F4EA] text-[#107C10] border-[#107C10]',
+  'recording': 'bg-[#E6F3FF] text-[#0078D4] border-[#0078D4]',
+  'checking': 'bg-[#FFF4E5] text-[#F59B00] border-[#F59B00]',
 };
 
 export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesModalProps) {
