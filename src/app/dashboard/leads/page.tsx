@@ -100,7 +100,7 @@ export default function LeadsPage() {
         </button>
 
         {/* Category Navigation */}
-        <nav className="flex-1 space-y-1">
+        <nav className="space-y-1 mb-6">
           {CATEGORIES.map((category) => (
             <button
               key={category.value}
@@ -122,7 +122,7 @@ export default function LeadsPage() {
         {/* Back to Dashboard Button */}
         <a
           href="/dashboard"
-          className="w-full px-4 py-2 mt-4 text-[#323130] hover:bg-[#F3F2F1] border border-[#C8C6C4] rounded font-medium transition-colors duration-150 flex items-center justify-center gap-2 text-sm"
+          className="w-full px-4 py-2 text-[#323130] hover:bg-[#F3F2F1] border border-[#C8C6C4] rounded font-medium transition-colors duration-150 flex items-center justify-center gap-2 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
