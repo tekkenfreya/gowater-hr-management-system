@@ -12,6 +12,17 @@ import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
 
 type BoardBackground = 'gradient-blue' | 'gradient-purple' | 'gradient-green' | 'gradient-orange' | 'solid-gray' | 'pattern-dots' | 'image-abstract' | 'image-nature';
 
+interface StatusConfig {
+  id: number;
+  status_key: string;
+  display_name: string;
+  display_tag: string | null;
+  color_class: string | null;
+  sort_order: number;
+  is_active: boolean;
+  entity_type: string;
+}
+
 export default function TasksPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
@@ -28,6 +39,7 @@ export default function TasksPage() {
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [breakDuration, setBreakDuration] = useState<number>(0);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [statusConfigs, setStatusConfigs] = useState<StatusConfig[]>([]);
   const [reportTasks, setReportTasks] = useState<Array<{
     task: Task;
     status: 'pending' | 'in_progress' | 'completed' | 'blocked';
@@ -55,11 +67,29 @@ export default function TasksPage() {
     if (user) {
       fetchTasks();
       fetchTodayAttendance();
+      fetchStatusConfigs();
       // Load saved background
       const savedBg = localStorage.getItem('tasksBoardBackground');
       if (savedBg) setBackground(savedBg as BoardBackground);
     }
   }, [user]);
+
+  const fetchStatusConfigs = async () => {
+    try {
+      const response = await fetch('/api/config/statuses?entity_type=task');
+      if (response.ok) {
+        const data = await response.json();
+        setStatusConfigs(data.statuses);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch status configs', error);
+    }
+  };
+
+  const getStatusTag = (statusKey: string): string => {
+    const config = statusConfigs.find(c => c.status_key === statusKey);
+    return config?.display_tag || `[${statusKey.toUpperCase()}]`;
+  };
 
   const fetchTodayAttendance = async () => {
     try {
@@ -996,7 +1026,7 @@ ${tasksSection}`;
                       subTasks: (task.subTasks || []).map(st => ({
                         id: st.id,
                         title: st.title,
-                        status: 'pending' as const,
+                        status: task.status as 'pending' | 'blocked',
                         description: ''
                       }))
                     }));
@@ -1041,7 +1071,7 @@ ${tasksSection}`;
                       subTasks: (task.subTasks || []).map(st => ({
                         id: st.id,
                         title: st.title,
-                        status: 'pending' as const,
+                        status: task.status as 'pending' | 'in_progress' | 'completed' | 'blocked',
                         description: ''
                       }))
                     }));
@@ -1328,10 +1358,8 @@ ${tasksSection}`;
                     if (reportTask.subTasks.length > 0) {
                       projectText += '\n \n';
                       projectText += reportTask.subTasks.map((subTask, index) => {
-                        let statusTag = '[PENDING]';
-                        if (subTask.status === 'completed') statusTag = '[DONE]';
-                        else if (subTask.status === 'in_progress') statusTag = '[IN PROGRESS]';
-                        else if (subTask.status === 'blocked') statusTag = '[BLOCKED]';
+                        // Use config-based status tag instead of hardcoded values
+                        const statusTag = getStatusTag(subTask.status);
 
                         let subTaskText = `${index + 1}. ${subTask.title} ${statusTag}`;
 
