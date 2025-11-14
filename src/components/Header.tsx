@@ -1,22 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { User } from '@/types/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/lib/logger';
 import { formatPhilippineTime } from '@/lib/timezone';
 
 interface HeaderProps {
   user: User | null;
   onToggleSidebar: () => void;
-  onLogout: () => void;
   isWorking?: boolean;
 }
 
 export default function Header({ user, onToggleSidebar }: HeaderProps) {
+  const router = useRouter();
+  const { logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<{ temp: number; condition: string } | null>(null);
   const [isWorking, setIsWorking] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch working status (attendance check-in status)
   useEffect(() => {
@@ -86,6 +92,27 @@ export default function Header({ user, onToggleSidebar }: HeaderProps) {
     return () => clearInterval(weatherTimer);
   }, []);
 
+  // Click outside to close user menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showUserMenu]);
+
+  const handleLogout = async () => {
+    setShowLogoutConfirm(false);
+    setShowUserMenu(false);
+    await logout();
+    router.push('/auth/login');
+  };
+
   // Database-driven notifications
   const notifications: {
     id: string;
@@ -98,6 +125,7 @@ export default function Header({ user, onToggleSidebar }: HeaderProps) {
   const unreadCount = notifications?.filter(n => n?.unread)?.length || 0;
 
   return (
+    <>
     <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 relative">
       {/* Current Date & Time - Absolute Position Near Sidebar */}
       <div className="hidden lg:flex items-center space-x-3 absolute left-2 top-1/2 -translate-y-1/2 pl-4">
@@ -188,33 +216,81 @@ export default function Header({ user, onToggleSidebar }: HeaderProps) {
             {/* Divider */}
             <div className="h-8 w-px bg-gray-300"></div>
 
-            {/* User Info */}
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-blue-100">
-                {user?.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.name || 'User'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-semibold text-sm">
-                    {user?.name?.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-gray-900 leading-none">{user?.name}</span>
-                <span className="text-xs text-gray-500 capitalize leading-none mt-0.5">
-                  {user?.role === 'admin' ? (
-                    <span className="text-purple-600 font-medium">Admin</span>
-                  ) : user?.role === 'manager' ? (
-                    <span className="text-blue-600 font-medium">Manager</span>
+            {/* User Info with Dropdown */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2 hover:bg-gray-100 rounded-lg p-2 transition-colors -m-2"
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-blue-100">
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name || 'User'}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <span className="text-gray-600">Employee</span>
+                    <span className="text-white font-semibold text-sm">
+                      {user?.name?.charAt(0).toUpperCase()}
+                    </span>
                   )}
-                </span>
-              </div>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-gray-900 leading-none">{user?.name}</span>
+                  <span className="text-xs text-gray-500 capitalize leading-none mt-0.5">
+                    {user?.role === 'admin' ? (
+                      <span className="text-purple-600 font-medium">Admin</span>
+                    ) : user?.role === 'manager' ? (
+                      <span className="text-blue-600 font-medium">Manager</span>
+                    ) : user?.role === 'boss' ? (
+                      <span className="text-indigo-600 font-medium">Boss</span>
+                    ) : (
+                      <span className="text-gray-600">Employee</span>
+                    )}
+                  </span>
+                </div>
+                <svg className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* User Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      router.push('/dashboard/settings');
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3 transition-colors"
+                  >
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span>Profile & Settings</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 my-2"></div>
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      setShowLogoutConfirm(true);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-3 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -298,6 +374,31 @@ export default function Header({ user, onToggleSidebar }: HeaderProps) {
         </div>
       </div>
     </header>
+
+    {/* Logout Confirmation Modal */}
+    {showLogoutConfirm && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Logout</h3>
+          <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
 
