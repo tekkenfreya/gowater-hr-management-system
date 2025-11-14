@@ -3,11 +3,13 @@ export interface User {
   email: string;
   name: string;
   employeeId?: string;
-  role: 'admin' | 'employee' | 'manager';
+  role: 'admin' | 'employee' | 'manager' | 'boss';
   position?: string;
   department?: string;
   employeeName?: string;
   avatar?: string;
+  force_password_reset?: boolean;
+  last_password_change?: string;
 }
 
 export interface LoginCredentials {

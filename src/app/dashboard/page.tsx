@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import BreakModal from '@/components/BreakModal';
+import ForcePasswordChangeModal from '@/components/ForcePasswordChangeModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
@@ -36,7 +37,7 @@ interface WeeklyAttendanceData {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, logout, refetch } = useAuth();
   const { isTimedIn, isOnBreak, workDuration, breakStartTime, checkInTime, handleTimeIn, handleEndBreak } = useAttendance();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -269,6 +270,16 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Force Password Change Modal */}
+      {user.force_password_reset && (
+        <ForcePasswordChangeModal
+          onPasswordChanged={() => {
+            // Refetch user data to get updated force_password_reset flag
+            refetch();
+          }}
+        />
+      )}
+
       {/* Sidebar */}
       <Sidebar
         user={user}
@@ -442,7 +453,6 @@ export default function Dashboard() {
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
-          onLogout={logout}
         />
 
         {/* Dashboard Content */}

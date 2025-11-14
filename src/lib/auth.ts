@@ -22,11 +22,13 @@ export interface AuthUser {
   email: string;
   name: string;
   employeeId?: string;
-  role: 'admin' | 'employee' | 'manager';
+  role: 'admin' | 'employee' | 'manager' | 'boss';
   position?: string;
   department?: string;
   employeeName?: string;
   avatar?: string;
+  force_password_reset?: boolean;
+  last_password_change?: string;
 }
 
 export interface LoginResult {
@@ -41,7 +43,7 @@ export interface CreateUserData {
   password: string;
   name: string;
   employeeId?: string;
-  role?: 'admin' | 'employee' | 'manager';
+  role?: 'admin' | 'employee' | 'manager' | 'boss';
   position?: string;
   department?: string;
   employeeName?: string;
@@ -121,7 +123,9 @@ export class AuthService {
         position: user.position,
         department: user.department,
         employeeName: user.employee_name,
-        avatar: user.avatar
+        avatar: user.avatar,
+        force_password_reset: user.force_password_reset,
+        last_password_change: user.last_password_change
       };
 
       const token = jwt.sign(
@@ -194,7 +198,9 @@ export class AuthService {
         position: user.position,
         department: user.department,
         employeeName: user.employee_name,
-        avatar: user.avatar
+        avatar: user.avatar,
+        force_password_reset: user.force_password_reset,
+        last_password_change: user.last_password_change
       };
     } catch (error) {
       logger.error('Token verification error', error);
@@ -340,9 +346,11 @@ export class AuthService {
       // Hash new password
       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-      // Update password
+      // Update password and clear force_password_reset flag
       await this.db.update('users', {
         password_hash: hashedNewPassword,
+        force_password_reset: false,
+        last_password_change: new Date(),
         updated_at: new Date()
       }, { id: userId });
 
