@@ -179,6 +179,231 @@ export class LeadService {
     return leadsWithActivities;
   }
 
+  // ============ ACTIVITY MONITOR ============
+
+  async getEmployeeActivityBreakdown(startDate?: string, endDate?: string) {
+    const leads = await this.getAllLeads();
+    let activities = await this.getAllActivities();
+
+    // Filter activities by date range if provided
+    if (startDate || endDate) {
+      activities = activities.filter(activity => {
+        const activityDate = new Date(activity.created_at);
+        if (startDate && activityDate < new Date(startDate)) return false;
+        if (endDate && activityDate > new Date(endDate)) return false;
+        return true;
+      });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+
+    // Build employee stats
+    const employeeStats: Record<string, {
+      employee_name: string;
+      total_activities: number;
+      activities_today: number;
+      activities_this_week: number;
+      activities_this_month: number;
+      calls: number;
+      emails: number;
+      meetings: number;
+      site_visits: number;
+      follow_ups: number;
+      other: number;
+      leads_assigned: number;
+      active_leads: number;
+      closed_deals: number;
+      last_activity_time?: string;
+      last_activity_description?: string;
+      last_activity_lead?: string;
+    }> = {};
+
+    // Get all unique employees from leads (assigned_to) and activities
+    const allEmployees = new Set<string>();
+    leads.forEach(lead => {
+      if (lead.assigned_to) allEmployees.add(lead.assigned_to);
+    });
+    activities.forEach(activity => {
+      allEmployees.add(activity.employee_name);
+    });
+
+    // Initialize stats for all employees
+    allEmployees.forEach(employeeName => {
+      if (!employeeName) return;
+      employeeStats[employeeName] = {
+        employee_name: employeeName,
+        total_activities: 0,
+        activities_today: 0,
+        activities_this_week: 0,
+        activities_this_month: 0,
+        calls: 0,
+        emails: 0,
+        meetings: 0,
+        site_visits: 0,
+        follow_ups: 0,
+        other: 0,
+        leads_assigned: leads.filter(l => l.assigned_to === employeeName).length,
+        active_leads: leads.filter(l => l.assigned_to === employeeName && l.status !== 'closed-deal' && l.status !== 'rejected').length,
+        closed_deals: leads.filter(l => l.assigned_to === employeeName && l.status === 'closed-deal').length,
+      };
+    });
+
+    // Calculate activity stats
+    for (const activity of activities) {
+      if (!employeeStats[activity.employee_name]) continue;
+
+      const stats = employeeStats[activity.employee_name];
+      stats.total_activities += 1;
+
+      // Time-based counts
+      const activityDate = activity.created_at.split('T')[0];
+      if (activityDate === today) stats.activities_today += 1;
+      if (new Date(activity.created_at) >= weekAgo) stats.activities_this_week += 1;
+      if (new Date(activity.created_at) >= monthAgo) stats.activities_this_month += 1;
+
+      // Activity type counts
+      if (activity.activity_type === 'call') stats.calls += 1;
+      else if (activity.activity_type === 'email') stats.emails += 1;
+      else if (activity.activity_type === 'meeting') stats.meetings += 1;
+      else if (activity.activity_type === 'site-visit') stats.site_visits += 1;
+      else if (activity.activity_type === 'follow-up') stats.follow_ups += 1;
+      else stats.other += 1;
+    }
+
+    // Get last activity for each employee
+    for (const employeeName of allEmployees) {
+      const employeeActivities = activities
+        .filter(a => a.employee_name === employeeName)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      if (employeeActivities.length > 0) {
+        const lastActivity = employeeActivities[0];
+        const lead = await this.getLeadById(lastActivity.lead_id);
+
+        employeeStats[employeeName].last_activity_time = lastActivity.created_at;
+        employeeStats[employeeName].last_activity_description = lastActivity.activity_description;
+        employeeStats[employeeName].last_activity_lead = lead?.company_name || lead?.event_name || lead?.supplier_name || 'Unknown';
+      }
+    }
+
+    return Object.values(employeeStats).sort((a, b) => b.total_activities - a.total_activities);
+  }
+
+  async getRecentActivitiesForAllLeads(limit: number = 50) {
+    const activities = await this.getAllActivities();
+
+    // Sort by most recent first
+    const sortedActivities = activities.sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    // Get lead details for each activity
+    const activitiesWithLeads = await Promise.all(
+      sortedActivities.slice(0, limit).map(async (activity) => {
+        const lead = await this.getLeadById(activity.lead_id);
+        return {
+          ...activity,
+          lead_name: lead?.company_name || lead?.event_name || lead?.supplier_name || 'Unknown',
+          lead_category: lead?.category || 'lead',
+          lead_status: lead?.status || 'unknown',
+        };
+      })
+    );
+
+    return activitiesWithLeads;
+  }
+
+  async getStaleLeads(daysThreshold: number = 30) {
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
+
+    const leadsWithActivities = await this.getLeadsWithActivities();
+
+    const staleLeads = leadsWithActivities.filter(lead => {
+      // Don't include closed or rejected leads
+      if (lead.status === 'closed-deal' || lead.status === 'rejected') return false;
+
+      // Leads with no activities are stale
+      if (lead.activity_count === 0) return true;
+
+      // Leads with last activity before threshold are stale
+      if (!lead.last_activity) return true;
+      const lastActivityDate = new Date(lead.last_activity.created_at);
+      return lastActivityDate < thresholdDate;
+    });
+
+    // Group by assigned employee
+    const staleByEmployee: Record<string, typeof leadsWithActivities> = {};
+    staleLeads.forEach(lead => {
+      const assignedTo = lead.assigned_to || 'Unassigned';
+      if (!staleByEmployee[assignedTo]) {
+        staleByEmployee[assignedTo] = [];
+      }
+      staleByEmployee[assignedTo].push(lead);
+    });
+
+    return {
+      total_stale: staleLeads.length,
+      stale_leads: staleLeads,
+      by_employee: Object.entries(staleByEmployee).map(([employee, leads]) => ({
+        employee_name: employee,
+        stale_count: leads.length,
+        leads,
+      })).sort((a, b) => b.stale_count - a.stale_count),
+    };
+  }
+
+  async getLeadAssignmentOverview() {
+    const leads = await this.getAllLeads();
+
+    // Group leads by assigned employee
+    const assignmentStats: Record<string, {
+      employee_name: string;
+      total_assigned: number;
+      by_category: Record<string, number>;
+      by_status: Record<string, number>;
+      active_count: number;
+      closed_count: number;
+      rejected_count: number;
+    }> = {};
+
+    leads.forEach(lead => {
+      const assignedTo = lead.assigned_to || 'Unassigned';
+
+      if (!assignmentStats[assignedTo]) {
+        assignmentStats[assignedTo] = {
+          employee_name: assignedTo,
+          total_assigned: 0,
+          by_category: {},
+          by_status: {},
+          active_count: 0,
+          closed_count: 0,
+          rejected_count: 0,
+        };
+      }
+
+      const stats = assignmentStats[assignedTo];
+      stats.total_assigned += 1;
+
+      // Category breakdown
+      stats.by_category[lead.category] = (stats.by_category[lead.category] || 0) + 1;
+
+      // Status breakdown
+      stats.by_status[lead.status] = (stats.by_status[lead.status] || 0) + 1;
+
+      // Count by key status
+      if (lead.status === 'closed-deal') stats.closed_count += 1;
+      else if (lead.status === 'rejected') stats.rejected_count += 1;
+      else stats.active_count += 1;
+    });
+
+    return Object.values(assignmentStats).sort((a, b) => b.total_assigned - a.total_assigned);
+  }
+
   // ============ DASHBOARD STATS ============
 
   async getDashboardStats(): Promise<DashboardStats> {
