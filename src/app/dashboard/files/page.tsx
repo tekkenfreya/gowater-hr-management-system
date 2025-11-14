@@ -378,7 +378,6 @@ export default function FilesPage() {
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
-          onLogout={logout}
         />
 
         <main className="p-6">

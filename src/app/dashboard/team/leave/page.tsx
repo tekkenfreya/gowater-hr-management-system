@@ -212,7 +212,6 @@ export default function TeamLeaveApprovals() {
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
-          onLogout={logout}
         />
 
         <main className="p-6">

@@ -210,7 +210,6 @@ export default function LeaveTracker() {
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
-          onLogout={logout}
         />
 
         {/* Leave Content */}

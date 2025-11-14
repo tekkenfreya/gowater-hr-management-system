@@ -138,7 +138,6 @@ export default function TeamReportsPage() {
           <Header
             user={user}
             onToggleSidebar={toggleSidebar}
-            onLogout={logout}
           />
           <main className="p-6">
             <div className="animate-pulse">
@@ -167,7 +166,6 @@ export default function TeamReportsPage() {
         <Header
           user={user}
           onToggleSidebar={toggleSidebar}
-          onLogout={logout}
         />
 
         <main className="p-6">

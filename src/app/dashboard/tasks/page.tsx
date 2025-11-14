@@ -482,7 +482,7 @@ ${tasksSection}`;
       <Sidebar user={user} isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
       <div className="flex-1 transition-all duration-300 lg:ml-52 flex flex-col">
-        <Header user={user} onToggleSidebar={toggleSidebar} onLogout={logout} />
+        <Header user={user} onToggleSidebar={toggleSidebar} />
 
         <div className="flex-1 flex">
           {/* Left Task Summary Panel */}
