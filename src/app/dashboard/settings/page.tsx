@@ -256,8 +256,8 @@ export default function SettingsPage() {
       return;
     }
 
-    if (passwordChange.newPassword.length < 6) {
-      setError('New password must be at least 6 characters long');
+    if (passwordChange.newPassword.length < 8) {
+      setError('New password must be at least 8 characters long');
       return;
     }
 
@@ -327,9 +327,8 @@ export default function SettingsPage() {
 
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
         <Header
-          user={user} 
+          user={user}
           onToggleSidebar={toggleSidebar}
-          onLogout={logout}
         />
 
         <main className="p-6">
@@ -705,7 +704,7 @@ export default function SettingsPage() {
                             )}
                           </button>
                         </div>
-                        <p className="text-xs text-gray-800 mt-1">Password must be at least 6 characters long</p>
+                        <p className="text-xs text-gray-800 mt-1">Password must be at least 8 characters with uppercase, lowercase, and numbers</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-800 mb-1">Confirm New Password</label>
