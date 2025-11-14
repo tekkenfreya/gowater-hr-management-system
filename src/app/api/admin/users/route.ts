@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (role && !['admin', 'employee', 'manager'].includes(role)) {
+    if (role && !['admin', 'employee', 'manager', 'boss'].includes(role)) {
       return NextResponse.json(
         { error: 'Invalid role specified' },
         { status: 400 }

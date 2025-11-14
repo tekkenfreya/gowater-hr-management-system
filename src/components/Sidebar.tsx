@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { User } from '@/types/auth';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/lib/logger';
 
 interface SidebarProps {
@@ -40,9 +41,12 @@ export default function Sidebar({
   onToggle
 }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [bosses, setBosses] = useState<TeamMember[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Get attendance state from context
   const {
@@ -110,12 +114,20 @@ export default function Sidebar({
       icon: <LeadsIcon />,
       href: '/dashboard/leads',
       subItems: [
-        ...((user?.role === 'admin' || user?.role === 'manager') ? [{
-          id: 'lead-analytics',
-          label: 'Lead Analytics',
-          icon: <ChartIcon />,
-          href: '/dashboard/leads/analytics'
-        }] : [])
+        ...((user?.role === 'admin' || user?.role === 'manager' || user?.role === 'boss') ? [
+          {
+            id: 'activity-monitor',
+            label: 'Activity Monitor',
+            icon: <ActivityIcon />,
+            href: '/dashboard/leads/activity-monitor'
+          },
+          {
+            id: 'lead-analytics',
+            label: 'Lead Analytics',
+            icon: <ChartIcon />,
+            href: '/dashboard/leads/analytics'
+          }
+        ] : [])
       ]
     },
     ...((user?.role === 'admin' || user?.role === 'manager') ? [{
@@ -390,9 +402,9 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Settings at Bottom */}
+        {/* Settings and Logout at Bottom */}
         <div className="mt-auto border-t border-gray-700/30">
-          <div className="p-4">
+          <div className="p-4 space-y-2">
             <Link
               href={settingsItem.href}
               className={`
@@ -410,9 +422,50 @@ export default function Sidebar({
                 {!isCollapsed && <span>{settingsItem.label}</span>}
               </div>
             </Link>
+
+            {/* Logout Button */}
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="w-full flex items-center justify-between px-4 py-3 text-base font-normal rounded-xl transition-all text-gray-400 hover:bg-red-500/10 hover:text-red-400"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 flex-shrink-0">
+                  <LogoutIcon />
+                </div>
+                {!isCollapsed && <span>Logout</span>}
+              </div>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Logout</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  await logout();
+                  router.push('/auth/login');
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -528,6 +581,22 @@ function ChartIcon() {
     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+    </svg>
+  );
+}
+
+function ActivityIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
     </svg>
   );
 }
