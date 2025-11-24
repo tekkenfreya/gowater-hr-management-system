@@ -13,6 +13,13 @@ interface AttendanceStats {
   automatedCount: number;
 }
 
+interface Employee {
+  id: number;
+  name: string;
+  employeeId: string;
+  department: string;
+}
+
 export default function AttendanceManagementTab() {
   const [records, setRecords] = useState<AttendanceRecordWithUser[]>([]);
   const [stats, setStats] = useState<AttendanceStats | null>(null);
@@ -23,6 +30,8 @@ export default function AttendanceManagementTab() {
   });
   const [totalPages, setTotalPages] = useState(1);
   const [selectedRecords, setSelectedRecords] = useState<number[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
 
   const fetchAttendance = async () => {
     setLoading(true);
@@ -63,6 +72,25 @@ export default function AttendanceManagementTab() {
       logger.error('Failed to fetch stats', error);
     }
   };
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/admin/users', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (data.success && data.employees) {
+        setEmployees(data.employees);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch employees', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
 
   useEffect(() => {
     fetchAttendance();
@@ -118,6 +146,118 @@ export default function AttendanceManagementTab() {
     }
   };
 
+  const handleManualCheckIn = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+
+    if (!confirm(`Check in ${selectedUsers.length} user(s)?`)) return;
+
+    try {
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/attendance/checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userId, workLocation: 'WFH', notes: 'Manual check-in by admin' })
+        })
+      );
+
+      await Promise.all(promises);
+      alert(`Successfully checked in ${selectedUsers.length} user(s)`);
+      setSelectedUsers([]);
+      fetchAttendance();
+    } catch (error) {
+      logger.error('Failed to check in users', error);
+      alert('Failed to check in users');
+    }
+  };
+
+  const handleManualCheckOut = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+
+    if (!confirm(`Check out ${selectedUsers.length} user(s)?`)) return;
+
+    try {
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/attendance/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userId, notes: 'Manual check-out by admin' })
+        })
+      );
+
+      await Promise.all(promises);
+      alert(`Successfully checked out ${selectedUsers.length} user(s)`);
+      setSelectedUsers([]);
+      fetchAttendance();
+    } catch (error) {
+      logger.error('Failed to check out users', error);
+      alert('Failed to check out users');
+    }
+  };
+
+  const handleStartBreak = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+
+    if (!confirm(`Start break for ${selectedUsers.length} user(s)?`)) return;
+
+    try {
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/attendance/break/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userId })
+        })
+      );
+
+      await Promise.all(promises);
+      alert(`Successfully started break for ${selectedUsers.length} user(s)`);
+      setSelectedUsers([]);
+      fetchAttendance();
+    } catch (error) {
+      logger.error('Failed to start break', error);
+      alert('Failed to start break');
+    }
+  };
+
+  const handleEndBreak = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+
+    if (!confirm(`End break for ${selectedUsers.length} user(s)?`)) return;
+
+    try {
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/attendance/break/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userId })
+        })
+      );
+
+      await Promise.all(promises);
+      alert(`Successfully ended break for ${selectedUsers.length} user(s)`);
+      setSelectedUsers([]);
+      fetchAttendance();
+    } catch (error) {
+      logger.error('Failed to end break', error);
+      alert('Failed to end break');
+    }
+  };
+
   const toggleSelectRecord = (id: number) => {
     setSelectedRecords(prev =>
       prev.includes(id)
@@ -139,7 +279,7 @@ export default function AttendanceManagementTab() {
       {/* Filters Section */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
             <input
@@ -158,6 +298,22 @@ export default function AttendanceManagementTab() {
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value, page: 1 })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
+            <select
+              value={filters.userId || ''}
+              onChange={(e) => setFilters({ ...filters, userId: e.target.value ? parseInt(e.target.value) : undefined, page: 1 })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Employees</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.employeeId})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -207,18 +363,89 @@ export default function AttendanceManagementTab() {
         </div>
       </div>
 
-      {/* Actions Bar */}
+      {/* Manual Attendance Controls */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Manual Attendance Controls</h3>
+        <p className="text-sm text-gray-600 mb-4">Select employees and perform attendance actions (check-in, check-out, breaks)</p>
+
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Employees</label>
+            <select
+              multiple
+              value={selectedUsers.map(String)}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                setSelectedUsers(selected);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+            >
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.employeeId})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple employees</p>
+          </div>
+
+          <div className="flex flex-col justify-end space-y-2">
+            <button
+              onClick={handleManualCheckIn}
+              disabled={selectedUsers.length === 0}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <span>✓</span>
+              <span>Check In ({selectedUsers.length})</span>
+            </button>
+            <button
+              onClick={handleManualCheckOut}
+              disabled={selectedUsers.length === 0}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <span>→</span>
+              <span>Check Out ({selectedUsers.length})</span>
+            </button>
+            <button
+              onClick={handleStartBreak}
+              disabled={selectedUsers.length === 0}
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <span>☕</span>
+              <span>Start Break ({selectedUsers.length})</span>
+            </button>
+            <button
+              onClick={handleEndBreak}
+              disabled={selectedUsers.length === 0}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <span>↻</span>
+              <span>End Break ({selectedUsers.length})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bulk Actions Bar for Attendance Records */}
       {selectedRecords.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-          <span className="text-blue-900 font-medium">
-            {selectedRecords.length} record(s) selected
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+          <span className="text-red-900 font-medium">
+            {selectedRecords.length} attendance record(s) selected
           </span>
-          <button
-            onClick={handleBulkDelete}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Delete Selected
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setSelectedRecords([])}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+            >
+              Clear Selection
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Delete Selected Records
+            </button>
+          </div>
         </div>
       )}
 

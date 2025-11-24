@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import UserPermissionsModal from '@/components/admin/UserPermissionsModal';
 import AttendanceManagementTab from '@/components/admin/AttendanceManagementTab';
+import AutomationSettingsTab from '@/components/admin/AutomationSettingsTab';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/lib/logger';
 
@@ -34,7 +35,7 @@ export default function AdminPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'attendance'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'attendance' | 'automation'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -252,6 +253,16 @@ export default function AdminPage() {
               >
                 Manage Attendance
               </button>
+              <button
+                onClick={() => setActiveTab('automation')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'automation'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Automation Settings
+              </button>
             </nav>
           </div>
 
@@ -358,6 +369,10 @@ export default function AdminPage() {
           {/* Attendance Tab */}
           {activeTab === 'attendance' && (
             <AttendanceManagementTab />
+          )}
+
+          {activeTab === 'automation' && (
+            <AutomationSettingsTab />
           )}
 
           {/* Create User Modal */}
