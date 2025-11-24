@@ -118,8 +118,8 @@ export default function ActivityMonitorPage() {
   // Initial load
   useEffect(() => {
     if (!authLoading && user) {
-      // Check if user has access (admin, manager, and boss)
-      if (user.role !== 'admin' && user.role !== 'manager' && user.role !== 'boss') {
+      // Check if user has access (admin and manager)
+      if (user.role !== 'admin' && user.role !== 'manager') {
         router.push('/dashboard');
         return;
       }

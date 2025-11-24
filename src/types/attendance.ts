@@ -242,3 +242,97 @@ export interface AppSettings {
   };
   notifications: NotificationSettings;
 }
+
+// =====================================================
+// ATTENDANCE AUTOMATION TYPES
+// =====================================================
+
+export interface AttendanceAutomationSettings {
+  id: number;
+  userId: number | null; // null for global settings
+  isEnabled: boolean;
+  autoCheckInTime: string | null; // HH:mm format (e.g., "09:00")
+  autoCheckOutTime: string | null; // HH:mm format (e.g., "18:00")
+  autoBreakStartTime: string | null; // HH:mm format (e.g., "12:00")
+  autoBreakDuration: number; // minutes
+  defaultWorkLocation: 'WFH' | 'Onsite';
+  workDays: string[]; // ['Monday', 'Tuesday', ...]
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AttendanceAutomationFormData {
+  isEnabled: boolean;
+  autoCheckInTime: string;
+  autoCheckOutTime: string;
+  autoBreakStartTime: string;
+  autoBreakDuration: number;
+  defaultWorkLocation: 'WFH' | 'Onsite';
+  workDays: string[];
+}
+
+export interface AttendanceManagementFilters {
+  userId?: number;
+  startDate?: string;
+  endDate?: string;
+  status?: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
+  workLocation?: 'WFH' | 'Onsite';
+  page?: number;
+  limit?: number;
+}
+
+export interface AttendanceRecordWithUser {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userDepartment: string;
+  date: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  breakStartTime?: string;
+  breakEndTime?: string;
+  breakDuration?: number;
+  totalHours: number;
+  status: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
+  workLocation?: 'WFH' | 'Onsite';
+  notes?: string;
+  isAutomated?: boolean; // whether this was created by automation
+}
+
+export interface BulkAttendanceOperation {
+  type: 'update' | 'delete';
+  attendanceIds: number[];
+  updates?: Partial<{
+    status: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
+    workLocation: 'WFH' | 'Onsite';
+    notes: string;
+  }>;
+}
+
+export interface AttendanceManagementResponse {
+  records: AttendanceRecordWithUser[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AutomationExecutionResult {
+  success: boolean;
+  userId: number;
+  action: 'check-in' | 'check-out' | 'break-start' | 'break-end';
+  timestamp: Date;
+  error?: string;
+}
+
+export interface AutomationLog {
+  id: number;
+  userId: number;
+  action: 'check-in' | 'check-out' | 'break-start' | 'break-end';
+  scheduledTime: string;
+  executedTime: Date;
+  status: 'success' | 'failed' | 'skipped';
+  reason?: string;
+  createdAt: Date;
+}

@@ -82,8 +82,8 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
       return;
     }
 
-    if (lead.category === 'supply' && !formData.supplier_name?.trim()) {
-      alert('Supplier name is required for supplies');
+    if (lead.category === 'supplier' && !formData.supplier_name?.trim()) {
+      alert('Supplier name is required for suppliers');
       return;
     }
 
@@ -122,7 +122,7 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
 
   const isLead = lead.category === 'lead';
   const isEvent = lead.category === 'event';
-  const isSupply = lead.category === 'supply';
+  const isSupply = lead.category === 'supplier';
   const modalTitle = isLead ? 'Edit Lead' : isEvent ? 'Edit Event' : 'Edit Supply';
   const submitButtonText = loading ? 'Saving...' : 'Save Changes';
 

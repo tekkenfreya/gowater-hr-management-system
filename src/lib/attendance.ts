@@ -1,6 +1,12 @@
 import { getDb } from './supabase';
 import { logger } from './logger';
 import { getPhilippineHour } from './timezone';
+import {
+  AttendanceManagementFilters,
+  AttendanceRecordWithUser,
+  AttendanceManagementResponse,
+  BulkAttendanceOperation
+} from '@/types/attendance';
 
 export interface AttendanceRecord {
   id: number;
@@ -266,9 +272,9 @@ export class AttendanceService {
   async endBreak(userId: number): Promise<{ success: boolean; error?: string; breakDuration?: number }> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       const record = await this.db.get('attendance', { user_id: userId, date: today });
-      
+
       if (!record) {
         return { success: false, error: 'No attendance record found for today' };
       }
@@ -281,7 +287,7 @@ export class AttendanceService {
       const breakStartTime = new Date(record.break_start_time);
       const breakDurationSeconds = Math.floor((new Date(breakEndTime).getTime() - breakStartTime.getTime()) / 1000);
       const totalBreakDuration = (record.break_duration || 0) + breakDurationSeconds;
-      
+
       await this.db.update('attendance', {
         break_end_time: breakEndTime,
         break_duration: totalBreakDuration,
@@ -292,6 +298,282 @@ export class AttendanceService {
     } catch (error) {
       logger.error('End break error', error);
       return { success: false, error: 'Failed to end break' };
+    }
+  }
+
+  /**
+   * ADMIN METHODS
+   * Methods below are for admin attendance management
+   */
+
+  /**
+   * Get all users' attendance records with filters and pagination
+   */
+  async getAllUsersAttendance(filters: AttendanceManagementFilters = {}): Promise<AttendanceManagementResponse> {
+    try {
+      const page = filters.page || 1;
+      const limit = filters.limit || 50;
+      const offset = (page - 1) * limit;
+
+      // Build WHERE clause
+      const conditions: string[] = ['1=1'];
+      const params: (string | number)[] = [];
+      let paramIndex = 1;
+
+      if (filters.userId) {
+        conditions.push(`a.user_id = $${paramIndex++}`);
+        params.push(filters.userId);
+      }
+
+      if (filters.startDate) {
+        conditions.push(`a.date >= $${paramIndex++}`);
+        params.push(filters.startDate);
+      }
+
+      if (filters.endDate) {
+        conditions.push(`a.date <= $${paramIndex++}`);
+        params.push(filters.endDate);
+      }
+
+      if (filters.status) {
+        conditions.push(`a.status = $${paramIndex++}`);
+        params.push(filters.status);
+      }
+
+      if (filters.workLocation) {
+        conditions.push(`a.work_location = $${paramIndex++}`);
+        params.push(filters.workLocation);
+      }
+
+      const whereClause = conditions.join(' AND ');
+
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM attendance a
+        WHERE ${whereClause}
+      `;
+
+      const countResult = await this.db.executeRawSQL(countQuery, params);
+      const total = parseInt(countResult[0]?.total || '0');
+
+      // Get paginated records with user details
+      const recordsQuery = `
+        SELECT
+          a.id,
+          a.user_id,
+          u.name as user_name,
+          u.email as user_email,
+          u.department as user_department,
+          a.date,
+          a.check_in_time,
+          a.check_out_time,
+          a.break_start_time,
+          a.break_end_time,
+          a.break_duration,
+          a.total_hours,
+          a.status,
+          a.work_location,
+          a.notes,
+          CASE
+            WHEN a.notes LIKE '%Automated%' THEN true
+            ELSE false
+          END as is_automated
+        FROM attendance a
+        JOIN users u ON a.user_id = u.id
+        WHERE ${whereClause}
+        ORDER BY a.date DESC, a.check_in_time DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex}
+      `;
+
+      const records = await this.db.executeRawSQL(recordsQuery, [...params, limit, offset]);
+
+      const mappedRecords: AttendanceRecordWithUser[] = records.map((r: {
+        id: number;
+        user_id: number;
+        user_name: string;
+        user_email: string;
+        user_department: string;
+        date: string;
+        check_in_time?: string;
+        check_out_time?: string;
+        break_start_time?: string;
+        break_end_time?: string;
+        break_duration?: number;
+        total_hours: number;
+        status: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
+        work_location?: 'WFH' | 'Onsite';
+        notes?: string;
+        is_automated: boolean;
+      }) => ({
+        id: r.id,
+        userId: r.user_id,
+        userName: r.user_name,
+        userEmail: r.user_email,
+        userDepartment: r.user_department,
+        date: r.date,
+        checkInTime: r.check_in_time,
+        checkOutTime: r.check_out_time,
+        breakStartTime: r.break_start_time,
+        breakEndTime: r.break_end_time,
+        breakDuration: r.break_duration || 0,
+        totalHours: r.total_hours || 0,
+        status: r.status,
+        workLocation: r.work_location,
+        notes: r.notes,
+        isAutomated: r.is_automated
+      }));
+
+      return {
+        records: mappedRecords,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      logger.error('Get all users attendance error', error);
+      return {
+        records: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0
+      };
+    }
+  }
+
+  /**
+   * Bulk update or delete attendance records (admin only)
+   */
+  async bulkUpdateAttendance(operation: BulkAttendanceOperation): Promise<{ success: boolean; affected: number; error?: string }> {
+    try {
+      if (operation.attendanceIds.length === 0) {
+        return { success: false, affected: 0, error: 'No attendance IDs provided' };
+      }
+
+      if (operation.type === 'delete') {
+        // Delete multiple records
+        for (const id of operation.attendanceIds) {
+          await this.db.delete('attendance', { id });
+        }
+
+        return { success: true, affected: operation.attendanceIds.length };
+      } else if (operation.type === 'update' && operation.updates) {
+        // Update multiple records
+        const updateData: Record<string, unknown> = {
+          updated_at: new Date()
+        };
+
+        if (operation.updates.status) {
+          updateData.status = operation.updates.status;
+        }
+
+        if (operation.updates.workLocation) {
+          updateData.work_location = operation.updates.workLocation;
+        }
+
+        if (operation.updates.notes) {
+          updateData.notes = operation.updates.notes;
+        }
+
+        for (const id of operation.attendanceIds) {
+          await this.db.update('attendance', updateData, { id });
+        }
+
+        return { success: true, affected: operation.attendanceIds.length };
+      }
+
+      return { success: false, affected: 0, error: 'Invalid operation type' };
+    } catch (error) {
+      logger.error('Bulk update attendance error', error);
+      return { success: false, affected: 0, error: 'Failed to perform bulk operation' };
+    }
+  }
+
+  /**
+   * Delete a specific attendance record (admin only)
+   */
+  async deleteAttendanceRecord(attendanceId: number, adminId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+      const record = await this.db.get('attendance', { id: attendanceId });
+
+      if (!record) {
+        return { success: false, error: 'Attendance record not found' };
+      }
+
+      await this.db.delete('attendance', { id: attendanceId });
+
+      logger.info(`Attendance record ${attendanceId} deleted by admin ${adminId}`);
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Delete attendance record error', error);
+      return { success: false, error: 'Failed to delete attendance record' };
+    }
+  }
+
+  /**
+   * Get attendance statistics for admin dashboard
+   */
+  async getAttendanceStatistics(startDate?: string, endDate?: string): Promise<{
+    totalRecords: number;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    averageHours: number;
+    automatedCount: number;
+  }> {
+    try {
+      const conditions: string[] = ['1=1'];
+      const params: string[] = [];
+      let paramIndex = 1;
+
+      if (startDate) {
+        conditions.push(`date >= $${paramIndex++}`);
+        params.push(startDate);
+      }
+
+      if (endDate) {
+        conditions.push(`date <= $${paramIndex++}`);
+        params.push(endDate);
+      }
+
+      const whereClause = conditions.join(' AND ');
+
+      const query = `
+        SELECT
+          COUNT(*) as total_records,
+          SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count,
+          SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count,
+          SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_count,
+          AVG(total_hours) as average_hours,
+          SUM(CASE WHEN notes LIKE '%Automated%' THEN 1 ELSE 0 END) as automated_count
+        FROM attendance
+        WHERE ${whereClause}
+      `;
+
+      const result = await this.db.executeRawSQL(query, params);
+      const stats = result[0] || {};
+
+      return {
+        totalRecords: parseInt(stats.total_records) || 0,
+        presentCount: parseInt(stats.present_count) || 0,
+        absentCount: parseInt(stats.absent_count) || 0,
+        lateCount: parseInt(stats.late_count) || 0,
+        averageHours: parseFloat(stats.average_hours) || 0,
+        automatedCount: parseInt(stats.automated_count) || 0
+      };
+    } catch (error) {
+      logger.error('Get attendance statistics error', error);
+      return {
+        totalRecords: 0,
+        presentCount: 0,
+        absentCount: 0,
+        lateCount: 0,
+        averageHours: 0,
+        automatedCount: 0
+      };
     }
   }
 }

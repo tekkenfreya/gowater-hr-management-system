@@ -48,7 +48,7 @@ export default function UserPermissionsModal({
 
       if (userPermsResponse.ok) {
         setUserPermissions(userPermsData.permissions);
-        const permKeys = new Set(userPermsData.permissions.map((p: UserPermission) => p.permission_key));
+        const permKeys = new Set<string>(userPermsData.permissions.map((p: UserPermission) => p.permission_key));
         setSelectedPermissions(permKeys);
       }
     } catch (error) {

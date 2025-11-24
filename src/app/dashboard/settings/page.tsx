@@ -277,7 +277,14 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!data.success) {
-        setError(data.error || 'Failed to change password');
+        // Show specific error message from the API
+        const errorMessage = data.error || 'Failed to change password';
+        console.error('Password change failed:', {
+          error: errorMessage,
+          response: data,
+          statusCode: response.status
+        });
+        setError(errorMessage);
         return;
       }
 
@@ -291,7 +298,9 @@ export default function SettingsPage() {
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      setError('Failed to change password. Please try again.');
+      // Enhanced error logging for debugging
+      console.error('Password change request failed:', error);
+      setError(`Failed to change password: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setPasswordLoading(false);
     }

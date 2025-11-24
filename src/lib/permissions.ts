@@ -140,7 +140,7 @@ export class PermissionsService {
           permission_id: 0,
           permission_key: p.permission_key,
           display_name: p.display_name,
-          category: p.category,
+          category: p.category || undefined,
           granted_at: user.created_at,
           granted_by: userId, // Self-granted for admins
         }));

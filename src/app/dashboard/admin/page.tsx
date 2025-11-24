@@ -6,6 +6,7 @@ import { User } from '@/types/auth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import UserPermissionsModal from '@/components/admin/UserPermissionsModal';
+import AttendanceManagementTab from '@/components/admin/AttendanceManagementTab';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/lib/logger';
 
@@ -33,6 +34,7 @@ export default function AdminPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState<'users' | 'attendance'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -215,17 +217,48 @@ export default function AdminPage() {
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-800">Manage employee accounts and system settings</p>
             </div>
-            
-            <button 
-              onClick={() => setShowCreateForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-            >
-              <PlusIcon />
-              <span>Add Employee</span>
-            </button>
+
+            {activeTab === 'users' && (
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+              >
+                <PlusIcon />
+                <span>Add Employee</span>
+              </button>
+            )}
           </div>
 
-          {/* Users List */}
+          {/* Tab Navigation */}
+          <div className="mb-6 border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'users'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Users
+              </button>
+              <button
+                onClick={() => setActiveTab('attendance')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'attendance'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Manage Attendance
+              </button>
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'users' && (
+            <>
+              {/* Users List */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Employee Accounts</h2>
@@ -319,10 +352,17 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+            </>
+          )}
+
+          {/* Attendance Tab */}
+          {activeTab === 'attendance' && (
+            <AttendanceManagementTab />
+          )}
 
           {/* Create User Modal */}
           {showCreateForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Employee Account</h2>
                 
@@ -489,7 +529,7 @@ export default function AdminPage() {
 
           {/* Edit User Modal */}
           {showEditForm && editingUser && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Employee: {editingUser.name}</h2>
 
