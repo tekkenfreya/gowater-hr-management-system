@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { loginSchema } from '@/lib/validation/schemas';
+import { safeParseBody, createErrorResponse } from '@/lib/validation/middleware';
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
-
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: 'Username and password are required' },
-        { status: 400 }
-      );
+    // Validate request body with Zod schema
+    const [, validation] = await safeParseBody(request, loginSchema);
+    if (!validation.success) {
+      return createErrorResponse(validation);
     }
+
+    const { username, password } = validation.data;
 
     const authService = getAuthService();
     await authService.initialize();

@@ -242,8 +242,6 @@ export default function Header({ user, onToggleSidebar }: HeaderProps) {
                       <span className="text-purple-600 font-medium">Admin</span>
                     ) : user?.role === 'manager' ? (
                       <span className="text-blue-600 font-medium">Manager</span>
-                    ) : user?.role === 'boss' ? (
-                      <span className="text-indigo-600 font-medium">Boss</span>
                     ) : (
                       <span className="text-gray-600">Employee</span>
                     )}

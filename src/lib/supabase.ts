@@ -104,14 +104,29 @@ export class SupabaseDatabase {
 
   async update(table: string, data: Record<string, unknown>, conditions: Record<string, unknown>) {
     let query = this.client.from(table).update(data);
-    
+
     Object.keys(conditions).forEach(key => {
       query = query.eq(key, conditions[key]);
     });
-    
+
     const { data: result, error } = await query.select();
-    
-    if (error) throw error;
+
+    if (error) {
+      // Enhanced error logging for debugging
+      logger.error('Database update failed', {
+        table,
+        conditions,
+        error: {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        },
+        // Don't log sensitive data fields
+        dataKeys: Object.keys(data)
+      });
+      throw error;
+    }
     return result;
   }
 

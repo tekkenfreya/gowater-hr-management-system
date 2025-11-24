@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getLeadService } from '@/lib/leads';
+import { getPermissionsService } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 
 interface JWTPayload {
@@ -19,10 +20,13 @@ export async function GET(request: NextRequest) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
 
-    // Only allow admin, manager, and boss roles to access activity monitor
-    if (decoded.role !== 'admin' && decoded.role !== 'manager' && decoded.role !== 'boss') {
+    // Check permission to access activity monitor
+    const permissionsService = getPermissionsService();
+    const hasPermission = await permissionsService.hasPermission(decoded.userId, 'can_view_activity_monitor');
+
+    if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: Only admin, manager, and boss roles can access activity monitor' },
+        { error: 'Forbidden: You do not have permission to access activity monitor' },
         { status: 403 }
       );
     }

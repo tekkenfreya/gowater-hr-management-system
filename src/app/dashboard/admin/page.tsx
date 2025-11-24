@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/auth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import UserPermissionsModal from '@/components/admin/UserPermissionsModal';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/lib/logger';
 
@@ -13,7 +14,7 @@ interface CreateUserForm {
   password: string;
   name: string;
   employeeId: string;
-  role: 'admin' | 'employee' | 'manager' | 'boss';
+  role: 'admin' | 'employee' | 'manager';
   position: string;
   department: string;
   employeeName: string;
@@ -22,7 +23,7 @@ interface CreateUserForm {
 interface EditUserForm {
   name: string;
   employeeId: string;
-  role: 'admin' | 'employee' | 'manager' | 'boss';
+  role: 'admin' | 'employee' | 'manager';
   position: string;
   department: string;
   employeeName: string;
@@ -36,7 +37,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [permissionsUser, setPermissionsUser] = useState<User | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserForm>({
     email: '',
     password: '',
@@ -282,6 +285,16 @@ export default function AdminPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end space-x-2">
                             <button
+                              onClick={() => {
+                                setPermissionsUser(userItem);
+                                setShowPermissionsModal(true);
+                              }}
+                              className="text-purple-600 hover:text-purple-900 transition-colors"
+                              title="Manage permissions"
+                            >
+                              <ShieldIcon />
+                            </button>
+                            <button
                               onClick={() => handleEditUser(userItem)}
                               className="text-blue-600 hover:text-blue-900 transition-colors"
                               title="Edit user"
@@ -382,14 +395,13 @@ export default function AdminPage() {
                     <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
                     <select
                       value={createForm.role}
-                      onChange={(e) => setCreateForm({...createForm, role: e.target.value as 'admin' | 'manager' | 'employee' | 'boss'})}
+                      onChange={(e) => setCreateForm({...createForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
                       className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                       style={{ color: '#000000', backgroundColor: '#ffffff' }}
                     >
                       <option value="employee">Employee</option>
                       <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
-                      <option value="boss">Boss</option>
                     </select>
                   </div>
 
@@ -528,14 +540,13 @@ export default function AdminPage() {
                     <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
                     <select
                       value={editForm.role}
-                      onChange={(e) => setEditForm({...editForm, role: e.target.value as 'admin' | 'manager' | 'employee' | 'boss'})}
+                      onChange={(e) => setEditForm({...editForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
                       className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                       style={{ color: '#000000', backgroundColor: '#ffffff' }}
                     >
                       <option value="employee">Employee</option>
                       <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
-                      <option value="boss">Boss</option>
                     </select>
                   </div>
 
@@ -587,6 +598,22 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+
+          {/* User Permissions Modal */}
+          {showPermissionsModal && permissionsUser && (
+            <UserPermissionsModal
+              userId={permissionsUser.id}
+              userName={permissionsUser.name}
+              userRole={permissionsUser.role}
+              onClose={() => {
+                setShowPermissionsModal(false);
+                setPermissionsUser(null);
+              }}
+              onSuccess={() => {
+                fetchUsers(); // Refresh the users list
+              }}
+            />
+          )}
         </main>
       </div>
     </div>
@@ -614,6 +641,14 @@ function TrashIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   );
 }

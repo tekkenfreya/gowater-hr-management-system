@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDb } from './supabase';
 import { logger } from './logger';
+import { getPermissionsService } from './permissions';
 
 // Enforce JWT_SECRET environment variable - no fallback for security
 const JWT_SECRET = (() => {
@@ -22,13 +23,15 @@ export interface AuthUser {
   email: string;
   name: string;
   employeeId?: string;
-  role: 'admin' | 'employee' | 'manager' | 'boss';
+  role: 'admin' | 'employee' | 'manager';
   position?: string;
   department?: string;
   employeeName?: string;
   avatar?: string;
   force_password_reset?: boolean;
   last_password_change?: string;
+  password_expires_at?: string;
+  password_expiry_days?: number;
 }
 
 export interface LoginResult {
@@ -43,7 +46,7 @@ export interface CreateUserData {
   password: string;
   name: string;
   employeeId?: string;
-  role?: 'admin' | 'employee' | 'manager' | 'boss';
+  role?: 'admin' | 'employee' | 'manager';
   position?: string;
   department?: string;
   employeeName?: string;
@@ -125,7 +128,9 @@ export class AuthService {
         employeeName: user.employee_name,
         avatar: user.avatar,
         force_password_reset: user.force_password_reset,
-        last_password_change: user.last_password_change
+        last_password_change: user.last_password_change,
+        password_expires_at: user.password_expires_at,
+        password_expiry_days: user.password_expiry_days,
       };
 
       const token = jwt.sign(
@@ -200,7 +205,9 @@ export class AuthService {
         employeeName: user.employee_name,
         avatar: user.avatar,
         force_password_reset: user.force_password_reset,
-        last_password_change: user.last_password_change
+        last_password_change: user.last_password_change,
+        password_expires_at: user.password_expires_at,
+        password_expiry_days: user.password_expiry_days,
       };
     } catch (error) {
       logger.error('Token verification error', error);
@@ -354,11 +361,31 @@ export class AuthService {
         updated_at: new Date()
       }, { id: userId });
 
+      logger.audit('password_changed', userId);
       return { success: true };
     } catch (error) {
-      logger.error('Change password error', error);
+      // Enhanced error logging with more context
+      logger.error('Change password error', {
+        userId,
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        // @ts-expect-error - Supabase error may have code property
+        errorCode: error?.code,
+        // @ts-expect-error - Supabase error may have details property
+        errorDetails: error?.details,
+        // @ts-expect-error - Supabase error may have hint property
+        errorHint: error?.hint,
+      });
       logger.audit('password_change_failed', userId);
-      return { success: false, error: 'Failed to change password' };
+
+      // Return specific error message if available
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change password';
+      return {
+        success: false,
+        error: errorMessage.includes('violates row-level security')
+          ? 'Permission denied. Please contact your administrator.'
+          : errorMessage
+      };
     }
   }
 }

@@ -1,6 +1,7 @@
 import { getDb } from './supabase';
 import { Lead, LeadActivity, LeadFormData, ActivityFormData, LeadWithActivities, DashboardStats, LeadCategory } from '@/types/leads';
 import { randomUUID } from 'crypto';
+import { logger } from './logger';
 
 export class LeadService {
   private db = getDb();
@@ -28,12 +29,12 @@ export class LeadService {
       event_time: leadData.category === 'event' ? leadData.event_time || null : null,
       number_of_attendees: leadData.category === 'event' ? leadData.number_of_attendees || null : null,
 
-      // SUPPLY-SPECIFIC FIELDS
-      supplier_name: leadData.category === 'supply' ? leadData.supplier_name || null : null,
-      supplier_location: leadData.category === 'supply' ? leadData.supplier_location || null : null,
-      supplier_product: leadData.category === 'supply' ? leadData.supplier_product || null : null,
-      price: leadData.category === 'supply' ? leadData.price || null : null,
-      unit_type: leadData.category === 'supply' ? leadData.unit_type || null : null,
+      // SUPPLIER-SPECIFIC FIELDS
+      supplier_name: leadData.category === 'supplier' ? leadData.supplier_name || null : null,
+      supplier_location: leadData.category === 'supplier' ? leadData.supplier_location || null : null,
+      supplier_product: leadData.category === 'supplier' ? leadData.supplier_product || null : null,
+      price: leadData.category === 'supplier' ? leadData.price || null : null,
+      unit_type: leadData.category === 'supplier' ? leadData.unit_type || null : null,
 
       // SHARED FIELDS
       contact_person: leadData.contact_person || null,
@@ -87,7 +88,7 @@ export class LeadService {
     if (updates.event_time !== undefined) updateData.event_time = updates.event_time || null;
     if (updates.number_of_attendees !== undefined) updateData.number_of_attendees = updates.number_of_attendees || null;
 
-    // SUPPLY-SPECIFIC FIELDS
+    // SUPPLIER-SPECIFIC FIELDS
     if (updates.supplier_name !== undefined) updateData.supplier_name = updates.supplier_name || null;
     if (updates.supplier_location !== undefined) updateData.supplier_location = updates.supplier_location || null;
     if (updates.supplier_product !== undefined) updateData.supplier_product = updates.supplier_product || null;
@@ -155,28 +156,82 @@ export class LeadService {
 
   // ============ COMBINED QUERIES ============
 
+  /**
+   * Optimized version using SQL to avoid N+1 queries
+   * Uses a single query with LEFT JOIN instead of N separate queries
+   */
   async getLeadsWithActivities(category?: LeadCategory): Promise<LeadWithActivities[]> {
-    const leads = category
-      ? await this.getLeadsByCategory(category)
-      : await this.getAllLeads();
+    // Build WHERE clause
+    const whereClause = category ? `WHERE l.category = '${category}'` : '';
 
-    const leadsWithActivities: LeadWithActivities[] = await Promise.all(
-      leads.map(async (lead) => {
-        const activities = await this.getActivitiesForLead(lead.id);
-        const sortedActivities = activities.sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+    // Single query with LEFT JOIN to get all leads with their activities
+    const sql = `
+      SELECT
+        l.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', la.id,
+              'lead_id', la.lead_id,
+              'employee_name', la.employee_name,
+              'activity_type', la.activity_type,
+              'activity_description', la.activity_description,
+              'start_date', la.start_date,
+              'end_date', la.end_date,
+              'status_update', la.status_update,
+              'created_at', la.created_at
+            ) ORDER BY la.created_at DESC
+          ) FILTER (WHERE la.id IS NOT NULL),
+          '[]'::json
+        ) as activities_json
+      FROM leads l
+      LEFT JOIN lead_activities la ON l.id = la.lead_id
+      ${whereClause}
+      GROUP BY l.id
+      ORDER BY l.created_at DESC
+    `;
 
+    interface QueryResult extends Lead {
+      activities_json: string;
+    }
+
+    try {
+      const results = await this.db.executeRawSQL<QueryResult>(sql);
+
+      return results.map((row) => {
+        const activities: LeadActivity[] = JSON.parse(row.activities_json || '[]');
         return {
-          ...lead,
-          activities: sortedActivities,
+          ...row,
+          activities,
           activity_count: activities.length,
-          last_activity: sortedActivities[0] || undefined,
+          last_activity: activities[0] || undefined,
         };
-      })
-    );
+      });
+    } catch (error) {
+      logger.error('Failed to fetch leads with activities using optimized query, falling back to old method', error);
+      // Fallback to original implementation if SQL fails
+      const leads = category
+        ? await this.getLeadsByCategory(category)
+        : await this.getAllLeads();
 
-    return leadsWithActivities;
+      const leadsWithActivities: LeadWithActivities[] = await Promise.all(
+        leads.map(async (lead) => {
+          const activities = await this.getActivitiesForLead(lead.id);
+          const sortedActivities = activities.sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+
+          return {
+            ...lead,
+            activities: sortedActivities,
+            activity_count: activities.length,
+            last_activity: sortedActivities[0] || undefined,
+          };
+        })
+      );
+
+      return leadsWithActivities;
+    }
   }
 
   // ============ ACTIVITY MONITOR ============
@@ -293,28 +348,53 @@ export class LeadService {
     return Object.values(employeeStats).sort((a, b) => b.total_activities - a.total_activities);
   }
 
+  /**
+   * Optimized version using SQL JOIN to avoid N+1 queries
+   */
   async getRecentActivitiesForAllLeads(limit: number = 50) {
-    const activities = await this.getAllActivities();
+    const sql = `
+      SELECT
+        la.*,
+        COALESCE(l.company_name, l.event_name, l.supplier_name, 'Unknown') as lead_name,
+        COALESCE(l.category, 'lead') as lead_category,
+        COALESCE(l.status, 'unknown') as lead_status
+      FROM lead_activities la
+      LEFT JOIN leads l ON la.lead_id = l.id
+      ORDER BY la.created_at DESC
+      LIMIT ${limit}
+    `;
 
-    // Sort by most recent first
-    const sortedActivities = activities.sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    try {
+      const results = await this.db.executeRawSQL<LeadActivity & {
+        lead_name: string;
+        lead_category: LeadCategory;
+        lead_status: string;
+      }>(sql);
 
-    // Get lead details for each activity
-    const activitiesWithLeads = await Promise.all(
-      sortedActivities.slice(0, limit).map(async (activity) => {
-        const lead = await this.getLeadById(activity.lead_id);
-        return {
-          ...activity,
-          lead_name: lead?.company_name || lead?.event_name || lead?.supplier_name || 'Unknown',
-          lead_category: lead?.category || 'lead',
-          lead_status: lead?.status || 'unknown',
-        };
-      })
-    );
+      return results;
+    } catch (error) {
+      logger.error('Failed to fetch recent activities using optimized query, falling back', error);
+      // Fallback to original implementation
+      const activities = await this.getAllActivities();
 
-    return activitiesWithLeads;
+      const sortedActivities = activities.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      const activitiesWithLeads = await Promise.all(
+        sortedActivities.slice(0, limit).map(async (activity) => {
+          const lead = await this.getLeadById(activity.lead_id);
+          return {
+            ...activity,
+            lead_name: lead?.company_name || lead?.event_name || lead?.supplier_name || 'Unknown',
+            lead_category: lead?.category || 'lead',
+            lead_status: lead?.status || 'unknown',
+          };
+        })
+      );
+
+      return activitiesWithLeads;
+    }
   }
 
   async getStaleLeads(daysThreshold: number = 30) {
@@ -426,7 +506,7 @@ export class LeadService {
     const categoryCounts: Record<LeadCategory, number> = {
       lead: 0,
       event: 0,
-      supply: 0,
+      supplier: 0,
     };
 
     leads.forEach(lead => {
@@ -488,17 +568,13 @@ export class LeadService {
       }))
       .sort((a, b) => b.total_activities - a.total_activities);
 
-    // Recent activities with lead info
-    const recent_activities = await Promise.all(
-      activities.slice(0, 20).map(async (activity) => {
-        const lead = await this.getLeadById(activity.lead_id);
-        return {
-          ...activity,
-          company_name: lead?.company_name || 'Unknown',
-          category: lead?.category || 'lead' as LeadCategory,
-        };
-      })
-    );
+    // Recent activities with lead info (optimized - reuse getRecentActivitiesForAllLeads)
+    const recentActivitiesData = await this.getRecentActivitiesForAllLeads(20);
+    const recent_activities = recentActivitiesData.map(activity => ({
+      ...activity,
+      company_name: activity.lead_name,
+      category: activity.lead_category,
+    }));
 
     // Stale leads (no activity in 30 days)
     const thirtyDaysAgo = new Date();

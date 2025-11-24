@@ -50,7 +50,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
     event_date: '',
     event_time: '',
     number_of_attendees: '',
-    // SUPPLY FIELDS
+    // SUPPLIER FIELDS
     supplier_name: '',
     supplier_location: '',
     supplier_product: '',
@@ -82,8 +82,8 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
       return;
     }
 
-    if (category === 'supply' && !formData.supplier_name?.trim()) {
-      alert('Supplier name is required for supplies');
+    if (category === 'supplier' && !formData.supplier_name?.trim()) {
+      alert('Supplier name is required for supplier');
       return;
     }
 
@@ -119,9 +119,9 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
 
   const isLead = category === 'lead';
   const isEvent = category === 'event';
-  const isSupply = category === 'supply';
-  const modalTitle = isLead ? 'Add New Lead' : isEvent ? 'Add New Event' : 'Add New Supply';
-  const submitButtonText = loading ? 'Creating...' : isLead ? 'Create Lead' : isEvent ? 'Create Event' : 'Create Supply';
+  const isSupplier = category === 'supplier';
+  const modalTitle = isLead ? 'Add New Lead' : isEvent ? 'Add New Event' : 'Add New Supplier';
+  const submitButtonText = loading ? 'Creating...' : isLead ? 'Create Lead' : isEvent ? 'Create Event' : 'Create Supplier';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
@@ -285,8 +285,8 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             </>
           )}
 
-          {/* SUPPLY FIELDS */}
-          {isSupply && (
+          {/* SUPPLIER FIELDS */}
+          {isSupplier && (
             <>
               {/* Supplier Name */}
               <div>
@@ -363,7 +363,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             </>
           )}
 
-          {/* SHARED FIELDS (used by leads, events, and supplies) */}
+          {/* SHARED FIELDS (used by leads, events, and supplier) */}
 
           {/* Contact Person */}
           <div>
@@ -404,8 +404,8 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Product (only for lead and event, not supply) */}
-          {!isSupply && (
+          {/* Product (only for lead and event, not supplier) */}
+          {!isSupplier && (
             <div>
               <label className="block text-sm font-semibold text-[#323130] mb-1.5">
                 {isLead ? 'Product Interest' : 'Product Needed'}

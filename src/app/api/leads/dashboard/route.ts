@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getLeadService } from '@/lib/leads';
+import { getPermissionsService } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 
 interface JWTPayload {
@@ -19,10 +20,13 @@ export async function GET(request: NextRequest) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
 
-    // Only allow admin and boss roles to access dashboard stats
-    if (decoded.role !== 'admin' && decoded.role !== 'boss') {
+    // Check permission to access analytics
+    const permissionsService = getPermissionsService();
+    const hasPermission = await permissionsService.hasPermission(decoded.userId, 'can_view_analytics');
+
+    if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: Only admin and boss roles can access dashboard stats' },
+        { error: 'Forbidden: You do not have permission to access dashboard analytics' },
         { status: 403 }
       );
     }

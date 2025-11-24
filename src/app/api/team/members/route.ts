@@ -78,15 +78,12 @@ export async function GET(request: NextRequest) {
         position: user.position || '',
         department: user.department || '',
         avatar: user.avatar || null,
-        isOnline: attendance.isOnline,
-        isBoss: user.employeeId === 'R-001' || user.employeeId === 'R-005' || user.employee_id === 'R-001' || user.employee_id === 'R-005'
+        isOnline: attendance.isOnline
       };
     });
 
-    // Sort: bosses first, then by employee ID
-    allEmployees.sort((a: { isBoss: boolean; employeeId: string }, b: { isBoss: boolean; employeeId: string }) => {
-      if (a.isBoss && !b.isBoss) return -1;
-      if (!a.isBoss && b.isBoss) return 1;
+    // Sort by employee ID
+    allEmployees.sort((a: { employeeId: string }, b: { employeeId: string }) => {
       return (a.employeeId || '').localeCompare(b.employeeId || '');
     });
 

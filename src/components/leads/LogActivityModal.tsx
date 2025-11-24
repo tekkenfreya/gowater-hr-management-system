@@ -22,8 +22,8 @@ const LEAD_EVENT_ACTIVITY_TYPES: { value: ActivityType; label: string; icon: Rea
   { value: 'other', label: 'Other', icon: <Sparkles className="w-5 h-5" /> },
 ];
 
-// Activity types for Supply category
-const SUPPLY_ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNode }[] = [
+// Activity types for Supplier category
+const SUPPLIER_ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ReactNode }[] = [
   { value: 'active-supplier', label: 'Active supplier', icon: <CheckCircle className="w-5 h-5" /> },
   { value: 'recording', label: 'For recording purposes', icon: <ClipboardList className="w-5 h-5" /> },
   { value: 'checking', label: 'For checking', icon: <Package className="w-5 h-5" /> },
@@ -41,8 +41,8 @@ const STATUS_OPTIONS = [
 
 export default function LogActivityModal({ lead, onClose, onSuccess }: LogActivityModalProps) {
   // Determine which activity types to show based on lead category
-  const activityTypes = lead.category === 'supply' ? SUPPLY_ACTIVITY_TYPES : LEAD_EVENT_ACTIVITY_TYPES;
-  const defaultActivityType = lead.category === 'supply' ? 'active-supplier' : 'call';
+  const activityTypes = lead.category === 'supplier' ? SUPPLIER_ACTIVITY_TYPES : LEAD_EVENT_ACTIVITY_TYPES;
+  const defaultActivityType = lead.category === 'supplier' ? 'active-supplier' : 'call';
 
   const [formData, setFormData] = useState<ActivityFormData>({
     activity_type: defaultActivityType as ActivityType,

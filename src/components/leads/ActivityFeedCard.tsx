@@ -54,7 +54,7 @@ export default function ActivityFeedCard({ activity }: ActivityFeedCardProps) {
         return 'bg-[#E6F3FF] text-[#0078D4]';
       case 'event':
         return 'bg-[#FFF4E5] text-[#F59B00]';
-      case 'supply':
+      case 'supplier':
         return 'bg-[#E7F4E7] text-[#107C10]';
       default:
         return 'bg-[#F3F2F1] text-[#605E5C]';

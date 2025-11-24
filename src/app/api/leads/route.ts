@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { getLeadService } from '@/lib/leads';
 import { logger } from '@/lib/logger';
 import { LeadFormData, LeadCategory } from '@/types/leads';
+import { createLeadSchema, updateLeadSchema } from '@/lib/validation/schemas';
+import { safeParseBody, createErrorResponse } from '@/lib/validation/middleware';
 
 interface JWTPayload {
   userId: number;
@@ -48,37 +50,13 @@ export async function POST(request: NextRequest) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
     const employeeName = decoded.name || decoded.email || 'Unknown';
 
-    const body = await request.json();
-    const leadData: LeadFormData = body;
-
-    // Validation - different required fields based on category
-    if (!leadData.category) {
-      return NextResponse.json(
-        { error: 'Missing required field: category' },
-        { status: 400 }
-      );
+    // Validate request body with Zod schema (handles category-specific validation)
+    const [, validation] = await safeParseBody(request, createLeadSchema);
+    if (!validation.success) {
+      return createErrorResponse(validation);
     }
 
-    if (leadData.category === 'lead' && !leadData.company_name) {
-      return NextResponse.json(
-        { error: 'Missing required field for lead: company_name' },
-        { status: 400 }
-      );
-    }
-
-    if (leadData.category === 'event' && !leadData.event_name) {
-      return NextResponse.json(
-        { error: 'Missing required field for event: event_name' },
-        { status: 400 }
-      );
-    }
-
-    if (leadData.category === 'supply' && !leadData.supplier_name) {
-      return NextResponse.json(
-        { error: 'Missing required field for supply: supplier_name' },
-        { status: 400 }
-      );
-    }
+    const leadData: LeadFormData = validation.data as LeadFormData;
 
     const leadService = getLeadService();
     const lead = await leadService.createLead(employeeName, leadData);
@@ -102,15 +80,13 @@ export async function PUT(request: NextRequest) {
 
     jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
 
-    const body = await request.json();
-    const { id, ...updates } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Lead ID is required' },
-        { status: 400 }
-      );
+    // Validate request body with Zod schema
+    const [, validation] = await safeParseBody(request, updateLeadSchema);
+    if (!validation.success) {
+      return createErrorResponse(validation);
     }
+
+    const { id, ...updates } = validation.data;
 
     const leadService = getLeadService();
     await leadService.updateLead(id, updates);
