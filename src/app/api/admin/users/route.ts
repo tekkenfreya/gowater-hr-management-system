@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const authService = getAuthService();
     const users = await authService.getAllUsers();
 
-    return NextResponse.json({ success: true, employees: users });
+    return NextResponse.json({ success: true, users, employees: users });
   } catch (error) {
     logger.error('Get users API error', error);
     return NextResponse.json(
