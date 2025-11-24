@@ -22,7 +22,6 @@ interface Employee {
 
 export default function AttendanceManagementTab() {
   const [records, setRecords] = useState<AttendanceRecordWithUser[]>([]);
-  const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<AttendanceManagementFilters>({
     page: 1,
@@ -481,13 +480,13 @@ export default function AttendanceManagementTab() {
                         className="rounded border-gray-300"
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check In</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check Out</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Employee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Check In</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Check Out</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Hours</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Location</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -506,7 +505,7 @@ export default function AttendanceManagementTab() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{record.userName}</div>
-                        <div className="text-sm text-gray-500">{record.userDepartment}</div>
+                        <div className="text-sm text-gray-600">{record.userDepartment}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : '-'}

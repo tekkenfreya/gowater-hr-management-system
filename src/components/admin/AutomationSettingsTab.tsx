@@ -19,7 +19,6 @@ interface UserAutomationStatus {
 }
 
 export default function AutomationSettingsTab() {
-  const [globalSettings, setGlobalSettings] = useState<AttendanceAutomationSettings | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [userStatuses, setUserStatuses] = useState<Map<number, UserAutomationStatus>>(new Map());
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
@@ -56,7 +55,6 @@ export default function AutomationSettingsTab() {
       const data = await response.json();
 
       if (data.success && data.settings) {
-        setGlobalSettings(data.settings);
         setFormData({
           isEnabled: data.settings.isEnabled,
           autoCheckInTime: data.settings.autoCheckInTime || '09:00',
@@ -362,11 +360,11 @@ export default function AutomationSettingsTab() {
                     className="rounded border-gray-300"
                   />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Settings</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Employee</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Department</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Settings</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -385,7 +383,7 @@ export default function AutomationSettingsTab() {
                     <td className="px-6 py-4">
                       <div>
                         <div className="font-medium text-gray-900">{employee.name}</div>
-                        <div className="text-sm text-gray-500">{employee.employeeId}</div>
+                        <div className="text-sm text-gray-600">{employee.employeeId}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">{employee.department || 'N/A'}</td>

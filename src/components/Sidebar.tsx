@@ -337,35 +337,6 @@ export default function Sidebar({
           </div>
         </nav>
 
-        {/* Team Members Section */}
-        {!isCollapsed && teamMembers.length > 0 && (
-          <div className="p-4">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Team Members
-            </h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center space-x-3 p-2 bg-gray-800 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-medium text-xs">
-                      {getInitials(member.name)}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white truncate">
-                      {member.name}
-                    </p>
-                    <p className="text-xs text-gray-400 truncate">
-                      {member.position}
-                    </p>
-                  </div>
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${member.isOnline ? 'bg-green-500' : 'bg-gray-600'}`} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Settings and Logout at Bottom */}
         <div className="mt-auto border-t border-gray-700/30">
           <div className="p-4 space-y-2">
