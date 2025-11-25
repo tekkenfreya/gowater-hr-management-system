@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI assistant files and workflow prompts
+.claude/
+CLAUDE.md
+REUSABLE_REFERENCE.md
+tasks/
+Workflow prompts/
+*TASK_REPORT*.md
+
+# Temporary files
+nul
+
+# Reports (may contain sensitive data)
+Reports/

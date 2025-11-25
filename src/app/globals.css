@@ -46,6 +46,23 @@ body {
   scroll-behavior: smooth;
 }
 
+/* Global dropdown/select styling for readability */
+select {
+  color: var(--foreground);
+}
+
+select option {
+  color: var(--foreground);
+  background-color: var(--background);
+}
+
+@media (prefers-color-scheme: dark) {
+  select option {
+    color: var(--neutral-50);
+    background-color: var(--neutral-900);
+  }
+}
+
 .fluid-bg {
   background: linear-gradient(135deg, #3498db 0%, #2980b9 50%, #1f4e79 100%);
   position: relative;

@@ -211,7 +211,7 @@ export default function AdminPage() {
           onToggleSidebar={toggleSidebar}
         />
 
-        <main className="p-6">
+        <main className="p-4">
           {/* Header Section */}
           <div className="flex items-center justify-between mb-6">
             <div>

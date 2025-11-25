@@ -274,104 +274,18 @@ export default function AttendanceManagementTab() {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl">
-      {/* Filters Section */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 lg:p-8">
-        <h3 className="text-xl font-semibold text-gray-900 mb-6">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-            <input
-              type="date"
-              value={filters.startDate || ''}
-              onChange={(e) => setFilters({ ...filters, startDate: e.target.value, page: 1 })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-            <input
-              type="date"
-              value={filters.endDate || ''}
-              onChange={(e) => setFilters({ ...filters, endDate: e.target.value, page: 1 })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
-            <select
-              value={filters.userId || ''}
-              onChange={(e) => setFilters({ ...filters, userId: e.target.value ? parseInt(e.target.value) : undefined, page: 1 })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            >
-              <option value="">All Employees</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.employeeId})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={filters.status || ''}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value as typeof filters.status, page: 1 })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            >
-              <option value="">All</option>
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-              <option value="late">Late</option>
-              <option value="on_duty">On Duty</option>
-              <option value="leave">Leave</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Work Location</label>
-            <select
-              value={filters.workLocation || ''}
-              onChange={(e) => setFilters({ ...filters, workLocation: e.target.value as typeof filters.workLocation, page: 1 })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            >
-              <option value="">All</option>
-              <option value="WFH">WFH</option>
-              <option value="Onsite">Onsite</option>
-            </select>
-          </div>
+    <div className="space-y-6">
+      {/* Manual Attendance Controls - Full Width */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-gray-900">Manual Attendance Controls</h3>
+          <p className="text-sm text-gray-600 mt-1">Select employees and perform attendance actions</p>
         </div>
 
-        <div className="flex items-center space-x-4 mt-6 pt-6 border-t border-gray-200">
-          <button
-            onClick={() => setFilters({ page: 1, limit: 20 })}
-            className="px-5 py-2.5 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg font-medium transition-all duration-200 border border-gray-200 shadow-sm"
-          >
-            Clear Filters
-          </button>
-          <button
-            onClick={handleExport}
-            className="px-5 py-2.5 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 border border-blue-200 shadow-sm"
-          >
-            <DownloadIcon />
-            <span>Export CSV</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Manual Attendance Controls */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 lg:p-8">
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">Manual Attendance Controls</h3>
-          <p className="text-sm text-gray-600 mt-2">Select employees and perform attendance actions</p>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex gap-6">
+          {/* Left: Employee selector */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Employees</label>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Select Employees</label>
             <select
               multiple
               value={selectedUsers.map(String)}
@@ -379,7 +293,7 @@ export default function AttendanceManagementTab() {
                 const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
                 setSelectedUsers(selected);
               }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] md:min-h-[160px] bg-gray-50 transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] bg-gray-50 transition-colors"
             >
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
@@ -387,42 +301,46 @@ export default function AttendanceManagementTab() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple employees</p>
+            <p className="text-xs text-gray-600 mt-1">Hold Ctrl/Cmd to select multiple</p>
           </div>
 
-          <div className="flex flex-col justify-end space-y-2">
-            <button
-              onClick={handleManualCheckIn}
-              disabled={selectedUsers.length === 0}
-              className="px-5 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
-            >
-              <CheckIcon />
-              <span>Check In ({selectedUsers.length})</span>
-            </button>
-            <button
-              onClick={handleManualCheckOut}
-              disabled={selectedUsers.length === 0}
-              className="px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
-            >
-              <ArrowRightIcon />
-              <span>Check Out ({selectedUsers.length})</span>
-            </button>
-            <button
-              onClick={handleStartBreak}
-              disabled={selectedUsers.length === 0}
-              className="px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
-            >
-              <CoffeeIcon />
-              <span>Start Break ({selectedUsers.length})</span>
-            </button>
-            <button
-              onClick={handleEndBreak}
-              disabled={selectedUsers.length === 0}
-              className="px-5 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
-            >
-              <RefreshIcon />
-              <span>End Break ({selectedUsers.length})</span>
-            </button>
+          {/* Right: Action buttons (horizontal 2x2 grid) */}
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-900 mb-2">Actions</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleManualCheckIn}
+                disabled={selectedUsers.length === 0}
+                className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+              >
+                <CheckIcon />
+                <span>In ({selectedUsers.length})</span>
+              </button>
+              <button
+                onClick={handleManualCheckOut}
+                disabled={selectedUsers.length === 0}
+                className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+              >
+                <ArrowRightIcon />
+                <span>Out ({selectedUsers.length})</span>
+              </button>
+              <button
+                onClick={handleStartBreak}
+                disabled={selectedUsers.length === 0}
+                className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+              >
+                <CoffeeIcon />
+                <span>Break ({selectedUsers.length})</span>
+              </button>
+              <button
+                onClick={handleEndBreak}
+                disabled={selectedUsers.length === 0}
+                className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+              >
+                <RefreshIcon />
+                <span>Resume ({selectedUsers.length})</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -456,8 +374,95 @@ export default function AttendanceManagementTab() {
         </div>
       )}
 
-      {/* Attendance Table */}
+      {/* Attendance Records with Filters Inside */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        {/* Filters Section (no title, integrated) */}
+        <div className="px-8 py-6 border-b border-gray-200 bg-gray-50/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={filters.startDate || ''}
+                onChange={(e) => setFilters({ ...filters, startDate: e.target.value, page: 1 })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">End Date</label>
+              <input
+                type="date"
+                value={filters.endDate || ''}
+                onChange={(e) => setFilters({ ...filters, endDate: e.target.value, page: 1 })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Employee</label>
+              <select
+                value={filters.userId || ''}
+                onChange={(e) => setFilters({ ...filters, userId: e.target.value ? parseInt(e.target.value) : undefined, page: 1 })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All Employees</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.employeeId})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Status</label>
+              <select
+                value={filters.status || ''}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value as typeof filters.status, page: 1 })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+                <option value="on_duty">On Duty</option>
+                <option value="leave">Leave</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Work Location</label>
+              <select
+                value={filters.workLocation || ''}
+                onChange={(e) => setFilters({ ...filters, workLocation: e.target.value as typeof filters.workLocation, page: 1 })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All</option>
+                <option value="WFH">WFH</option>
+                <option value="Onsite">Onsite</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4 mt-4">
+            <button
+              onClick={() => setFilters({ page: 1, limit: 20 })}
+              className="px-5 py-2.5 text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg font-medium transition-all duration-200 border border-gray-200 shadow-sm"
+            >
+              Clear Filters
+            </button>
+            <button
+              onClick={handleExport}
+              className="px-5 py-2.5 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 border border-blue-200 shadow-sm"
+            >
+              <DownloadIcon />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Table Header */}
         <div className="px-8 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Attendance Records</h2>
