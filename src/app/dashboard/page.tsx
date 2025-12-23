@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import BreakModal from '@/components/BreakModal';
 import ForcePasswordChangeModal from '@/components/ForcePasswordChangeModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
 import { formatPhilippineTime } from '@/lib/timezone';
+import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
 
 interface TeamMember {
   id: number;
@@ -35,11 +34,24 @@ interface WeeklyAttendanceData {
   sessions?: Array<{ checkIn: string; checkOut: string }>;
 }
 
+interface Task {
+  id: number;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  due_date?: string;
+  subTasks?: Array<{
+    id: string;
+    title: string;
+    status: string;
+  }>;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout, refetch } = useAuth();
-  const { isTimedIn, isOnBreak, workDuration, breakStartTime, checkInTime, handleTimeIn, handleEndBreak } = useAttendance();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isTimedIn, isOnBreak, workDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Team members state
@@ -65,6 +77,18 @@ export default function Dashboard() {
     weekProgress: 0,
     period: 'week' as 'week' | 'month' | 'year',
     expectedHours: 40
+  });
+
+  // Check-in modal state
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [checkInTasks, setCheckInTasks] = useState<Task[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [showAddTaskForm, setShowAddTaskForm] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
+    status: 'pending' as 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived'
   });
 
   // Get week dates based on currentWeekStart (Sunday to Saturday)
@@ -127,6 +151,150 @@ export default function Dashboard() {
     sunday.setDate(today.getDate() - currentDay);
     sunday.setHours(0, 0, 0, 0);
     setCurrentWeekStart(sunday);
+  };
+
+  // Fetch today's tasks for check-in modal
+  const fetchCheckInTasks = async () => {
+    setIsLoadingTasks(true);
+    try {
+      const response = await fetch('/api/tasks');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter for today's active/pending tasks
+        const today = new Date().toISOString().split('T')[0];
+        const todaysTasks = (data.tasks || []).filter((task: Task) =>
+          task.status !== 'archived' &&
+          task.status !== 'completed' &&
+          (!task.due_date || task.due_date.startsWith(today))
+        );
+        setCheckInTasks(todaysTasks);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch check-in tasks', error);
+      setCheckInTasks([]);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
+
+  // Open check-in modal and fetch tasks
+  const handleOpenCheckInModal = () => {
+    setShowCheckInModal(true);
+    setShowAddTaskForm(false);
+    setNewTask({ title: '', description: '', priority: 'medium', status: 'pending' });
+    fetchCheckInTasks();
+  };
+
+  // Create new task
+  const handleCreateTask = async () => {
+    if (!newTask.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTask.title.trim(),
+          description: newTask.description?.trim() || '',
+          priority: newTask.priority,
+          status: newTask.status,
+          due_date: new Date().toISOString().split('T')[0],
+          subTasks: []
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh task list
+        await fetchCheckInTasks();
+        // Reset form
+        setNewTask({ title: '', description: '', priority: 'medium', status: 'pending' });
+        setShowAddTaskForm(false);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to create task');
+      }
+    } catch (error) {
+      logger.error('Failed to create task', error);
+      alert('Failed to create task');
+    }
+  };
+
+  // Delete task
+  const handleDeleteTask = async (taskId: number) => {
+    if (!confirm('Are you sure you want to delete this task?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/tasks?id=${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Refresh task list
+        await fetchCheckInTasks();
+      } else {
+        alert('Failed to delete task');
+      }
+    } catch (error) {
+      logger.error('Failed to delete task', error);
+      alert('Failed to delete task');
+    }
+  };
+
+  // Send report to WhatsApp and complete check-in
+  const handleSendReportAndCheckIn = async () => {
+    try {
+      const now = new Date();
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      };
+      const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+
+      // Format tasks section
+      const tasksSection = checkInTasks.length > 0
+        ? checkInTasks.map((task, index) => {
+            let taskText = `${index + 1}. ${task.title}`;
+            if (task.description?.trim()) {
+              taskText += `\n   ${task.description.trim()}`;
+            }
+            taskText += ` [${task.status}]`;
+            return taskText;
+          }).join('\n\n')
+        : 'No tasks planned for today';
+
+      const report = `GoWater Start of Day Report
+
+Date: ${formattedDate}
+Employee: ${user?.employeeName || user?.name}
+Position: ${user?.position || user?.role}
+
+Today's Planned Tasks:
+${tasksSection}`;
+
+      // Send to WhatsApp
+      await simpleWhatsAppService.sendReport(report);
+
+      // Small delay to ensure WhatsApp window opens
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Complete check-in
+      await handleTimeIn();
+
+      // Close modal
+      setShowCheckInModal(false);
+
+      logger.info('Check-in report sent and user checked in successfully');
+    } catch (error) {
+      logger.error('Failed to send check-in report', error);
+      alert('Failed to send report. Please try again.');
+    }
   };
 
   // Redirect to login if not authenticated
@@ -262,14 +430,12 @@ export default function Dashboard() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
-
   if (!user) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <>
       {/* Force Password Change Modal */}
       {user.force_password_reset && (
         <ForcePasswordChangeModal
@@ -280,206 +446,109 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        isCollapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-      />
-
-      {/* Profile Card - Fixed next to sidebar */}
-      {!sidebarCollapsed && (
-        <div className="hidden lg:flex flex-col fixed left-[224px] top-[120px] bottom-6 w-80 z-20 px-4">
-          {/* User Profile Card */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-4">
-            <div className="flex justify-center mb-4">
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
-                {user?.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.name || 'User'}
-                    className="w-full h-full object-cover"
-                  />
+      {/* Dashboard Content */}
+      <div className="h-full flex flex-col">
+          {/* Attendance Controls */}
+          <div className="px-6 py-4 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {!isTimedIn ? (
+                  <button
+                    onClick={handleOpenCheckInModal}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold uppercase tracking-wider rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+                    style={{ fontFamily: 'var(--font-geist-sans)' }}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Check In</span>
+                    </div>
+                  </button>
                 ) : (
-                  <span className="text-white font-bold text-3xl">
-                    {user?.name ? getInitials(user.name) : 'U'}
-                  </span>
+                  <>
+                    <button
+                      onClick={handleTimeOut}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+                      style={{ fontFamily: 'var(--font-geist-sans)' }}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Check Out</span>
+                      </div>
+                    </button>
+
+                    {!isOnBreak && (
+                      <button
+                        onClick={handleStartBreak}
+                        className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold uppercase tracking-wider rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+                        style={{ fontFamily: 'var(--font-geist-sans)' }}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Start Break</span>
+                        </div>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
-            </div>
 
-            <div className="text-center mb-4">
-              <p className="text-lg font-bold text-gray-900">
-                {user?.employeeId || 'N/A'} - {user?.name}
-              </p>
-              <p className="text-sm text-gray-600">{user?.position || user?.role}</p>
-            </div>
-
-            <div className="text-center mb-4">
-              {!isTimedIn ? (
-                <p className="text-red-500 font-medium text-sm">Yet to check-in</p>
-              ) : (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <p className="text-green-600 font-medium text-sm">Working</p>
-                </div>
-              )}
-            </div>
-
-            <div className="text-center mb-4">
-              <p className="text-3xl font-mono font-bold text-gray-900">
-                {formatTime(workDuration)}
-              </p>
-            </div>
-
-            {/* Check In/Out Button */}
-            {!isTimedIn ? (
-              <button
-                onClick={handleTimeIn}
-                className="w-full py-3 rounded-lg font-medium transition-colors bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg"
-              >
-                Check In
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to check out?')) {
-                      fetch('/api/attendance/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ notes: '' })
-                      }).then(() => {
-                        window.location.reload();
-                      });
-                    }
-                  }}
-                  disabled={isOnBreak}
-                  className={`w-full py-3 rounded-lg font-medium transition-colors mb-2 shadow-lg ${
-                    isOnBreak
-                      ? 'bg-gray-400 cursor-not-allowed text-white'
-                      : 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white'
-                  }`}
-                >
-                  Check Out
-                </button>
-
-                {/* Start/End Break Button */}
-                <button
-                  onClick={isOnBreak ? handleEndBreak : () => {
-                    fetch('/api/attendance/break/start', {
-                      method: 'POST'
-                    }).then(() => {
-                      window.location.reload();
-                    });
-                  }}
-                  className={`w-full py-3 rounded-lg font-medium transition-colors shadow-lg ${
-                    isOnBreak
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
-                      : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
-                  }`}
-                >
-                  {isOnBreak ? 'End Break' : 'Start Break'}
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Team Status Box - Full Height */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700">Team Status</h3>
-              <p className="text-xs text-gray-500 mt-1">{allEmployees.length} employees</p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {allEmployees.length > 0 ? (
-                <div className="p-4">
-                  <div className="space-y-3">
-                    {allEmployees.map((employee) => (
-                      <div key={employee.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div className={`w-12 h-12 bg-gradient-to-br ${
-                          employee.isBoss
-                            ? 'from-purple-500 to-purple-600'
-                            : 'from-blue-500 to-blue-600'
-                        } rounded-full flex items-center justify-center flex-shrink-0 shadow-md overflow-hidden`}>
-                          {employee.avatar ? (
-                            <img
-                              src={employee.avatar}
-                              alt={employee.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-white font-semibold text-base">
-                              {getInitials(employee.name)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {employee.name}
-                            </p>
-                            {employee.isBoss && (
-                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">
-                                Boss
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">{employee.employeeId} • {employee.position}</p>
-                          <div className="flex items-center mt-1">
-                            <div className={`w-2 h-2 rounded-full mr-2 ${employee.isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-400'}`}></div>
-                            <p className={`text-xs font-medium ${employee.isOnline ? 'text-green-600' : 'text-red-500'}`}>
-                              {employee.isOnline ? 'Working' : 'Not yet signed in'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              {/* Work Duration Display */}
+              {isTimedIn && (
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-2 text-gray-700">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-semibold uppercase tracking-wider" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                      Work Duration:
+                    </span>
+                    <span className="text-2xl font-bold text-blue-600 tabular-nums" style={{ fontFamily: 'var(--font-geist-mono)' }}>
+                      {formatTime(workDuration)}
+                    </span>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                  No employees found
+                  {checkInTime && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-semibold">Checked in at:</span>{' '}
+                      <span className="font-bold text-gray-900">
+                        {new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        {/* Dashboard Content */}
-        <main className="p-6">
-          <div className={!sidebarCollapsed ? 'lg:ml-80 lg:pr-4' : ''}>
-            {/* Attendance Calendar View */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          {/* Attendance Calendar View */}
+            <div className="flex-1 flex flex-col">
               {/* Tabs */}
-              <div className="border-b border-gray-200 px-6 pt-4">
+              <div className="relative border-b border-gray-200 px-6 py-4 bg-white">
                 <div className="flex space-x-8">
                   <button
                     onClick={() => setActiveTab('calendar')}
-                    className={`pb-3 px-1 border-b-2 font-medium text-sm ${
+                    className={`pb-3 px-1 border-b-2 font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
                       activeTab === 'calendar'
                         ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        : 'border-transparent text-gray-500 hover:text-blue-600'
                     }`}
+                    style={{ fontFamily: 'var(--font-geist-sans)' }}
                   >
                     Attendance Calendar
                   </button>
                   <button
                     onClick={() => setActiveTab('summary')}
-                    className={`pb-3 px-1 border-b-2 font-medium text-sm ${
+                    className={`pb-3 px-1 border-b-2 font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
                       activeTab === 'summary'
                         ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        : 'border-transparent text-gray-500 hover:text-blue-600'
                     }`}
+                    style={{ fontFamily: 'var(--font-geist-sans)' }}
                   >
                     Attendance Summary
                   </button>
@@ -487,37 +556,37 @@ export default function Dashboard() {
               </div>
 
               {/* Calendar Content */}
-              <div className="p-6">
+              <div className="relative px-6 py-4 flex-1 bg-white overflow-y-auto flex flex-col">
                 {activeTab === 'calendar' ? (
                   <>
                     {/* Week Navigation Header */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-4">
                         <button
                           onClick={goToPreviousWeek}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
                           title="Previous week"
                         >
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                           </svg>
                         </button>
 
                         <div className="flex items-center space-x-2">
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-bold text-gray-900 uppercase tracking-wider" style={{ fontFamily: 'var(--font-geist-sans)' }}>
                             {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         </div>
 
                         <button
                           onClick={goToNextWeek}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
                           title="Next week"
                         >
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
@@ -525,21 +594,22 @@ export default function Dashboard() {
 
                       <button
                         onClick={goToCurrentWeek}
-                        className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="px-4 py-2 text-sm font-bold uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 rounded-lg transition-all duration-300"
+                        style={{ fontFamily: 'var(--font-geist-sans)' }}
                       >
                         Today
                       </button>
                     </div>
 
                     {/* General shift info */}
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        General [<span className="font-medium">12:00 AM - 12:00 AM</span>]
+                    <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-gray-700 font-semibold" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                        General [<span className="font-bold text-blue-600">12:00 AM - 12:00 AM</span>]
                       </p>
                     </div>
 
                 {/* Week calendar */}
-                <div className="space-y-2 relative">
+                <div className="flex-1 flex flex-col gap-2 relative overflow-y-auto">
                   {weekDates.map((date) => {
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
                     const dayNumber = date.getDate();
@@ -596,19 +666,19 @@ export default function Dashboard() {
                     return (
                       <div
                         key={date.toISOString()}
-                        className={`flex items-center py-4 border-b border-gray-100 ${
-                          isSunday ? 'bg-yellow-50' : ''
+                        className={`flex-1 flex items-center py-3 border-b border-gray-200 ${
+                          isSunday ? 'bg-gray-50' : ''
                         } ${isToday ? 'bg-blue-50' : ''}`}
                       >
-                        <div className="w-16 text-sm font-medium text-gray-700">{dayName}</div>
-                        <div className="w-12 text-sm text-gray-600">{dayNumber < 10 ? `0${dayNumber}` : dayNumber}</div>
+                        <div className="w-12 sm:w-16 text-sm font-medium text-gray-900">{dayName}</div>
+                        <div className="w-10 sm:w-12 text-sm text-gray-600">{dayNumber < 10 ? `0${dayNumber}` : dayNumber}</div>
                         <div className="flex-1 px-2">
                           {isSunday ? (
                             <div className="flex items-center justify-center py-8">
-                              <span className="text-yellow-600 text-sm font-medium">Rest Day</span>
+                              <span className="text-gray-500 text-sm font-medium">Rest Day</span>
                             </div>
                           ) : (
-                            <div className="relative h-10 bg-gray-100 rounded-lg overflow-hidden">
+                            <div className="relative h-10 border border-gray-300 rounded-lg overflow-hidden bg-white">
                               {/* Time grid lines (every 3 hours) */}
                               {[0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5].map((percent) => (
                                 <div
@@ -652,7 +722,7 @@ export default function Dashboard() {
                                 return (
                                   <div key={sessionIndex}>
                                     <div
-                                      className="absolute top-1 bottom-1 bg-gradient-to-r from-green-500 to-green-600 rounded flex items-center justify-between px-2"
+                                      className="absolute top-1 bottom-1 bg-gradient-to-r from-green-500 to-green-400 rounded flex items-center justify-between px-2"
                                       style={{
                                         left: `${checkInPercent}%`,
                                         width: `${durationPercent}%`
@@ -685,10 +755,10 @@ export default function Dashboard() {
                             </div>
                           )}
                         </div>
-                        <div className="w-24 text-right text-sm font-medium text-gray-900">
+                        <div className="w-20 sm:w-24 text-right text-sm font-medium text-gray-900">
                           {hasAttendance ? hoursWorked : '00:00:00'}
                         </div>
-                        <div className="w-32 text-right text-xs text-gray-500">
+                        <div className="hidden sm:block w-32 text-right text-xs text-gray-500">
                           Hrs worked
                         </div>
                       </div>
@@ -760,83 +830,83 @@ export default function Dashboard() {
                     {/* Summary Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Total Hours Card */}
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+                      <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <div className="w-12 h-12 bg-p3-cyan rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-sm font-medium text-blue-700 mb-2">Total Hours Worked</p>
-                        <p className="text-4xl font-bold text-blue-900 mb-1">{weeklySummary.totalHours}h</p>
-                        <p className="text-xs text-blue-600">This week</p>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Total Hours Worked</p>
+                        <p className="text-4xl font-bold text-gray-900 mb-1">{weeklySummary.totalHours}h</p>
+                        <p className="text-xs text-gray-500">This week</p>
                       </div>
 
                       {/* Days Present Card */}
-                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+                      <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+                          <div className="w-12 h-12 bg-p3-cyan rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-sm font-medium text-green-700 mb-2">Days Present</p>
-                        <p className="text-4xl font-bold text-green-900 mb-1">{weeklySummary.daysPresent}<span className="text-2xl text-green-700">/5</span></p>
-                        <p className="text-xs text-green-600">Working days</p>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Days Present</p>
+                        <p className="text-4xl font-bold text-gray-900 mb-1">{weeklySummary.daysPresent}<span className="text-2xl text-gray-600">/5</span></p>
+                        <p className="text-xs text-gray-500">Working days</p>
                       </div>
 
                       {/* Average Hours Card */}
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
+                      <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
+                          <div className="w-12 h-12 bg-p3-cyan rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-sm font-medium text-purple-700 mb-2">Average Per Day</p>
-                        <p className="text-4xl font-bold text-purple-900 mb-1">{weeklySummary.avgHoursPerDay}h</p>
-                        <p className="text-xs text-purple-600">Daily average</p>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Average Per Day</p>
+                        <p className="text-4xl font-bold text-gray-900 mb-1">{weeklySummary.avgHoursPerDay}h</p>
+                        <p className="text-xs text-gray-500">Daily average</p>
                       </div>
                     </div>
 
                     {/* Weekly Target Progress Bar */}
-                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200">
+                    <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h3 className="text-sm font-semibold text-orange-800 mb-1">Weekly Target Progress</h3>
-                          <p className="text-xs text-orange-600">{weeklySummary.totalHours}h of {weeklySummary.expectedHours}h expected</p>
+                          <h3 className="text-sm font-semibold text-gray-800 mb-1">Weekly Target Progress</h3>
+                          <p className="text-xs text-gray-600">{weeklySummary.totalHours}h of {weeklySummary.expectedHours}h expected</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-3xl font-bold text-orange-900">{weeklySummary.progress}%</p>
+                          <p className="text-3xl font-bold text-blue-600">{weeklySummary.progress}%</p>
                         </div>
                       </div>
-                      <div className="w-full bg-orange-200 rounded-full h-3 overflow-hidden">
+                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-orange-500 to-amber-500 h-3 rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-blue-600 to-cyan-500 h-3 rounded-full shadow-lg shadow-cyan-400/30 transition-all duration-500"
                           style={{ width: `${weeklySummary.progress}%` }}
                         />
                       </div>
                     </div>
 
                     {/* Daily Breakdown Table */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                    <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                         <h3 className="text-base font-semibold text-gray-800">Daily Breakdown</h3>
                         <p className="text-xs text-gray-600 mt-1">Detailed attendance for the week</p>
                       </div>
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto -mx-6 sm:mx-0">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
-                              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
+                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
+                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
+                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -854,15 +924,15 @@ export default function Dashboard() {
                               const hasAttendance = savedAttendance && (savedAttendance.checkInTime || savedAttendance.sessions);
 
                               return (
-                                <tr key={date.toISOString()} className={`${isToday ? 'bg-blue-50' : ''} ${isSunday ? 'bg-yellow-50' : ''}`}>
-                                  <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <tr key={date.toISOString()} className={`${isToday ? 'bg-blue-50' : ''} ${isSunday ? 'bg-gray-50' : ''}`}>
+                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {dayName}
                                     {isToday && <span className="ml-2 text-xs text-blue-600 font-semibold">(Today)</span>}
                                   </td>
-                                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600">
+                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                   </td>
-                                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {isSunday ? (
                                       <span className="text-gray-400">Rest Day</span>
                                     ) : hasAttendance && savedAttendance.checkInTime ? (
@@ -871,7 +941,7 @@ export default function Dashboard() {
                                       <span className="text-gray-400">--</span>
                                     )}
                                   </td>
-                                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {isSunday ? (
                                       <span className="text-gray-400">Rest Day</span>
                                     ) : hasAttendance && savedAttendance.checkOutTime ? (
@@ -882,21 +952,21 @@ export default function Dashboard() {
                                       <span className="text-gray-400">--</span>
                                     )}
                                   </td>
-                                  <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                                     {isSunday ? (
-                                      <span className="text-gray-400">--</span>
+                                      <span className="text-gray-400 font-normal">--</span>
                                     ) : hasAttendance ? (
-                                      <span className="text-blue-600">
+                                      <span>
                                         {savedAttendance.totalHours
                                           ? `${Math.round(savedAttendance.totalHours * 10) / 10}h`
                                           : (isToday && isTimedIn ? formatTime(workDuration) : '0h')
                                         }
                                       </span>
                                     ) : (
-                                      <span className="text-gray-400">0h</span>
+                                      <span className="text-gray-400 font-normal">0h</span>
                                     )}
                                   </td>
-                                  <td className="px-5 py-4 whitespace-nowrap">
+                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap">
                                     {isSunday ? (
                                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
                                         Rest Day
@@ -928,9 +998,215 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-          </div>
-        </main>
       </div>
+
+      {/* Check-In Modal */}
+      {showCheckInModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700">
+              <h2 className="text-2xl font-bold text-white">Start of Day Check-In</h2>
+              <p className="text-green-50 text-sm mt-1">Review your tasks and send report to begin your day</p>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {isLoadingTasks ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Today&apos;s Tasks</h3>
+                      <button
+                        onClick={() => setShowAddTaskForm(!showAddTaskForm)}
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Add Task</span>
+                      </button>
+                    </div>
+
+                    {/* Add Task Form */}
+                    {showAddTaskForm && (
+                      <div className="mb-4 p-4 border-2 border-green-200 rounded-lg bg-green-50">
+                        <h4 className="font-semibold text-gray-900 mb-3">Create New Task</h4>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Task Title *</label>
+                            <input
+                              type="text"
+                              value={newTask.title}
+                              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              placeholder="Enter task title..."
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea
+                              value={newTask.description}
+                              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              rows={2}
+                              placeholder="Add task description..."
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                              <select
+                                value={newTask.priority}
+                                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                              <select
+                                value={newTask.status}
+                                onChange={(e) => setNewTask({ ...newTask, status: e.target.value as 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived' })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="archived">Archived</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={handleCreateTask}
+                              className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                            >
+                              Create Task
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowAddTaskForm(false);
+                                setNewTask({ title: '', description: '', priority: 'medium', status: 'pending' });
+                              }}
+                              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {checkInTasks.length === 0 ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-start">
+                          <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <div>
+                            <h4 className="text-sm font-medium text-yellow-800">No tasks for today</h4>
+                            <p className="text-sm text-yellow-700 mt-1">You can still check in, but consider adding tasks to track your progress.</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {checkInTasks.map((task, index) => (
+                          <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors">
+                            <div className="flex items-start">
+                              <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                                {index + 1}
+                              </span>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">{task.title}</h4>
+                                {task.description && (
+                                  <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                    task.status === 'pending' ? 'bg-gray-100 text-gray-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {task.status.replace('_', ' ').toUpperCase()}
+                                  </span>
+                                  {task.priority && (
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                      task.priority === 'medium' ? 'bg-orange-100 text-orange-800' :
+                                      'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {task.priority.toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="flex-shrink-0 ml-3 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete task"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-800">What happens next?</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          When you click &quot;Send Report & Check In&quot;, a WhatsApp message with your start-of-day report will be prepared.
+                          After sending, you&apos;ll be automatically checked in.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowCheckInModal(false)}
+                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendReportAndCheckIn}
+                disabled={isLoadingTasks}
+                className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                <span>Send Report & Check In</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Break Modal */}
       {isOnBreak && breakStartTime && (
@@ -940,6 +1216,6 @@ export default function Dashboard() {
           onEndBreak={handleEndBreak}
         />
       )}
-    </div>
+    </>
   );
 }
