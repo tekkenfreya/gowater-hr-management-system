@@ -277,6 +277,7 @@ export class AuthService {
     role?: string;
     position?: string;
     avatar?: string;
+    password?: string;
   }): Promise<{ success: boolean; error?: string }> {
     try {
       // Check if employee_id already exists (if provided and different from current user)
@@ -284,6 +285,32 @@ export class AuthService {
         const existingEmployeeId = await this.db.get('users', { employee_id: profileData.employeeId });
         if (existingEmployeeId && existingEmployeeId.id !== userId) {
           return { success: false, error: 'User with this employee ID already exists' };
+        }
+      }
+
+      // Validate password if provided
+      if (profileData.password) {
+        // Check password length
+        if (profileData.password.length < 8) {
+          return { success: false, error: 'Password must be at least 8 characters long' };
+        }
+
+        // Check password complexity
+        const hasUpperCase = /[A-Z]/.test(profileData.password);
+        const hasLowerCase = /[a-z]/.test(profileData.password);
+        const hasNumbers = /\d/.test(profileData.password);
+
+        if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+          return {
+            success: false,
+            error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+          };
+        }
+
+        // Check against common passwords
+        const commonPasswords = ['password', '12345678', 'qwerty123', 'admin123', 'password123'];
+        if (commonPasswords.includes(profileData.password.toLowerCase())) {
+          return { success: false, error: 'Password is too common. Please choose a stronger password' };
         }
       }
 
@@ -298,6 +325,13 @@ export class AuthService {
       if (profileData.role !== undefined) updateData.role = profileData.role;
       if (profileData.position !== undefined) updateData.position = profileData.position;
       if (profileData.avatar !== undefined) updateData.avatar = profileData.avatar;
+
+      // Hash password if provided
+      if (profileData.password !== undefined) {
+        updateData.password_hash = await bcrypt.hash(profileData.password, 10);
+        updateData.last_password_change = new Date();
+        updateData.force_password_reset = false;
+      }
 
       await this.db.update('users', updateData, { id: userId });
       return { success: true };

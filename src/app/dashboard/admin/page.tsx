@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/auth';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import UserPermissionsModal from '@/components/admin/UserPermissionsModal';
 import AttendanceManagementTab from '@/components/admin/AttendanceManagementTab';
 import AutomationSettingsTab from '@/components/admin/AutomationSettingsTab';
@@ -29,12 +27,12 @@ interface EditUserForm {
   position: string;
   department: string;
   employeeName: string;
+  password?: string;
 }
 
 export default function AdminPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'attendance' | 'automation'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +57,8 @@ export default function AdminPage() {
     role: 'employee',
     position: '',
     department: '',
-    employeeName: ''
+    employeeName: '',
+    password: ''
   });
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
@@ -132,7 +131,8 @@ export default function AdminPage() {
       role: userToEdit.role,
       position: userToEdit.position || '',
       department: userToEdit.department || '',
-      employeeName: userToEdit.employeeName || ''
+      employeeName: userToEdit.employeeName || '',
+      password: ''
     });
     setShowEditForm(true);
     setError('');
@@ -146,12 +146,27 @@ export default function AdminPage() {
     setError('');
 
     try {
+      // Only include password in update if it's provided
+      const updateData: Partial<EditUserForm> = {
+        name: editForm.name,
+        employeeId: editForm.employeeId,
+        role: editForm.role,
+        position: editForm.position,
+        department: editForm.department,
+        employeeName: editForm.employeeName
+      };
+
+      // Include password only if it's not empty
+      if (editForm.password && editForm.password.trim() !== '') {
+        updateData.password = editForm.password;
+      }
+
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(updateData),
       });
 
       const data = await response.json();
@@ -189,40 +204,23 @@ export default function AdminPage() {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
-
   if (!user || user.role !== 'admin') {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar 
-        user={user} 
-        isCollapsed={sidebarCollapsed} 
-        onToggle={toggleSidebar}
-      />
-
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        <main className="p-4">
+    <div className="p-3 max-w-full">
           {/* Header Section */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-800">Manage employee accounts and system settings</p>
+              <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+              <p className="text-gray-300">Manage employee accounts and system settings</p>
             </div>
 
             {activeTab === 'users' && (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                className="bg-p3-cyan hover:bg-p3-cyan-dark text-p3-navy-darkest px-4 py-2 rounded-lg font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
               >
                 <PlusIcon />
                 <span>Add Employee</span>
@@ -237,7 +235,7 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('users')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'users'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-p3-cyan text-p3-cyan'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -247,7 +245,7 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('attendance')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'attendance'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-p3-cyan text-p3-cyan'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -257,7 +255,7 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('automation')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'automation'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-p3-cyan text-p3-cyan'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -270,7 +268,7 @@ export default function AdminPage() {
           {activeTab === 'users' && (
             <>
               {/* Users List */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Employee Accounts</h2>
             </div>
@@ -395,8 +393,7 @@ export default function AdminPage() {
                       required
                       value={createForm.name}
                       onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="John Doe"
                     />
                   </div>
@@ -408,8 +405,7 @@ export default function AdminPage() {
                       required
                       value={createForm.email}
                       onChange={(e) => setCreateForm({...createForm, email: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="john@gowater.com"
                     />
                   </div>
@@ -422,8 +418,7 @@ export default function AdminPage() {
                         required
                         value={createForm.password}
                         onChange={(e) => setCreateForm({...createForm, password: e.target.value})}
-                        className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                         placeholder="••••••••"
                       />
                       <button
@@ -451,8 +446,7 @@ export default function AdminPage() {
                     <select
                       value={createForm.role}
                       onChange={(e) => setCreateForm({...createForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                     >
                       <option value="employee">Employee</option>
                       <option value="manager">Manager</option>
@@ -466,8 +460,7 @@ export default function AdminPage() {
                       type="text"
                       value={createForm.department}
                       onChange={(e) => setCreateForm({...createForm, department: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="IT, Sales, Marketing..."
                     />
                   </div>
@@ -478,8 +471,7 @@ export default function AdminPage() {
                       type="text"
                       value={createForm.employeeId}
                       onChange={(e) => setCreateForm({...createForm, employeeId: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="R-001"
                     />
                   </div>
@@ -490,8 +482,7 @@ export default function AdminPage() {
                       type="text"
                       value={createForm.position}
                       onChange={(e) => setCreateForm({...createForm, position: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="Software Developer, Manager..."
                     />
                   </div>
@@ -502,8 +493,7 @@ export default function AdminPage() {
                       type="text"
                       value={createForm.employeeName}
                       onChange={(e) => setCreateForm({...createForm, employeeName: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="Anne (optional display name)"
                     />
                   </div>
@@ -532,7 +522,7 @@ export default function AdminPage() {
                     <button
                       type="submit"
                       disabled={formLoading}
-                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="flex-1 py-2 px-4 bg-p3-cyan text-p3-navy-darkest rounded-lg font-bold hover:bg-p3-cyan-dark disabled:opacity-50 shadow-md transition-all"
                     >
                       {formLoading ? 'Creating...' : 'Create Account'}
                     </button>
@@ -562,8 +552,7 @@ export default function AdminPage() {
                       required
                       value={editForm.name}
                       onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                     />
                   </div>
 
@@ -573,8 +562,7 @@ export default function AdminPage() {
                       type="text"
                       value={editForm.employeeId}
                       onChange={(e) => setEditForm({...editForm, employeeId: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="R-001"
                     />
                   </div>
@@ -585,8 +573,7 @@ export default function AdminPage() {
                       type="text"
                       value={editForm.position}
                       onChange={(e) => setEditForm({...editForm, position: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="Software Developer, Manager..."
                     />
                   </div>
@@ -596,8 +583,7 @@ export default function AdminPage() {
                     <select
                       value={editForm.role}
                       onChange={(e) => setEditForm({...editForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                     >
                       <option value="employee">Employee</option>
                       <option value="manager">Manager</option>
@@ -611,8 +597,7 @@ export default function AdminPage() {
                       type="text"
                       value={editForm.department}
                       onChange={(e) => setEditForm({...editForm, department: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="IT, Sales, Marketing..."
                     />
                   </div>
@@ -623,10 +608,40 @@ export default function AdminPage() {
                       type="text"
                       value={editForm.employeeName}
                       onChange={(e) => setEditForm({...editForm, employeeName: e.target.value})}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                      style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       placeholder="Anne (optional display name)"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">New Password (Optional)</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={editForm.password}
+                        onChange={(e) => setEditForm({...editForm, password: e.target.value})}
+                        className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
+                        placeholder="Leave blank to keep current password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Leave blank to keep current password. Min 8 characters with uppercase, lowercase, and number.</p>
                   </div>
 
                   <div className="flex space-x-3 pt-4">
@@ -644,7 +659,7 @@ export default function AdminPage() {
                     <button
                       type="submit"
                       disabled={formLoading}
-                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="flex-1 py-2 px-4 bg-p3-cyan text-p3-navy-darkest rounded-lg font-bold hover:bg-p3-cyan-dark disabled:opacity-50 shadow-md transition-all"
                     >
                       {formLoading ? 'Updating...' : 'Update User'}
                     </button>
@@ -669,8 +684,6 @@ export default function AdminPage() {
               }}
             />
           )}
-        </main>
-      </div>
     </div>
   );
 }
