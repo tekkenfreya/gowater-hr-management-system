@@ -91,6 +91,11 @@ export default function Dashboard() {
     status: 'pending' as 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived'
   });
 
+  // Check-out modal state
+  const [showCheckOutModal, setShowCheckOutModal] = useState(false);
+  const [checkOutTasks, setCheckOutTasks] = useState<Task[]>([]);
+  const [isLoadingCheckOutTasks, setIsLoadingCheckOutTasks] = useState(false);
+
   // Get week dates based on currentWeekStart (Sunday to Saturday)
   const getWeekDates = () => {
     const weekDates = [];
@@ -257,6 +262,9 @@ export default function Dashboard() {
       };
       const formattedDate = now.toLocaleDateString('en-US', dateOptions);
 
+      // Format check-in time
+      const checkInTimeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
       // Format tasks section
       const tasksSection = checkInTasks.length > 0
         ? checkInTasks.map((task, index) => {
@@ -274,6 +282,9 @@ export default function Dashboard() {
 Date: ${formattedDate}
 Employee: ${user?.employeeName || user?.name}
 Position: ${user?.position || user?.role}
+Check-in Time: ${checkInTimeFormatted}
+Check-out Time: N/A
+Hours Worked: 0.00 hours
 
 Today's Planned Tasks:
 ${tasksSection}`;
@@ -293,6 +304,127 @@ ${tasksSection}`;
       logger.info('Check-in report sent and user checked in successfully');
     } catch (error) {
       logger.error('Failed to send check-in report', error);
+      alert('Failed to send report. Please try again.');
+    }
+  };
+
+  // Fetch today's tasks for check-out modal
+  const fetchCheckOutTasks = async () => {
+    setIsLoadingCheckOutTasks(true);
+    try {
+      const response = await fetch('/api/tasks');
+      if (response.ok) {
+        const data = await response.json();
+        // Get all of today's tasks (including completed) to show status updates
+        const today = new Date().toISOString().split('T')[0];
+        const todaysTasks = (data.tasks || []).filter((task: Task) =>
+          task.status !== 'archived' &&
+          (!task.due_date || task.due_date.startsWith(today))
+        );
+        setCheckOutTasks(todaysTasks);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch check-out tasks', error);
+      setCheckOutTasks([]);
+    } finally {
+      setIsLoadingCheckOutTasks(false);
+    }
+  };
+
+  // Open check-out modal and fetch tasks
+  const handleOpenCheckOutModal = () => {
+    setShowCheckOutModal(true);
+    fetchCheckOutTasks();
+  };
+
+  // Update task status
+  const handleUpdateTaskStatus = async (taskId: number, newStatus: string) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: taskId,
+          status: newStatus
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setCheckOutTasks(prevTasks =>
+          prevTasks.map(task =>
+            task.id === taskId ? { ...task, status: newStatus } : task
+          )
+        );
+      } else {
+        alert('Failed to update task status');
+      }
+    } catch (error) {
+      logger.error('Failed to update task status', error);
+      alert('Failed to update task status');
+    }
+  };
+
+  // Send end-of-day report and check out
+  const handleSendReportAndCheckOut = async () => {
+    try {
+      const now = new Date();
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      };
+      const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+
+      // Format check-in and check-out times
+      const checkInTimeFormatted = checkInTime
+        ? new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+        : 'N/A';
+      const checkOutTimeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Calculate hours worked
+      const hoursWorked = (workDuration / 3600).toFixed(2);
+
+      // Format tasks section (matching check-in format)
+      const tasksSection = checkOutTasks.length > 0
+        ? checkOutTasks.map((task, index) => {
+            let taskText = `${index + 1}. ${task.title}`;
+            if (task.description?.trim()) {
+              taskText += `\n   ${task.description.trim()}`;
+            }
+            taskText += ` [${task.status}]`;
+            return taskText;
+          }).join('\n\n')
+        : 'No tasks worked on today';
+
+      const report = `GoWater End of Day Report
+
+Date: ${formattedDate}
+Employee: ${user?.employeeName || user?.name}
+Position: ${user?.position || user?.role}
+Check-in Time: ${checkInTimeFormatted}
+Check-out Time: ${checkOutTimeFormatted}
+Hours Worked: ${hoursWorked} hours
+
+Today's Task Updates:
+${tasksSection}`;
+
+      // Send to WhatsApp
+      await simpleWhatsAppService.sendReport(report);
+
+      // Small delay to ensure WhatsApp window opens
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Complete check-out
+      await handleTimeOut();
+
+      // Close modal
+      setShowCheckOutModal(false);
+
+      logger.info('Check-out report sent and user checked out successfully');
+    } catch (error) {
+      logger.error('Failed to send check-out report', error);
       alert('Failed to send report. Please try again.');
     }
   };
@@ -468,7 +600,7 @@ ${tasksSection}`;
                 ) : (
                   <>
                     <button
-                      onClick={handleTimeOut}
+                      onClick={handleOpenCheckOutModal}
                       className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
                       style={{ fontFamily: 'var(--font-geist-sans)' }}
                     >
@@ -1202,6 +1334,149 @@ ${tasksSection}`;
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                 </svg>
                 <span>Send Report & Check In</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Check Out Modal */}
+      {showCheckOutModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-red-600 to-red-700">
+              <h2 className="text-2xl font-bold text-white">End of Day Check-Out</h2>
+              <p className="text-red-50 text-sm mt-1">Update task statuses and send report to end your day</p>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {isLoadingCheckOutTasks ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                </div>
+              ) : (
+                <>
+                  {/* Hours Worked Display */}
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-700">Hours Worked Today</h3>
+                        <p className="text-3xl font-bold text-blue-600 mt-1">{(workDuration / 3600).toFixed(2)} hrs</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Check-in: {checkInTime ? new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</p>
+                        <p className="text-sm text-gray-600">Check-out: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Today&apos;s Task Updates</h3>
+                      <div className="text-sm text-gray-500">
+                        {checkOutTasks.filter(t => t.status === 'completed').length} / {checkOutTasks.length} completed
+                      </div>
+                    </div>
+
+                    {checkOutTasks.length === 0 ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-start">
+                          <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <div>
+                            <h4 className="text-sm font-medium text-yellow-800">No tasks for today</h4>
+                            <p className="text-sm text-yellow-700 mt-1">You can still check out and send your end-of-day report.</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {checkOutTasks.map((task, index) => (
+                          <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors">
+                            <div className="flex items-start">
+                              <span className="flex-shrink-0 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                                {index + 1}
+                              </span>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">{task.title}</h4>
+                                {task.description && (
+                                  <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  {task.priority && (
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      task.priority === 'urgent' ? 'bg-purple-100 text-purple-800' :
+                                      task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                      task.priority === 'medium' ? 'bg-orange-100 text-orange-800' :
+                                      'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {task.priority.toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0 ml-3">
+                                <select
+                                  value={task.status}
+                                  onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                                  className={`px-3 py-2 border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                                    task.status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
+                                    task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                    task.status === 'blocked' ? 'bg-red-100 text-red-800 border-red-300' :
+                                    'bg-gray-100 text-gray-800 border-gray-300'
+                                  }`}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="in_progress">In Progress</option>
+                                  <option value="completed">Completed</option>
+                                  <option value="blocked">Blocked</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-800">What happens next?</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          When you click &quot;Send Report & Check Out&quot;, a WhatsApp message with your end-of-day report including task updates and hours worked will be prepared.
+                          After sending, you&apos;ll be automatically checked out.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowCheckOutModal(false)}
+                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendReportAndCheckOut}
+                disabled={isLoadingCheckOutTasks}
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                <span>Send Report & Check Out</span>
               </button>
             </div>
           </div>
