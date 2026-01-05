@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { logger } from '@/lib/logger';
 
 interface ReportData {
@@ -18,7 +16,6 @@ interface ReportData {
 export default function TeamReportsPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [reports, setReports] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReportType, setSelectedReportType] = useState('attendance');
@@ -40,10 +37,6 @@ export default function TeamReportsPage() {
     setReports([]);
     setLoading(false);
   }, [user, router]);
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
 
   const generateReport = async () => {
     setIsGenerating(true);
@@ -128,54 +121,28 @@ export default function TeamReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar
-          user={user}
-          isCollapsed={sidebarCollapsed}
-          onToggle={toggleSidebar}
-        />
-        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-          <Header
-            user={user}
-            onToggleSidebar={toggleSidebar}
-          />
-          <main className="p-6">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-16 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            </div>
-          </main>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        user={user}
-        isCollapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-      />
-
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        <main className="p-6">
+    <div className="p-4 sm:p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Team Reports</h1>
             <p className="text-gray-800">Generate and download comprehensive team performance reports</p>
           </div>
 
           {/* Report Generator */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Generate New Report</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -247,7 +214,7 @@ export default function TeamReportsPage() {
           </div>
 
           {/* Generated Reports */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Generated Reports</h2>
             </div>
@@ -301,8 +268,6 @@ export default function TeamReportsPage() {
               </div>
             )}
           </div>
-        </main>
-      </div>
     </div>
   );
 }

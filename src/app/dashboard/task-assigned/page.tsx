@@ -107,10 +107,10 @@ export default function LeadsPage() {
   const categoryLabel = CATEGORIES.find(c => c.value === selectedCategory)?.label || '';
 
   return (
-    <div className="min-h-screen bg-[#F3F2F1] flex">
+    <div className="flex-1 flex h-full">
       {/* Sidebar Navigation - Microsoft Style */}
-      <div className="w-64 bg-white border-r border-[#E1DFDD] p-6 flex flex-col">
-        <h2 className="text-lg font-semibold text-[#323130] mb-6">Categories</h2>
+      <div className="w-64 border-r border-p3-cyan/20 p-6 flex flex-col bg-p3-navy-dark/30 backdrop-blur-sm">
+        <h2 className="text-lg font-semibold text-white mb-6">Categories</h2>
 
         {/* Add Item Button - Microsoft Primary */}
         <button
@@ -170,7 +170,7 @@ export default function LeadsPage() {
           </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg border border-[#E1DFDD] overflow-hidden">
+        <div className="rounded-lg border border-[#E1DFDD] overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#0078D4]"></div>

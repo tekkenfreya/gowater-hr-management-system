@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { StoredFile } from '@/lib/files';
 import { logger } from '@/lib/logger';
 
@@ -31,7 +29,6 @@ interface FileCategory {
 export default function FilesPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,10 +45,6 @@ export default function FilesPage() {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
 
   const getCategoryIcon = (categoryId: string) => {
     switch (categoryId) {
@@ -353,10 +346,10 @@ export default function FilesPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center p-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-800">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-p3-cyan mx-auto mb-4"></div>
+          <p className="text-white">Loading...</p>
         </div>
       </div>
     );
@@ -367,24 +360,11 @@ export default function FilesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        user={user}
-        isCollapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-      />
-
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        <main className="p-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Files</h1>
-            <p className="text-gray-800 mt-2">Manage and organize your documents (Max file size: 50MB)</p>
+            <h1 className="text-3xl font-bold text-white">Files</h1>
+            <p className="text-gray-300 mt-2">Manage and organize your documents (Max file size: 50MB)</p>
           
           {/* Error Display */}
           {error && (
@@ -416,7 +396,7 @@ export default function FilesPage() {
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
@@ -482,7 +462,7 @@ export default function FilesPage() {
         </div>
 
         {/* Files Display */}
-        <div className="bg-white rounded-lg shadow-sm">
+        <div className="rounded-lg shadow-sm border border-gray-200">
           {loading ? (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -653,8 +633,6 @@ export default function FilesPage() {
             </div>
           </div>
         )}
-        </main>
-      </div>
     </div>
   );
 }

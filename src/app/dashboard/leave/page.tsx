@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { logger } from '@/lib/logger';
 
 interface LeaveRequest {
@@ -31,7 +29,6 @@ interface LeaveRequest {
 export default function LeaveTracker() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'apply' | 'history'>('apply');
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,10 +96,6 @@ export default function LeaveTracker() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
   };
 
   const calculateDays = (start: string, end: string): number => {
@@ -196,25 +189,8 @@ export default function LeaveTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        isCollapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-      />
-
-      {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        {/* Header */}
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        {/* Leave Content */}
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -240,7 +216,7 @@ export default function LeaveTracker() {
 
         {/* Leave Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-6 shadow-md border-2 border-cyan-200 hover:shadow-lg hover:border-cyan-300 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-gray-800">Vacation Leave</p>
@@ -257,15 +233,15 @@ export default function LeaveTracker() {
                 <span>Total: {leaveBalance.annual.total}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full" 
+                <div
+                  className="bg-gradient-to-r from-blue-600 to-cyan-500 h-2 rounded-full shadow-md shadow-blue-300/50"
                   style={{ width: `${(leaveBalance.annual.used / leaveBalance.annual.total) * 100}%` }}
                 ></div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 shadow-md border-2 border-red-200 hover:shadow-lg hover:border-red-300 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-gray-800">Sick Leave</p>
@@ -282,15 +258,15 @@ export default function LeaveTracker() {
                 <span>Total: {leaveBalance.sick.total}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-red-600 h-2 rounded-full" 
+                <div
+                  className="bg-gradient-to-r from-red-600 to-red-700 h-2 rounded-full shadow-md shadow-red-300/50"
                   style={{ width: `${(leaveBalance.sick.used / leaveBalance.sick.total) * 100}%` }}
                 ></div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 shadow-md border-2 border-purple-200 hover:shadow-lg hover:border-purple-300 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-gray-800">Personal Leave</p>
@@ -307,8 +283,8 @@ export default function LeaveTracker() {
                 <span>Total: {leaveBalance.personal.total}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-purple-600 h-2 rounded-full" 
+                <div
+                  className="bg-gradient-to-r from-purple-600 to-purple-700 h-2 rounded-full shadow-md shadow-purple-300/50"
                   style={{ width: `${(leaveBalance.personal.used / leaveBalance.personal.total) * 100}%` }}
                 ></div>
               </div>
@@ -317,14 +293,14 @@ export default function LeaveTracker() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="rounded-xl shadow-sm border border-gray-200">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               <button
                 onClick={() => setActiveTab('apply')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'apply'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-p3-cyan text-p3-cyan'
                     : 'border-transparent text-gray-800 hover:text-gray-900'
                 }`}
               >
@@ -334,7 +310,7 @@ export default function LeaveTracker() {
                 onClick={() => setActiveTab('history')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'history'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-p3-cyan text-p3-cyan'
                     : 'border-transparent text-gray-800 hover:text-gray-900'
                 }`}
               >
@@ -361,7 +337,7 @@ export default function LeaveTracker() {
                     <select
                       value={newLeave.type}
                       onChange={(e) => setNewLeave({ ...newLeave, type: e.target.value as LeaveRequest['leave_type'] })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan"
                     >
                       <option value="annual">Annual Leave</option>
                       <option value="sick">Sick Leave</option>
@@ -377,7 +353,7 @@ export default function LeaveTracker() {
                         type="date"
                         value={newLeave.startDate}
                         onChange={(e) => setNewLeave({ ...newLeave, startDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan"
                       />
                     </div>
                     <div>
@@ -386,7 +362,7 @@ export default function LeaveTracker() {
                         type="date"
                         value={newLeave.endDate}
                         onChange={(e) => setNewLeave({ ...newLeave, endDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan"
                       />
                     </div>
                   </div>
@@ -405,7 +381,7 @@ export default function LeaveTracker() {
                       value={newLeave.reason}
                       onChange={(e) => setNewLeave({ ...newLeave, reason: e.target.value })}
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan"
                       placeholder="Please provide a reason for your leave request..."
                     />
                   </div>
@@ -413,10 +389,10 @@ export default function LeaveTracker() {
                   <button
                     onClick={handleApplyLeave}
                     disabled={formLoading}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                    className="bg-p3-cyan hover:bg-p3-cyan-dark disabled:bg-cyan-300 text-p3-navy-darkest px-6 py-3 rounded-lg font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
                   >
                     {formLoading && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-p3-navy-darkest"></div>
                     )}
                     <span>{formLoading ? 'Submitting...' : 'Submit Leave Request'}</span>
                   </button>
@@ -469,7 +445,7 @@ export default function LeaveTracker() {
                             </div>
                           </div>
                           {request.comments && (
-                            <div className="mt-3 p-3 bg-white rounded border">
+                            <div className="mt-3 p-3 rounded border border-gray-200">
                               <p className="text-sm font-semibold text-gray-800">Comments:</p>
                               <p className="text-sm text-gray-800">{request.comments}</p>
                             </div>
@@ -484,8 +460,6 @@ export default function LeaveTracker() {
             )}
           </div>
         </div>
-        </div>
-      </main>
       </div>
     </div>
   );

@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { User } from '@/types/auth';
-import { useAttendance } from '@/contexts/AttendanceContext';
-import { useAuth } from '@/hooks/useAuth';
-import { logger } from '@/lib/logger';
 
-interface SidebarProps {
+interface LeftSidebarProps {
   user: User | null;
   isCollapsed: boolean;
   onToggle: () => void;
+  onLogout: () => void;
 }
 
 interface NavItem {
@@ -19,65 +17,19 @@ interface NavItem {
   label: string;
   icon: React.ReactElement;
   href: string;
-  active?: boolean;
-  badge?: number;
   subItems?: NavItem[];
 }
 
-interface TeamMember {
-  id: number;
-  name: string;
-  email: string;
-  employeeId: string;
-  role: string;
-  position: string;
-  department: string;
-  isOnline: boolean;
-}
-
-export default function Sidebar({
-  user,
-  isCollapsed,
-  onToggle
-}: SidebarProps) {
+/**
+ * LeftSidebar - Pure Presentational Component
+ *
+ * No data fetching, no effects, no external state management.
+ * All data comes from props. Only manages its own UI state (expanded items).
+ */
+export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: LeftSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { logout } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  // Get attendance state from context
-  const {
-    isTimedIn,
-    isOnBreak,
-    workDuration,
-    breakDuration,
-    handleTimeIn: onTimeIn,
-    handleTimeOut: onTimeOut,
-    handleStartBreak: onStartBreak,
-    handleEndBreak: onEndBreak
-  } = useAttendance();
-
-  // Fetch team members
-  useEffect(() => {
-    const fetchTeamMembers = async () => {
-      try {
-        const response = await fetch('/api/team/members');
-        if (response.ok) {
-          const data = await response.json();
-          setTeamMembers(data.employees || []);
-        }
-      } catch (error) {
-        logger.error('Failed to fetch team members', error);
-      }
-    };
-
-    fetchTeamMembers();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchTeamMembers, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev =>
@@ -176,11 +128,9 @@ export default function Sidebar({
   };
 
   const isActive = (href: string) => {
-    // Exact match for home/dashboard
     if (href === '/dashboard') {
       return pathname === '/dashboard';
     }
-    // For other routes, check if pathname matches exactly or starts with the href + /
     return pathname === href || pathname.startsWith(href + '/');
   };
 
@@ -188,100 +138,65 @@ export default function Sidebar({
     return item.subItems?.some(subItem => isActive(subItem.href)) || false;
   };
 
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getInitials = (name: string) => {
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
-
   return (
     <>
-      {/* Overlay for mobile */}
-      {!isCollapsed && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 lg:hidden z-30"
-          onClick={onToggle}
-        />
-      )}
-
-      {/* Sidebar - Modern Glassy Dark Gradient */}
-      <div className={`
-        fixed left-0 top-0 h-full bg-gradient-to-b from-[#1a2332] via-[#0f1824] to-[#0a111c] border-r border-gray-700/30 shadow-2xl z-40 transition-transform duration-300 overflow-y-auto flex flex-col backdrop-blur-xl
-        ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-16' : 'translate-x-0 w-52'}
-      `}>
-        {/* Header with Compact Logo */}
-        <div className="flex flex-col items-center justify-center border-b border-gray-700/30">
+      {/* Sidebar */}
+      <div className={`h-full bg-gradient-to-b from-[#1a2332] to-[#0f1824] border-r border-gray-700/30 shadow-xl flex flex-col overflow-hidden ${
+        isCollapsed ? 'w-16' : 'w-64'
+      } transition-all duration-300`}>
+        {/* Header with Logo */}
+        <div className="relative flex flex-col items-center justify-center border-b border-gray-700/30">
           {!isCollapsed && (
             <Link
               href="/dashboard"
-              className="bg-white p-6 w-full flex items-center justify-center group transition-all duration-300 hover:shadow-xl"
+              className="bg-white p-6 w-full flex items-center justify-center group transition-all duration-300 hover:shadow-lg"
             >
               <img
                 src="/gowater new logo.png"
                 alt="GoWater"
-                className="h-32 w-auto object-contain transform transition-all duration-500 group-hover:scale-110 animate-fade-in"
-               />
+                className="h-32 w-auto object-contain transform transition-all duration-500 group-hover:scale-110"
+              />
             </Link>
           )}
           <button
             onClick={onToggle}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors lg:hidden absolute top-2 right-2"
+            className="p-1.5 rounded-lg hover:bg-gray-700/50 transition-colors lg:hidden absolute top-2 right-2 z-10"
           >
             <XIcon className="w-5 h-5 text-gray-300" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="py-6 flex-1">
+        <nav className="relative py-6 flex-1 overflow-y-auto">
           <div className="px-4 mb-4">
-            <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Navigation</p>
+            <p className="text-gray-400 text-xs uppercase tracking-[0.15em] font-bold" style={{ fontFamily: 'var(--font-geist-sans)' }}>Navigation</p>
           </div>
           <div className="px-4 space-y-1">
             {navItems.map((item) => (
               <div key={item.id}>
-                {/* Main Item */}
                 <div className="relative">
                   {item.subItems ? (
-                    <div
-                      className={`
-                        flex items-center rounded-xl transition-all
-                        ${isActive(item.href) || hasActiveSubItem(item) || expandedItems.includes(item.id)
-                          ? 'bg-white/10 text-white backdrop-blur-sm'
-                          : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                        }
-                      `}
-                    >
+                    <div className={`group flex items-center rounded-lg transition-all duration-300 ease-out ${
+                      isActive(item.href) || hasActiveSubItem(item) || expandedItems.includes(item.id)
+                        ? 'bg-blue-600/20 text-white border-l-4 border-blue-500 shadow-md'
+                        : 'text-gray-300 hover:bg-gray-700/50 hover:text-white hover:translate-x-1 hover:scale-[1.02] border-l-4 border-transparent'
+                    }`}>
                       <Link
                         href={item.href}
-                        className="flex-1 flex items-center px-4 py-3 text-base font-normal"
+                        className="flex-1 flex items-center px-3 py-3 text-sm font-bold uppercase tracking-[0.1em]"
+                        style={{ fontFamily: 'var(--font-geist-sans)' }}
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-6 h-6 flex-shrink-0">
-                            {item.icon}
-                          </div>
+                          <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
                           {!isCollapsed && <span>{item.label}</span>}
                         </div>
                       </Link>
                       {!isCollapsed && (
                         <button
                           onClick={() => toggleExpanded(item.id)}
-                          className="px-3 py-3 hover:bg-white/5 transition-colors"
+                          className="px-3 py-3 hover:bg-gray-700/50 transition-colors"
                         >
-                          <svg
-                            className={`w-4 h-4 transition-transform ${expandedItems.includes(item.id) ? 'rotate-90' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
+                          <svg className={`w-4 h-4 transition-transform duration-300 ${expandedItems.includes(item.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
@@ -290,23 +205,19 @@ export default function Sidebar({
                   ) : (
                     <Link
                       href={item.href}
-                      className={`
-                        flex items-center px-4 py-3 text-base font-normal rounded-xl transition-all
-                        ${isActive(item.href)
-                          ? 'bg-white/10 text-white backdrop-blur-sm'
-                          : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                        }
-                      `}
+                      className={`group flex items-center px-3 py-3 text-sm font-bold uppercase tracking-[0.1em] rounded-lg transition-all duration-300 ease-out ${
+                        isActive(item.href)
+                          ? 'bg-blue-600/20 text-white border-l-4 border-blue-500 shadow-md'
+                          : 'text-gray-300 hover:bg-gray-700/50 hover:text-white hover:translate-x-1 hover:scale-[1.02] border-l-4 border-transparent'
+                      }`}
+                      style={{ fontFamily: 'var(--font-geist-sans)' }}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 flex-shrink-0">
-                          {item.icon}
-                        </div>
+                        <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
                         {!isCollapsed && <span>{item.label}</span>}
                       </div>
                     </Link>
                   )}
-
                 </div>
 
                 {/* Sub Items */}
@@ -316,17 +227,14 @@ export default function Sidebar({
                       <Link
                         key={subItem.id}
                         href={subItem.href}
-                        className={`
-                          flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors
-                          ${isActive(subItem.href)
-                            ? 'bg-blue-600 text-white font-medium'
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                          }
-                        `}
+                        className={`flex items-center space-x-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-300 ${
+                          isActive(subItem.href)
+                            ? 'bg-blue-600/20 text-white border-l-2 border-blue-400'
+                            : 'text-gray-400 hover:bg-gray-700/50 hover:text-white hover:translate-x-1'
+                        }`}
+                        style={{ fontFamily: 'var(--font-geist-sans)' }}
                       >
-                        <div className="w-4 h-4 flex-shrink-0">
-                          {subItem.icon}
-                        </div>
+                        <div className="w-4 h-4 flex-shrink-0">{subItem.icon}</div>
                         <span>{subItem.label}</span>
                       </Link>
                     ))}
@@ -338,35 +246,30 @@ export default function Sidebar({
         </nav>
 
         {/* Settings and Logout at Bottom */}
-        <div className="mt-auto border-t border-gray-700/30">
+        <div className="relative mt-auto border-t border-gray-700/30">
           <div className="p-4 space-y-2">
             <Link
               href={settingsItem.href}
-              className={`
-                flex items-center justify-between px-4 py-3 text-base font-normal rounded-xl transition-all
-                ${isActive(settingsItem.href)
-                  ? 'bg-white/10 text-white backdrop-blur-sm'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }
-              `}
+              className={`group flex items-center justify-between px-3 py-3 text-sm font-bold uppercase tracking-[0.1em] rounded-lg transition-all duration-300 ease-out ${
+                isActive(settingsItem.href)
+                  ? 'bg-blue-600/20 text-white border-l-4 border-blue-500 shadow-md'
+                  : 'text-gray-300 hover:bg-gray-700/50 hover:text-white hover:translate-x-1 hover:scale-[1.02] border-l-4 border-transparent'
+              }`}
+              style={{ fontFamily: 'var(--font-geist-sans)' }}
             >
               <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 flex-shrink-0">
-                  {settingsItem.icon}
-                </div>
+                <div className="w-5 h-5 flex-shrink-0">{settingsItem.icon}</div>
                 {!isCollapsed && <span>{settingsItem.label}</span>}
               </div>
             </Link>
 
-            {/* Logout Button */}
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center justify-between px-4 py-3 text-base font-normal rounded-xl transition-all text-gray-400 hover:bg-red-500/10 hover:text-red-400"
+              className="w-full group flex items-center justify-between px-3 py-3 text-sm font-bold uppercase tracking-[0.1em] rounded-lg transition-all duration-300 ease-out text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:translate-x-1 hover:scale-[1.02] border-l-4 border-transparent hover:border-red-500"
+              style={{ fontFamily: 'var(--font-geist-sans)' }}
             >
               <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 flex-shrink-0">
-                  <LogoutIcon />
-                </div>
+                <div className="w-5 h-5 flex-shrink-0"><LogoutIcon /></div>
                 {!isCollapsed && <span>Logout</span>}
               </div>
             </button>
@@ -376,27 +279,32 @@ export default function Sidebar({
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Logout</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setShowLogoutConfirm(false);
-                  await logout();
-                  router.push('/auth/login');
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Logout
-              </button>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a2332] rounded-2xl shadow-xl border border-gray-700/30 max-w-md w-full p-8 transform animate-card-slide-in">
+            <div className="relative">
+              <h3 className="text-2xl font-bold text-white uppercase tracking-wider mb-3" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                Confirm Logout
+              </h3>
+              <p className="text-gray-300 mb-8 text-base">Are you sure you want to logout?</p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="px-6 py-3 border-2 border-gray-600 rounded-xl text-gray-300 font-bold uppercase tracking-wider hover:bg-gray-700/50 hover:text-white hover:border-gray-500 transition-all duration-300"
+                  style={{ fontFamily: 'var(--font-geist-sans)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    onLogout();
+                  }}
+                  className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold uppercase tracking-wider hover:bg-red-700 hover:shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all duration-300"
+                  style={{ fontFamily: 'var(--font-geist-sans)' }}
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -405,7 +313,7 @@ export default function Sidebar({
   );
 }
 
-// Icon Components
+// Icon Components (same as before)
 function HomeIcon() {
   return (
     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -483,14 +391,6 @@ function XIcon({ className }: { className?: string }) {
   return (
     <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   );
 }

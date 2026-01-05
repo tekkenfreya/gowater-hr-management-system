@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { AttendanceRecord, User } from '@/types/attendance';
 import { formatPhilippineTime } from '@/lib/timezone';
 
@@ -19,7 +17,6 @@ interface TeamAttendanceData {
 export default function TeamAttendancePage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [teamData, setTeamData] = useState<TeamAttendanceData[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedDepartment, setSelectedDepartment] = useState('all');
@@ -40,10 +37,6 @@ export default function TeamAttendancePage() {
     // For now, show empty state until database is configured
     setLoading(false);
   }, [selectedDate, selectedDepartment, user, router]);
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -91,18 +84,7 @@ export default function TeamAttendancePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar
-          user={user}
-          isCollapsed={sidebarCollapsed}
-          onToggle={toggleSidebar}
-        />
-        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-          <Header
-            user={user}
-            onToggleSidebar={toggleSidebar}
-          />
-          <main className="p-6">
+      <div className="p-4 sm:p-6 lg:p-8">
             <div className="animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
               <div className="space-y-4">
@@ -111,25 +93,12 @@ export default function TeamAttendancePage() {
                 ))}
               </div>
             </div>
-          </main>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        user={user}
-        isCollapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-      />
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-        <main className="p-4 lg:p-6">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6 lg:mb-8">
         <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Team Attendance</h1>
@@ -340,8 +309,6 @@ export default function TeamAttendancePage() {
         <button className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
           Generate Report
         </button>
-      </div>
-        </main>
       </div>
     </div>
   );

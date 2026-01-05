@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 
 interface UserProfile {
   firstName: string;
@@ -49,7 +47,6 @@ interface PasswordChangeData {
 export default function SettingsPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -124,10 +121,6 @@ export default function SettingsPage() {
       });
     }
   }, [user]);
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
 
   const handleProfileSave = async () => {
     setLoading(true);
@@ -327,20 +320,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar 
-        user={user} 
-        isCollapsed={sidebarCollapsed} 
-        onToggle={toggleSidebar}
-      />
-
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        <main className="p-6">
+    <div className="p-4 sm:p-6 lg:p-8">
           {/* Header Section */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
@@ -359,7 +339,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
             {/* Tabs */}
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6">
@@ -453,8 +433,7 @@ export default function SettingsPage() {
                         type="text"
                         value={profile.firstName}
                         onChange={(e) => setProfile({...profile, firstName: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -463,8 +442,7 @@ export default function SettingsPage() {
                         type="text"
                         value={profile.lastName}
                         onChange={(e) => setProfile({...profile, lastName: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -473,8 +451,7 @@ export default function SettingsPage() {
                         type="email"
                         value={profile.email}
                         onChange={(e) => setProfile({...profile, email: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -483,8 +460,7 @@ export default function SettingsPage() {
                         type="tel"
                         value={profile.phone}
                         onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                         placeholder="+1 (555) 123-4567"
                       />
                     </div>
@@ -494,8 +470,7 @@ export default function SettingsPage() {
                         type="text"
                         value={profile.position}
                         onChange={(e) => setProfile({...profile, position: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -504,8 +479,7 @@ export default function SettingsPage() {
                         type="text"
                         value={profile.department}
                         onChange={(e) => setProfile({...profile, department: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -514,8 +488,7 @@ export default function SettingsPage() {
                         type="text"
                         value={profile.employeeName}
                         onChange={(e) => setProfile({...profile, employeeName: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                         placeholder="Name shown in WhatsApp reports"
                       />
                       <p className="text-sm text-gray-800 mt-1">This name will appear in your start and EOD reports sent to WhatsApp</p>
@@ -525,7 +498,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleProfileSave}
                       disabled={loading || uploadingAvatar}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
+                      className="bg-p3-cyan hover:bg-p3-cyan-dark text-p3-navy-darkest px-4 py-2 rounded-lg font-bold disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
                     >
                       {uploadingAvatar ? 'Uploading photo...' : loading ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -563,7 +536,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleNotificationsSave}
                       disabled={loading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
+                      className="bg-p3-cyan hover:bg-p3-cyan-dark text-p3-navy-darkest px-4 py-2 rounded-lg font-bold disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
                     >
                       {loading ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -580,8 +553,7 @@ export default function SettingsPage() {
                       <select
                         value={appearance.theme}
                         onChange={(e) => setAppearance({...appearance, theme: e.target.value as 'light' | 'dark' | 'system'})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       >
                         <option value="light" style={{ color: '#000000' }}>Light</option>
                         <option value="dark" style={{ color: '#000000' }}>Dark</option>
@@ -593,8 +565,7 @@ export default function SettingsPage() {
                       <select
                         value={appearance.language}
                         onChange={(e) => setAppearance({...appearance, language: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       >
                         <option value="en" style={{ color: '#000000' }}>English</option>
                         <option value="es" style={{ color: '#000000' }}>Spanish</option>
@@ -607,8 +578,7 @@ export default function SettingsPage() {
                         type="text"
                         value={appearance.timeZone}
                         onChange={(e) => setAppearance({...appearance, timeZone: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -616,8 +586,7 @@ export default function SettingsPage() {
                       <select
                         value={appearance.dateFormat}
                         onChange={(e) => setAppearance({...appearance, dateFormat: e.target.value})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       >
                         <option value="MM/DD/YYYY" style={{ color: '#000000' }}>MM/DD/YYYY</option>
                         <option value="DD/MM/YYYY" style={{ color: '#000000' }}>DD/MM/YYYY</option>
@@ -629,8 +598,7 @@ export default function SettingsPage() {
                       <select
                         value={appearance.timeFormat}
                         onChange={(e) => setAppearance({...appearance, timeFormat: e.target.value as '12h' | '24h'})}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                        style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                       >
                         <option value="12h" style={{ color: '#000000' }}>12 Hour</option>
                         <option value="24h" style={{ color: '#000000' }}>24 Hour</option>
@@ -641,7 +609,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleAppearanceSave}
                       disabled={loading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
+                      className="bg-p3-cyan hover:bg-p3-cyan-dark text-p3-navy-darkest px-4 py-2 rounded-lg font-bold disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
                     >
                       {loading ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -661,8 +629,7 @@ export default function SettingsPage() {
                             type={showCurrentPassword ? "text" : "password"}
                             value={passwordChange.currentPassword}
                             onChange={(e) => setPasswordChange({...passwordChange, currentPassword: e.target.value})}
-                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                             placeholder="Enter your current password"
                           />
                           <button
@@ -691,8 +658,7 @@ export default function SettingsPage() {
                             type={showNewPassword ? "text" : "password"}
                             value={passwordChange.newPassword}
                             onChange={(e) => setPasswordChange({...passwordChange, newPassword: e.target.value})}
-                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                             placeholder="Enter your new password"
                           />
                           <button
@@ -722,8 +688,7 @@ export default function SettingsPage() {
                             type={showConfirmPassword ? "text" : "password"}
                             value={passwordChange.confirmPassword}
                             onChange={(e) => setPasswordChange({...passwordChange, confirmPassword: e.target.value})}
-                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                             placeholder="Confirm your new password"
                           />
                           <button
@@ -749,10 +714,10 @@ export default function SettingsPage() {
                         <button
                           onClick={handlePasswordChange}
                           disabled={passwordLoading}
-                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded font-medium transition-colors duration-200 flex items-center space-x-2"
+                          className="bg-p3-cyan hover:bg-p3-cyan-dark disabled:bg-cyan-300 text-p3-navy-darkest px-4 py-2 rounded-lg font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
                         >
                           {passwordLoading && (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-p3-navy-darkest"></div>
                           )}
                           <span>{passwordLoading ? 'Changing Password...' : 'Change Password'}</span>
                         </button>
@@ -784,8 +749,7 @@ export default function SettingsPage() {
                           type="number"
                           value={security.sessionTimeout}
                           onChange={(e) => setSecurity({...security, sessionTimeout: parseInt(e.target.value)})}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                          style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                           min="5"
                           max="120"
                         />
@@ -810,7 +774,7 @@ export default function SettingsPage() {
                         <button
                           onClick={handleSecuritySave}
                           disabled={loading}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50"
+                          className="bg-p3-cyan hover:bg-p3-cyan-dark text-p3-navy-darkest px-4 py-2 rounded-lg font-bold disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
                         >
                           {loading ? 'Saving...' : 'Save Changes'}
                         </button>
@@ -821,8 +785,6 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </main>
-      </div>
     </div>
   );
 }

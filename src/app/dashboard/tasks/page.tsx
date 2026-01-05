@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Task } from '@/types/attendance';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import TaskTimelineView from '@/components/TaskTimelineView';
+import RightPanel from '@/app/dashboard/_components/RightPanel';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/lib/logger';
 import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
@@ -26,7 +25,6 @@ interface StatusConfig {
 export default function TasksPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [_loading, setLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState<'tasks' | 'pending' | 'in_progress' | 'completed' | null>(null);
@@ -35,6 +33,8 @@ export default function TasksPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportType, setReportType] = useState<'start' | 'eod'>('eod');
   const [background, setBackground] = useState<BoardBackground>('gradient-blue');
+  const [customBackgrounds, setCustomBackgrounds] = useState<Array<{id: string; name: string; public_url: string}>>([]);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
   const [taskFilter, setTaskFilter] = useState<'all' | 'my-tasks' | 'assigned-by-me' | 'completed' | 'archived'>('all');
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [breakDuration, setBreakDuration] = useState<number>(0);
@@ -68,11 +68,53 @@ export default function TasksPage() {
       fetchTasks();
       fetchTodayAttendance();
       fetchStatusConfigs();
-      // Load saved background
+      loadBackgroundPreference();
+      fetchCustomBackgrounds();
+    }
+  }, [user]);
+
+  const fetchCustomBackgrounds = async () => {
+    try {
+      const response = await fetch('/api/backgrounds');
+      if (response.ok) {
+        const data = await response.json();
+        setCustomBackgrounds(data.backgrounds || []);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch custom backgrounds', error);
+    }
+  };
+
+  const loadBackgroundPreference = async () => {
+    try {
+      const response = await fetch('/api/profile/preferences');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.preferences?.tasksBoardBackground) {
+          setBackground(data.preferences.tasksBoardBackground as BoardBackground);
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to load background preference', error);
+      // Fallback to localStorage
       const savedBg = localStorage.getItem('tasksBoardBackground');
       if (savedBg) setBackground(savedBg as BoardBackground);
     }
-  }, [user]);
+  };
+
+  // Listen for custom events from RightPanel
+  useEffect(() => {
+    const handleOpenReport = () => setShowReportTypeModal(true);
+    const handleToggleBg = () => setShowBackgroundMenu(prev => !prev);
+
+    window.addEventListener('openReportModal', handleOpenReport);
+    window.addEventListener('toggleBackgroundMenu', handleToggleBg);
+
+    return () => {
+      window.removeEventListener('openReportModal', handleOpenReport);
+      window.removeEventListener('toggleBackgroundMenu', handleToggleBg);
+    };
+  }, []);
 
   const fetchStatusConfigs = async () => {
     try {
@@ -383,10 +425,67 @@ ${tasksSection}`;
     }
   };
 
-  const changeBackground = (bg: BoardBackground) => {
-    setBackground(bg);
-    localStorage.setItem('tasksBoardBackground', bg);
+  const changeBackground = async (bg: BoardBackground | string) => {
+    setBackground(bg as BoardBackground);
     setShowBackgroundMenu(false);
+
+    // Save to server
+    try {
+      const response = await fetch('/api/profile/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasksBoardBackground: bg }),
+      });
+
+      if (!response.ok) {
+        logger.error('Failed to save background preference', new Error('Response not ok'));
+      }
+    } catch (error) {
+      logger.error('Failed to save background preference', error);
+    }
+
+    // Also save to localStorage as fallback
+    localStorage.setItem('tasksBoardBackground', bg as string);
+  };
+
+  const handleBackgroundUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBackground(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', file.name);
+
+      const response = await fetch('/api/backgrounds', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Refresh custom backgrounds list
+        await fetchCustomBackgrounds();
+
+        // Auto-select the newly uploaded background
+        changeBackground(data.background.public_url);
+
+        alert('Background uploaded successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to upload background');
+      }
+    } catch (error) {
+      logger.error('Failed to upload background', error);
+      alert('Failed to upload background. Please try again.');
+    } finally {
+      setUploadingBackground(false);
+      // Reset input
+      event.target.value = '';
+    }
   };
 
   const getBackgroundClass = () => {
@@ -413,6 +512,15 @@ ${tasksSection}`;
   };
 
   const getBackgroundStyle = () => {
+    // Handle custom uploaded backgrounds (URLs)
+    if (background.startsWith('http')) {
+      return {
+        backgroundImage: `url("${background}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      };
+    }
     if (background === 'image-abstract') {
       return {
         backgroundImage: 'url("https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920&q=80")',
@@ -440,8 +548,6 @@ ${tasksSection}`;
       case 'low': return 'bg-green-500';
     }
   };
-
-  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
 
   // Filter tasks based on selected filter
   const getFilteredTasks = () => {
@@ -478,13 +584,11 @@ ${tasksSection}`;
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar user={user} isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+    <div>
+      {/* Right Action Panel */}
+      <RightPanel />
 
-      <div className="flex-1 transition-all duration-300 lg:ml-52 flex flex-col">
-        <Header user={user} onToggleSidebar={toggleSidebar} />
-
-        <div className="flex-1 flex">
+      <div className="flex-1 flex">
           {/* Left Task Summary Panel */}
           <div className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 p-4 space-y-4 overflow-y-auto mt-4 mb-4 ml-4 rounded-l-xl shadow-sm">
             {/* My Task Summary Card */}
@@ -674,11 +778,11 @@ ${tasksSection}`;
 
           {/* Main Content - Task Board */}
           <div
-            className={`flex-1 ${getBackgroundClass()} p-4 relative`}
+            className={`flex-1 ${getBackgroundClass()} p-4 relative overflow-hidden`}
             style={getBackgroundStyle()}
           >
           {/* Dark overlay for image backgrounds */}
-          {(background === 'image-abstract' || background === 'image-nature') && (
+          {(background === 'image-abstract' || background === 'image-nature' || background.startsWith('http')) && (
             <div className="absolute inset-0 bg-black/40" />
           )}
 
@@ -768,18 +872,72 @@ ${tasksSection}`;
                     <span className="absolute bottom-2 left-2 text-white text-xs font-semibold drop-shadow">Nature</span>
                   </button>
                 </div>
+
+                {/* Custom Backgrounds Section */}
+                {customBackgrounds.length > 0 && (
+                  <>
+                    <p className="text-xs font-medium text-gray-600 mt-4 mb-2">Custom Backgrounds</p>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      {customBackgrounds.map((bg) => (
+                        <button
+                          key={bg.id}
+                          onClick={() => changeBackground(bg.public_url)}
+                          className={`h-24 rounded-lg hover:scale-105 transition-transform relative overflow-hidden ${background === bg.public_url ? 'ring-4 ring-blue-500' : ''}`}
+                          style={{
+                            backgroundImage: `url("${bg.public_url}")`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                          }}
+                        >
+                          <div className="absolute inset-0 bg-black/20"></div>
+                          <span className="absolute bottom-2 left-2 text-white text-xs font-semibold drop-shadow truncate max-w-[90%]">
+                            {bg.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Upload Button */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <input
+                    type="file"
+                    id="background-upload"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleBackgroundUpload}
+                    disabled={uploadingBackground}
+                  />
+                  <label
+                    htmlFor="background-upload"
+                    className={`flex items-center justify-center space-x-2 w-full py-3 px-4 rounded-lg font-semibold transition-all cursor-pointer ${
+                      uploadingBackground
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span>{uploadingBackground ? 'Uploading...' : 'Upload Custom Background'}</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Max 5MB • JPEG, PNG, WebP
+                  </p>
+                </div>
               </div>
             </>
           )}
 
           {/* Timeline View */}
-          <div className="relative z-10 h-full overflow-y-auto p-6">
-            <div className="max-w-5xl mx-auto">
+          <div className="relative z-10 h-full overflow-y-auto px-8 py-6">
+            <div className="max-w-4xl mx-auto">
               {/* Header */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Tasks Timeline</h2>
-                  <p className="text-white/70 text-sm mt-1">Manage your tasks and track progress</p>
+                  <h1 className="text-4xl font-bold text-white tracking-tight mb-2">Tasks Timeline</h1>
+                  <p className="text-white/80 text-base font-medium">Manage your tasks and track progress</p>
                 </div>
                 <button
                   onClick={() => setShowAddTask('tasks')}
@@ -809,75 +967,6 @@ ${tasksSection}`;
           >
             <WhatsAppIcon className="w-8 h-8" />
           </button>
-
-          {/* Right Action Bar - Dark Vertical Sidebar */}
-          <div className="hidden lg:flex flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 w-16 border-l border-gray-700/30 shadow-2xl">
-          {/* WhatsApp - Send Report */}
-          <button
-            onClick={() => setShowReportTypeModal(true)}
-            className="flex flex-col items-center justify-center py-6 px-3 hover:bg-white/10 transition-all group relative"
-            title="Send WhatsApp Report"
-          >
-            <WhatsAppIcon className="w-7 h-7 text-green-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] text-gray-400 mt-1 font-medium">Report</span>
-            {/* Tooltip */}
-            <div className="absolute right-full mr-2 hidden group-hover:block bg-slate-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-              Send WhatsApp Report
-            </div>
-          </button>
-
-          {/* Export Tasks */}
-          <button
-            className="flex flex-col items-center justify-center py-6 px-3 hover:bg-white/10 transition-all group relative"
-            title="Export Tasks"
-          >
-            <DownloadIcon className="w-7 h-7 text-blue-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] text-gray-400 mt-1 font-medium">Export</span>
-            <div className="absolute right-full mr-2 hidden group-hover:block bg-slate-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-              Export Tasks
-            </div>
-          </button>
-
-          {/* Calendar/Schedule */}
-          <button
-            className="flex flex-col items-center justify-center py-6 px-3 hover:bg-white/10 transition-all group relative"
-            title="View Calendar"
-          >
-            <CalendarIconSmall className="w-7 h-7 text-purple-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] text-gray-400 mt-1 font-medium">Calendar</span>
-            <div className="absolute right-full mr-2 hidden group-hover:block bg-slate-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-              View Calendar
-            </div>
-          </button>
-
-          {/* Background Change (Admin Only) */}
-          {user.role === 'admin' && (
-            <button
-              onClick={() => setShowBackgroundMenu(!showBackgroundMenu)}
-              className="flex flex-col items-center justify-center py-6 px-3 hover:bg-white/10 transition-all group relative mt-auto"
-              title="Change Background"
-            >
-              <BackgroundIcon className="w-7 h-7 text-yellow-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] text-gray-400 mt-1 font-medium">Theme</span>
-              <div className="absolute right-full mr-2 hidden group-hover:block bg-slate-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-                Change Background
-              </div>
-            </button>
-          )}
-
-          {/* Settings */}
-          <button
-            className="flex flex-col items-center justify-center py-6 px-3 hover:bg-white/10 transition-all group relative"
-            title="Board Settings"
-          >
-            <SettingsIconSmall className="w-7 h-7 text-gray-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] text-gray-400 mt-1 font-medium">Settings</span>
-            <div className="absolute right-full mr-2 hidden group-hover:block bg-slate-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-              Board Settings
-            </div>
-          </button>
-          </div>
-        </div>
       </div>
 
       {/* Add Task Modal */}

@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { logger } from '@/lib/logger';
 
 interface LeaveRequestWithDetails {
@@ -31,7 +29,6 @@ interface LeaveRequestWithDetails {
 export default function TeamLeaveApprovals() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -137,10 +134,6 @@ export default function TeamLeaveApprovals() {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
-
   const getStatusBadge = (status: LeaveRequestWithDetails['status']) => {
     const statusStyles = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -201,21 +194,8 @@ export default function TeamLeaveApprovals() {
   const rejectedCount = leaveRequests.filter(r => r.status === 'rejected').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        user={user}
-        isCollapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-      />
-
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-52'}`}>
-        <Header
-          user={user}
-          onToggleSidebar={toggleSidebar}
-        />
-
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-gray-900">Team Leave Approvals</h1>
@@ -384,8 +364,6 @@ export default function TeamLeaveApprovals() {
               )}
             </div>
           </div>
-        </main>
-      </div>
 
       {/* Approval/Rejection Modal */}
       {showModal && selectedRequest && (
