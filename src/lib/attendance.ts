@@ -52,7 +52,9 @@ export class AttendanceService {
       if (existing && existing.check_out_time) {
         // Already checked out today - this is a new session
         // Add previous session to sessions array
-        const sessions = existing.sessions || [];
+        const sessions = existing.sessions ?
+          (typeof existing.sessions === 'string' ? JSON.parse(existing.sessions) : existing.sessions) :
+          [];
         sessions.push({
           checkIn: existing.check_in_time,
           checkOut: existing.check_out_time
