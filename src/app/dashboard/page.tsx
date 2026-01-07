@@ -44,7 +44,8 @@ interface Task {
   subTasks?: Array<{
     id: string;
     title: string;
-    status: string;
+    notes: string;
+    completed: boolean;
   }>;
   updates?: Array<{
     update_id: string;
@@ -240,8 +241,13 @@ export default function Dashboard() {
     setEditingTask(task);
     setNewTask({
       title: task.title || '',
-      subTasks: task.subTasks || [],
-      priority: task.priority || 'medium'
+      subTasks: (task.subTasks || []).map(st => ({
+        id: st.id || `temp-${Date.now()}`,
+        title: st.title || '',
+        notes: st.notes || '',
+        completed: st.completed || false
+      })),
+      priority: (task.priority || 'medium') as 'low' | 'medium' | 'high' | 'urgent'
     });
     setShowEditTaskForm(true);
     setShowAddTaskForm(false);
@@ -1713,8 +1719,8 @@ ${tasksSection}`;
                                         onChange={(e) => {
                                           const updatedTasks = [...checkOutTasks];
                                           const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
-                                          if (taskIdx !== -1) {
-                                            updatedTasks[taskIdx].subTasks[subIndex].completed = e.target.checked;
+                                          if (taskIdx !== -1 && updatedTasks[taskIdx].subTasks) {
+                                            updatedTasks[taskIdx].subTasks![subIndex].completed = e.target.checked;
                                             setCheckOutTasks(updatedTasks);
                                           }
                                         }}
@@ -1729,8 +1735,8 @@ ${tasksSection}`;
                                           onChange={(e) => {
                                             const updatedTasks = [...checkOutTasks];
                                             const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
-                                            if (taskIdx !== -1) {
-                                              updatedTasks[taskIdx].subTasks[subIndex].notes = e.target.value;
+                                            if (taskIdx !== -1 && updatedTasks[taskIdx].subTasks) {
+                                              updatedTasks[taskIdx].subTasks![subIndex].notes = e.target.value;
                                               setCheckOutTasks(updatedTasks);
                                             }
                                           }}
