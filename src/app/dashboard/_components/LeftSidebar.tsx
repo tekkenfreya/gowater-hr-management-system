@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { User } from '@/types/auth';
@@ -20,6 +20,12 @@ interface NavItem {
   subItems?: NavItem[];
 }
 
+interface EmployeeWithStatus extends User {
+  isWorking: boolean;
+  isOnBreak: boolean;
+  checkInTime?: string;
+}
+
 /**
  * LeftSidebar - Pure Presentational Component
  *
@@ -28,8 +34,9 @@ interface NavItem {
  */
 export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: LeftSidebarProps) {
   const pathname = usePathname();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['team']); // Team expanded by default
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeWithStatus[]>([]);
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev =>
@@ -38,6 +45,74 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
         : [...prev, itemId]
     );
   };
+
+  // Fetch all employees and their attendance status
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        // Use new team members endpoint (accessible to all authenticated users)
+        const response = await fetch('/api/team/members');
+
+        if (!response.ok) {
+          console.error('Failed to fetch team members:', response.status);
+          setEmployees([]);
+          return;
+        }
+
+        const data = await response.json();
+        const users = data.users || [];
+
+        if (users.length === 0) {
+          setEmployees([]);
+          return;
+        }
+
+        // Get today's date for filtering
+        const today = new Date().toISOString().split('T')[0];
+
+        // Fetch attendance for all users
+        const usersWithStatus = await Promise.all(
+          users.map(async (u: User) => {
+            try {
+              // Use admin attendance endpoint with userId filter and today's date
+              const attendanceRes = await fetch(`/api/admin/attendance?userId=${u.id}&startDate=${today}&endDate=${today}&limit=1`);
+              if (attendanceRes.ok) {
+                const attendanceData = await attendanceRes.json();
+                const records = attendanceData.records || [];
+                const attendance = records.length > 0 ? records[0] : null;
+
+                // Determine work status based on attendance data (camelCase fields)
+                const hasCheckedIn = attendance && attendance.checkInTime;
+                const hasCheckedOut = attendance && attendance.checkOutTime;
+                const isOnBreak = attendance && attendance.breakStartTime && !attendance.breakEndTime;
+                const isWorking = hasCheckedIn && !hasCheckedOut && !isOnBreak;
+
+                return {
+                  ...u,
+                  isWorking: isWorking || false,
+                  isOnBreak: isOnBreak || false,
+                  checkInTime: attendance?.checkInTime
+                };
+              }
+            } catch (err) {
+              console.error(`Failed to fetch attendance for user ${u.id}:`, err);
+            }
+            return { ...u, isWorking: false, isOnBreak: false };
+          })
+        );
+
+        setEmployees(usersWithStatus);
+      } catch (error) {
+        console.error('Failed to fetch employees:', error);
+        setEmployees([]);
+      }
+    };
+
+    fetchEmployees();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchEmployees, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems: NavItem[] = [
     {
@@ -80,9 +155,16 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
         ] : [])
       ]
     },
-    ...((user?.role === 'admin' || user?.role === 'manager') ? [{
+    {
       id: 'team',
       label: 'Team',
+      icon: <UsersIcon />,
+      href: '#',
+      subItems: []
+    },
+    ...((user?.role === 'admin' || user?.role === 'manager') ? [{
+      id: 'team-management',
+      label: 'Team Management',
       icon: <UsersIcon />,
       href: '/dashboard/team',
       subItems: [
@@ -181,16 +263,25 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
                         ? 'bg-blue-600/20 text-white border-l-4 border-blue-500 shadow-md'
                         : 'text-gray-300 hover:bg-gray-700/50 hover:text-white hover:translate-x-1 hover:scale-[1.02] border-l-4 border-transparent'
                     }`}>
-                      <Link
-                        href={item.href}
-                        className="flex-1 flex items-center px-3 py-3 text-sm font-bold uppercase tracking-[0.1em]"
-                        style={{ fontFamily: 'var(--font-geist-sans)' }}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
-                          {!isCollapsed && <span>{item.label}</span>}
+                      {item.id === 'team' ? (
+                        <div className="flex-1 flex items-center px-3 py-3 text-sm font-bold uppercase tracking-[0.1em]" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
+                            {!isCollapsed && <span>{item.label}</span>}
+                          </div>
                         </div>
-                      </Link>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className="flex-1 flex items-center px-3 py-3 text-sm font-bold uppercase tracking-[0.1em]"
+                          style={{ fontFamily: 'var(--font-geist-sans)' }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
+                            {!isCollapsed && <span>{item.label}</span>}
+                          </div>
+                        </Link>
+                      )}
                       {!isCollapsed && (
                         <button
                           onClick={() => toggleExpanded(item.id)}
@@ -220,10 +311,37 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
                   )}
                 </div>
 
-                {/* Sub Items */}
-                {item.subItems && expandedItems.includes(item.id) && !isCollapsed && (
+                {/* Sub Items - Special handling for Team dropdown */}
+                {expandedItems.includes(item.id) && !isCollapsed && (
                   <div className="ml-6 mt-1 space-y-1">
-                    {item.subItems.map((subItem) => (
+                    {/* Team Employee List */}
+                    {item.id === 'team' && (
+                      <div className="space-y-1">
+                        {employees.map((employee) => (
+                          <div
+                            key={employee.id}
+                            className="flex items-center space-x-2 px-3 py-2 text-xs rounded-lg transition-all duration-300 text-gray-300 hover:bg-gray-700/30"
+                          >
+                            {/* Status Indicator */}
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                              employee.isWorking ? 'bg-green-500 animate-pulse' : employee.isOnBreak ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'
+                            }`} />
+                            {/* Employee Name */}
+                            <span className="text-xs font-medium truncate" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                              {employee.name}
+                            </span>
+                            {/* Status Text */}
+                            <span className={`text-[10px] ml-auto flex-shrink-0 ${
+                              employee.isWorking ? 'text-green-400' : employee.isOnBreak ? 'text-yellow-400' : 'text-red-400'
+                            }`}>
+                              {employee.isWorking ? 'Active' : employee.isOnBreak ? 'Break' : 'Offline'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Regular Sub Items */}
+                    {item.id !== 'team' && item.subItems && item.subItems.map((subItem) => (
                       <Link
                         key={subItem.id}
                         href={subItem.href}

@@ -42,11 +42,11 @@ export default function TasksPage() {
   const [statusConfigs, setStatusConfigs] = useState<StatusConfig[]>([]);
   const [reportTasks, setReportTasks] = useState<Array<{
     task: Task;
-    status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+    status: 'pending' | 'in_progress' | 'completed' | 'cancel';
     subTasks: Array<{
       id: string;
       title: string;
-      status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+      status: 'pending' | 'in_progress' | 'completed' | 'cancel';
       description: string;
     }>;
   }>>([]);
@@ -271,6 +271,10 @@ export default function TasksPage() {
   // Handle updates from timeline view
   const handleTaskUpdate = async (id: string, updates: Partial<Task>) => {
     try {
+      // Find the task to get its current status
+      const task = tasks.find(t => t.id === id);
+      const isChangingToCancel = updates.status === 'cancel' && task?.status !== 'cancel';
+
       // Optimistic update
       setTasks(prevTasks =>
         prevTasks.map(task =>
@@ -288,6 +292,28 @@ export default function TasksPage() {
         logger.error('Failed to update task', new Error('Response not ok'));
         // Revert on failure
         await fetchTasks();
+        return;
+      }
+
+      // Send notification to admins if task is being cancelled by non-admin
+      if (isChangingToCancel && user && user.role !== 'admin') {
+        try {
+          await fetch('/api/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'task_cancellation',
+              title: 'Task Cancellation Request',
+              message: `${user.name} has requested to cancel task: "${task?.title}"`,
+              taskId: id,
+              userId: user.id,
+              userName: user.name
+            }),
+          });
+        } catch (notifError) {
+          logger.error('Failed to send cancellation notification', notifError);
+          // Don't fail the task update if notification fails
+        }
       }
     } catch (error) {
       logger.error('Failed to update task', error);
@@ -323,10 +349,10 @@ export default function TasksPage() {
     let tasksSection = '';
 
     if (reportType === 'start') {
-      // Start report: show pending and blocked tasks (tasks to be done)
+      // Start report: show pending and cancelled tasks (tasks to be done)
       todayTasks = tasks.filter(t =>
         t.status === 'pending' ||
-        t.status === 'blocked'
+        t.status === 'cancel'
       );
 
       if (todayTasks.length === 0) {
@@ -351,6 +377,22 @@ export default function TasksPage() {
             }).join('\n\n');
           }
 
+          // Add task updates if available
+          if (task.updates && task.updates.length > 0) {
+            projectText += '\n \nTask Updates:';
+            task.updates.forEach((update) => {
+              const updateDate = new Date(update.created_at);
+              const formattedUpdateDate = updateDate.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              });
+              projectText += `\n• [${formattedUpdateDate}] ${update.user_name}: ${update.update_text}`;
+            });
+          }
+
           return projectText;
         }).join('\n\n');
       }
@@ -360,7 +402,7 @@ export default function TasksPage() {
         t.status === 'pending' ||
         t.status === 'in_progress' ||
         t.status === 'completed' ||
-        t.status === 'blocked'
+        t.status === 'cancel'
       );
 
       if (todayTasks.length === 0) {
@@ -379,8 +421,8 @@ export default function TasksPage() {
                 statusTag = '[DONE]';
               } else if (task.status === 'in_progress') {
                 statusTag = '[IN PROGRESS]';
-              } else if (task.status === 'blocked') {
-                statusTag = '[BLOCKED]';
+              } else if (task.status === 'cancel') {
+                statusTag = '[CANCELLED]';
               }
               // pending and other statuses default to [PENDING]
 
@@ -397,6 +439,22 @@ export default function TasksPage() {
             }).join('\n\n');
           }
 
+          // Add task updates if available
+          if (task.updates && task.updates.length > 0) {
+            projectText += '\n \nTask Updates:';
+            task.updates.forEach((update) => {
+              const updateDate = new Date(update.created_at);
+              const formattedUpdateDate = updateDate.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              });
+              projectText += `\n• [${formattedUpdateDate}] ${update.user_name}: ${update.update_text}`;
+            });
+          }
+
           return projectText;
         }).join('\n\n');
       }
@@ -408,6 +466,7 @@ export default function TasksPage() {
 
 Date: ${formattedDate}
 Time In: ${timeIn}
+Break Time: ${formatBreakTime(breakDuration)}
 Employee: ${user.employeeName || user.name}
 Position: ${user.position || user.role}
 
@@ -625,7 +684,7 @@ ${tasksSection}`;
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-600">To Do</span>
                   <span className="text-xl font-bold text-orange-600">
-                    {tasks.filter(t => t.status === 'pending' || t.status === 'blocked').length}
+                    {tasks.filter(t => t.status === 'pending' || t.status === 'cancel').length}
                   </span>
                 </div>
               </div>
@@ -954,6 +1013,8 @@ ${tasksSection}`;
                 onTaskUpdate={handleTaskUpdate}
                 onTaskDelete={deleteTask}
                 getPriorityColor={getPriorityColor}
+                userRole={user?.role}
+                onRefresh={fetchTasks}
               />
             </div>
           </div>
@@ -1108,14 +1169,14 @@ ${tasksSection}`;
                   setReportType('start');
                   // Initialize report tasks from current tasks (exclude archived)
                   const reportData = tasks
-                    .filter(t => t.status !== 'archived' && (t.status === 'pending' || t.status === 'blocked'))
+                    .filter(t => t.status !== 'archived' && (t.status === 'pending' || t.status === 'cancel'))
                     .map(task => ({
                       task,
-                      status: task.status as 'pending' | 'blocked',
+                      status: task.status as 'pending' | 'cancel',
                       subTasks: (task.subTasks || []).map(st => ({
                         id: st.id,
                         title: st.title,
-                        status: task.status as 'pending' | 'blocked',
+                        status: task.status as 'pending' | 'cancel',
                         description: ''
                       }))
                     }));
@@ -1152,15 +1213,15 @@ ${tasksSection}`;
                       (t.status === 'pending' ||
                       t.status === 'in_progress' ||
                       t.status === 'completed' ||
-                      t.status === 'blocked')
+                      t.status === 'cancel')
                     )
                     .map(task => ({
                       task,
-                      status: task.status as 'pending' | 'in_progress' | 'completed' | 'blocked',
+                      status: task.status as 'pending' | 'in_progress' | 'completed' | 'cancel',
                       subTasks: (task.subTasks || []).map(st => ({
                         id: st.id,
                         title: st.title,
-                        status: task.status as 'pending' | 'in_progress' | 'completed' | 'blocked',
+                        status: task.status as 'pending' | 'in_progress' | 'completed' | 'cancel',
                         description: ''
                       }))
                     }));
@@ -1358,7 +1419,7 @@ ${tasksSection}`;
                                   value={subTask.status}
                                   onChange={(e) => {
                                     const updated = [...reportTasks];
-                                    updated[taskIndex].subTasks[subIndex].status = e.target.value as 'pending' | 'in_progress' | 'completed' | 'blocked';
+                                    updated[taskIndex].subTasks[subIndex].status = e.target.value as 'pending' | 'in_progress' | 'completed' | 'cancel';
                                     setReportTasks(updated);
                                   }}
                                   className={`ml-2 px-2.5 py-1 border-2 rounded-md text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all cursor-pointer ${
@@ -1460,6 +1521,22 @@ ${tasksSection}`;
                         }
                         return subTaskText;
                       }).join('\n\n');
+                    }
+
+                    // Add task updates if available
+                    if (reportTask.task.updates && reportTask.task.updates.length > 0) {
+                      projectText += '\n \nTask Updates:';
+                      reportTask.task.updates.forEach((update) => {
+                        const updateDate = new Date(update.created_at);
+                        const formattedUpdateDate = updateDate.toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        });
+                        projectText += `\n• [${formattedUpdateDate}] ${update.update_text}`;
+                      });
                     }
 
                     return projectText;

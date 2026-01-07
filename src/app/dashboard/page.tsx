@@ -46,12 +46,19 @@ interface Task {
     title: string;
     status: string;
   }>;
+  updates?: Array<{
+    update_id: string;
+    user_id: number;
+    user_name: string;
+    update_text: string;
+    created_at: string;
+  }>;
 }
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout, refetch } = useAuth();
-  const { isTimedIn, isOnBreak, workDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
+  const { isTimedIn, isOnBreak, workDuration, breakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Team members state
@@ -84,11 +91,12 @@ export default function Dashboard() {
   const [checkInTasks, setCheckInTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [showAddTaskForm, setShowAddTaskForm] = useState(false);
+  const [showEditTaskForm, setShowEditTaskForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
-    description: '',
-    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
-    status: 'pending' as 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived'
+    subTasks: [] as { id: string; title: string; notes: string; completed: boolean }[],
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
 
   // Check-out modal state
@@ -186,7 +194,7 @@ export default function Dashboard() {
   const handleOpenCheckInModal = () => {
     setShowCheckInModal(true);
     setShowAddTaskForm(false);
-    setNewTask({ title: '', description: '', priority: 'medium', status: 'pending' });
+    setNewTask({ title: '', subTasks: [], priority: 'medium' });
     fetchCheckInTasks();
   };
 
@@ -203,11 +211,11 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newTask.title.trim(),
-          description: newTask.description?.trim() || '',
+          description: '',
           priority: newTask.priority,
-          status: newTask.status,
+          status: 'pending',
           due_date: new Date().toISOString().split('T')[0],
-          subTasks: []
+          subTasks: newTask.subTasks
         }),
       });
 
@@ -215,7 +223,7 @@ export default function Dashboard() {
         // Refresh task list
         await fetchCheckInTasks();
         // Reset form
-        setNewTask({ title: '', description: '', priority: 'medium', status: 'pending' });
+        setNewTask({ title: '', subTasks: [], priority: 'medium' });
         setShowAddTaskForm(false);
       } else {
         const data = await response.json();
@@ -224,6 +232,56 @@ export default function Dashboard() {
     } catch (error) {
       logger.error('Failed to create task', error);
       alert('Failed to create task');
+    }
+  };
+
+  // Open edit task form
+  const handleOpenEditTask = (task: Task) => {
+    setEditingTask(task);
+    setNewTask({
+      title: task.title || '',
+      subTasks: task.subTasks || [],
+      priority: task.priority || 'medium'
+    });
+    setShowEditTaskForm(true);
+    setShowAddTaskForm(false);
+  };
+
+  // Update task
+  const handleUpdateTask = async () => {
+    if (!editingTask || !newTask.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingTask.id,
+          title: newTask.title.trim(),
+          description: editingTask.description || '',
+          priority: newTask.priority,
+          status: editingTask.status,
+          subTasks: newTask.subTasks
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh task list
+        await fetchCheckInTasks();
+        // Reset form
+        setNewTask({ title: '', subTasks: [], priority: 'medium' });
+        setEditingTask(null);
+        setShowEditTaskForm(false);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to update task');
+      }
+    } catch (error) {
+      logger.error('Failed to update task', error);
+      alert('Failed to update task');
     }
   };
 
@@ -265,14 +323,19 @@ export default function Dashboard() {
       // Format check-in time
       const checkInTimeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-      // Format tasks section
+      // Format tasks section with sub-tasks
       const tasksSection = checkInTasks.length > 0
         ? checkInTasks.map((task, index) => {
-            let taskText = `${index + 1}. ${task.title}`;
-            if (task.description?.trim()) {
-              taskText += `\n   ${task.description.trim()}`;
+            let taskText = `${index + 1}. ${task.title} [${task.status.toUpperCase()}]`;
+
+            // Add sub-tasks if available
+            if (task.subTasks && task.subTasks.length > 0) {
+              task.subTasks.forEach((subTask) => {
+                const checkbox = subTask.completed ? '[x]' : '[ ]';
+                taskText += `\n   ${checkbox} ${subTask.title}`;
+              });
             }
-            taskText += ` [${task.status}]`;
+
             return taskText;
           }).join('\n\n')
         : 'No tasks planned for today';
@@ -285,6 +348,7 @@ Position: ${user?.position || user?.role}
 Check-in Time: ${checkInTimeFormatted}
 Check-out Time: N/A
 Hours Worked: 0.00 hours
+Break Time: 0m
 
 Today's Planned Tasks:
 ${tasksSection}`;
@@ -315,10 +379,12 @@ ${tasksSection}`;
       const response = await fetch('/api/tasks');
       if (response.ok) {
         const data = await response.json();
-        // Get all of today's tasks (including completed) to show status updates
+        // Get only active tasks (pending/in_progress) to update status
         const today = new Date().toISOString().split('T')[0];
         const todaysTasks = (data.tasks || []).filter((task: Task) =>
           task.status !== 'archived' &&
+          task.status !== 'completed' &&
+          (task.status === 'pending' || task.status === 'in_progress' || task.status === 'blocked') &&
           (!task.due_date || task.due_date.startsWith(today))
         );
         setCheckOutTasks(todaysTasks);
@@ -365,9 +431,35 @@ ${tasksSection}`;
     }
   };
 
+  // Save all subtask updates before checking out
+  const saveSubTaskUpdates = async () => {
+    try {
+      for (const task of checkOutTasks) {
+        if (task.subTasks && task.subTasks.length > 0) {
+          await fetch('/api/tasks', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: task.id,
+              title: task.title,
+              description: task.description || '',
+              priority: task.priority,
+              status: task.status,
+              subTasks: task.subTasks
+            }),
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to save subtask updates', error);
+    }
+  };
+
   // Send end-of-day report and check out
   const handleSendReportAndCheckOut = async () => {
     try {
+      // Save subtask updates first
+      await saveSubTaskUpdates();
       const now = new Date();
       const dateOptions: Intl.DateTimeFormatOptions = {
         weekday: 'long',
@@ -386,14 +478,34 @@ ${tasksSection}`;
       // Calculate hours worked
       const hoursWorked = (workDuration / 3600).toFixed(2);
 
-      // Format tasks section (matching check-in format)
+      // Format break time
+      const formatBreakTime = (seconds: number): string => {
+        if (seconds === 0) return '0m';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        if (hours > 0) {
+          return `${hours}h ${minutes}m`;
+        }
+        return `${minutes}m`;
+      };
+
+      // Format tasks section with sub-tasks and notes
       const tasksSection = checkOutTasks.length > 0
         ? checkOutTasks.map((task, index) => {
-            let taskText = `${index + 1}. ${task.title}`;
-            if (task.description?.trim()) {
-              taskText += `\n   ${task.description.trim()}`;
+            let taskText = `${index + 1}. ${task.title} [${task.status.toUpperCase()}]`;
+
+            // Add sub-tasks if available
+            if (task.subTasks && task.subTasks.length > 0) {
+              task.subTasks.forEach((subTask) => {
+                const checkbox = subTask.completed ? '[x]' : '[ ]';
+                taskText += `\n   ${checkbox} ${subTask.title}`;
+                // Add notes in brackets below subtask if available
+                if (subTask.notes?.trim()) {
+                  taskText += `\n   [${subTask.notes.trim()}]`;
+                }
+              });
             }
-            taskText += ` [${task.status}]`;
+
             return taskText;
           }).join('\n\n')
         : 'No tasks worked on today';
@@ -406,6 +518,7 @@ Position: ${user?.position || user?.role}
 Check-in Time: ${checkInTimeFormatted}
 Check-out Time: ${checkOutTimeFormatted}
 Hours Worked: ${hoursWorked} hours
+Break Time: ${formatBreakTime(breakDuration)}
 
 Today's Task Updates:
 ${tasksSection}`;
@@ -1164,73 +1277,245 @@ ${tasksSection}`;
                       </button>
                     </div>
 
-                    {/* Add Task Form */}
-                    {showAddTaskForm && (
-                      <div className="mb-4 p-4 border-2 border-green-200 rounded-lg bg-green-50">
-                        <h4 className="font-semibold text-gray-900 mb-3">Create New Task</h4>
+                    {/* Edit Task Form */}
+                    {showEditTaskForm && (
+                      <div className="mb-4 p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
+                        <h4 className="font-semibold text-gray-900 mb-3">Edit Task</h4>
                         <div className="space-y-3">
+                          {/* Project/Main Task Title */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Task Title *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Project/Main Task Title</label>
                             <input
                               type="text"
                               value={newTask.title}
                               onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                              placeholder="Enter task title..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                              placeholder="e.g., GoWater Dispenser"
                             />
                           </div>
+
+                          {/* Sub-tasks */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                            <textarea
-                              value={newTask.description}
-                              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                              rows={2}
-                              placeholder="Add task description..."
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="block text-sm font-medium text-gray-700">Sub-tasks</label>
+                              <button
+                                onClick={() => {
+                                  const newSubTask = {
+                                    id: `temp-${Date.now()}`,
+                                    title: '',
+                                    notes: '',
+                                    completed: false
+                                  };
+                                  setNewTask({ ...newTask, subTasks: [...newTask.subTasks, newSubTask] });
+                                }}
+                                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>Add Sub-task</span>
+                              </button>
+                            </div>
+
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {newTask.subTasks.map((subTask, index) => (
+                                <div key={subTask.id} className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-semibold text-gray-700">{index + 1}.</span>
+                                    <input
+                                      type="text"
+                                      value={subTask.title}
+                                      onChange={(e) => {
+                                        const updated = [...newTask.subTasks];
+                                        updated[index].title = e.target.value;
+                                        setNewTask({ ...newTask, subTasks: updated });
+                                      }}
+                                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Sub-task title..."
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const updated = newTask.subTasks.filter((_, i) => i !== index);
+                                        setNewTask({ ...newTask, subTasks: updated });
+                                      }}
+                                      className="p-1 hover:bg-red-100 rounded text-red-500"
+                                      title="Remove"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {newTask.subTasks.length === 0 && (
+                                <div className="text-center py-4 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+                                  No sub-tasks yet. Click &ldquo;Add Sub-task&rdquo; to get started.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Priority */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                            <div className="grid grid-cols-4 gap-2">
+                              {(['low', 'medium', 'high', 'urgent'] as const).map((priority) => (
+                                <button
+                                  key={priority}
+                                  type="button"
+                                  onClick={() => setNewTask({ ...newTask, priority })}
+                                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                                    newTask.priority === priority
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="grid grid-cols-2 gap-2 pt-2">
+                            <button
+                              onClick={handleUpdateTask}
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                            >
+                              Update
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowEditTaskForm(false);
+                                setEditingTask(null);
+                                setNewTask({ title: '', subTasks: [], priority: 'medium' });
+                              }}
+                              className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add Task Form */}
+                    {showAddTaskForm && (
+                      <div className="mb-4 p-4 border-2 border-green-200 rounded-lg bg-green-50">
+                        <h4 className="font-semibold text-gray-900 mb-3">Add New Task</h4>
+                        <div className="space-y-3">
+                          {/* Project/Main Task Title */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Project/Main Task Title</label>
+                            <input
+                              type="text"
+                              value={newTask.title}
+                              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                              placeholder="e.g., GoWater Dispenser"
                             />
                           </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                              <select
-                                value={newTask.priority}
-                                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+
+                          {/* Sub-tasks */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="block text-sm font-medium text-gray-700">Sub-tasks</label>
+                              <button
+                                onClick={() => {
+                                  const newSubTask = {
+                                    id: `temp-${Date.now()}`,
+                                    title: '',
+                                    notes: '',
+                                    completed: false
+                                  };
+                                  setNewTask({ ...newTask, subTasks: [...newTask.subTasks, newSubTask] });
+                                }}
+                                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
                               >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                              </select>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>Add Sub-task</span>
+                              </button>
                             </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                              <select
-                                value={newTask.status}
-                                onChange={(e) => setNewTask({ ...newTask, status: e.target.value as 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived' })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="completed">Completed</option>
-                                <option value="blocked">Blocked</option>
-                                <option value="archived">Archived</option>
-                              </select>
+
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {newTask.subTasks.map((subTask, index) => (
+                                <div key={subTask.id} className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-semibold text-gray-700">{index + 1}.</span>
+                                    <input
+                                      type="text"
+                                      value={subTask.title}
+                                      onChange={(e) => {
+                                        const updated = [...newTask.subTasks];
+                                        updated[index].title = e.target.value;
+                                        setNewTask({ ...newTask, subTasks: updated });
+                                      }}
+                                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Sub-task title..."
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const updated = newTask.subTasks.filter((_, i) => i !== index);
+                                        setNewTask({ ...newTask, subTasks: updated });
+                                      }}
+                                      className="p-1 hover:bg-red-100 rounded text-red-500"
+                                      title="Remove"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {newTask.subTasks.length === 0 && (
+                                <div className="text-center py-4 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+                                  No sub-tasks yet. Click &ldquo;Add Sub-task&rdquo; to get started.
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="flex space-x-2">
+
+                          {/* Priority */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                            <div className="grid grid-cols-4 gap-2">
+                              {(['low', 'medium', 'high', 'urgent'] as const).map((priority) => (
+                                <button
+                                  key={priority}
+                                  type="button"
+                                  onClick={() => setNewTask({ ...newTask, priority })}
+                                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                                    newTask.priority === priority
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="grid grid-cols-2 gap-2 pt-2">
                             <button
                               onClick={handleCreateTask}
-                              className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
                             >
-                              Create Task
+                              Add Task
                             </button>
                             <button
                               onClick={() => {
                                 setShowAddTaskForm(false);
-                                setNewTask({ title: '', description: '', priority: 'medium', status: 'pending' });
+                                setNewTask({ title: '', subTasks: [], priority: 'medium' });
                               }}
-                              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
+                              className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
                             >
                               Cancel
                             </button>
@@ -1283,35 +1568,31 @@ ${tasksSection}`;
                                   )}
                                 </div>
                               </div>
-                              <button
-                                onClick={() => handleDeleteTask(task.id)}
-                                className="flex-shrink-0 ml-3 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete task"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
+                              <div className="flex-shrink-0 ml-3 flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleOpenEditTask(task)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Edit task"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete task"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-                    <div className="flex items-start">
-                      <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <h4 className="text-sm font-medium text-blue-800">What happens next?</h4>
-                        <p className="text-sm text-blue-700 mt-1">
-                          When you click &quot;Send Report & Check In&quot;, a WhatsApp message with your start-of-day report will be prepared.
-                          After sending, you&apos;ll be automatically checked in.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </>
               )}
@@ -1394,48 +1675,75 @@ ${tasksSection}`;
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {checkOutTasks.map((task, index) => (
+                        {checkOutTasks.map((task, taskIndex) => (
                           <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors">
-                            <div className="flex items-start">
-                              <span className="flex-shrink-0 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
-                                {index + 1}
-                              </span>
-                              <div className="flex-1">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-start flex-1">
+                                <span className="flex-shrink-0 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                                  {taskIndex + 1}
+                                </span>
                                 <h4 className="font-semibold text-gray-900">{task.title}</h4>
-                                {task.description && (
-                                  <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                                )}
-                                <div className="flex items-center gap-2 mt-2">
-                                  {task.priority && (
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      task.priority === 'urgent' ? 'bg-purple-100 text-purple-800' :
-                                      task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                                      task.priority === 'medium' ? 'bg-orange-100 text-orange-800' :
-                                      'bg-gray-100 text-gray-600'
-                                    }`}>
-                                      {task.priority.toUpperCase()}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
-                              <div className="flex-shrink-0 ml-3">
-                                <select
-                                  value={task.status}
-                                  onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
-                                  className={`px-3 py-2 border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                                    task.status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
-                                    task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                                    task.status === 'blocked' ? 'bg-red-100 text-red-800 border-red-300' :
-                                    'bg-gray-100 text-gray-800 border-gray-300'
-                                  }`}
-                                >
-                                  <option value="pending">Pending</option>
-                                  <option value="in_progress">In Progress</option>
-                                  <option value="completed">Completed</option>
-                                  <option value="blocked">Blocked</option>
-                                </select>
-                              </div>
+                              <select
+                                value={task.status}
+                                onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                                className={`px-3 py-2 border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                                  task.status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
+                                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                  task.status === 'blocked' ? 'bg-red-100 text-red-800 border-red-300' :
+                                  'bg-gray-100 text-gray-800 border-gray-300'
+                                }`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="blocked">Blocked</option>
+                              </select>
                             </div>
+
+                            {/* Sub-tasks */}
+                            {task.subTasks && task.subTasks.length > 0 && (
+                              <div className="ml-9 space-y-2">
+                                {task.subTasks.map((subTask, subIndex) => (
+                                  <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+                                    <div className="flex items-start space-x-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={subTask.completed}
+                                        onChange={(e) => {
+                                          const updatedTasks = [...checkOutTasks];
+                                          const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
+                                          if (taskIdx !== -1) {
+                                            updatedTasks[taskIdx].subTasks[subIndex].completed = e.target.checked;
+                                            setCheckOutTasks(updatedTasks);
+                                          }
+                                        }}
+                                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                      />
+                                      <div className="flex-1">
+                                        <label className="text-sm font-medium text-gray-900 cursor-pointer">
+                                          {subTask.title}
+                                        </label>
+                                        <textarea
+                                          value={subTask.notes || ''}
+                                          onChange={(e) => {
+                                            const updatedTasks = [...checkOutTasks];
+                                            const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
+                                            if (taskIdx !== -1) {
+                                              updatedTasks[taskIdx].subTasks[subIndex].notes = e.target.value;
+                                              setCheckOutTasks(updatedTasks);
+                                            }
+                                          }}
+                                          placeholder="Add details about what was done..."
+                                          className="w-full mt-2 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                          rows={2}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const database = getDb();
     const tasks = await database.all('tasks', { user_id: userId });
 
-    // Parse sub_tasks JSON string to array
+    // Parse sub_tasks and updates JSON string to array
     const parsedTasks = (tasks || []).map((task: DbTask) => {
       let subTasks = [];
       try {
@@ -53,9 +53,26 @@ export async function GET(request: NextRequest) {
         subTasks = [];
       }
 
+      let updates = [];
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const taskUpdates = (task as any).updates;
+        if (taskUpdates) {
+          if (typeof taskUpdates === 'string') {
+            updates = JSON.parse(taskUpdates);
+          } else {
+            updates = taskUpdates;
+          }
+        }
+      } catch (error) {
+        logger.error('Error parsing updates', error);
+        updates = [];
+      }
+
       return {
         ...task,
         subTasks,
+        updates,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         createdAt: (task as any).created_at || new Date().toISOString(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,6 +170,7 @@ export async function PUT(request: NextRequest) {
         'in_progress': 'in_progress',
         'completed': 'completed',
         'blocked': 'blocked',
+        'cancel': 'cancel',
         'archived': 'archived'
       };
       return statusMap[status] || status;

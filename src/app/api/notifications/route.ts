@@ -3,6 +3,83 @@ import { getAuthService } from '@/lib/auth';
 import { getNotificationService } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
 
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { type, title, message, taskId, userId, userName } = body;
+
+    if (!type || !title || !message) {
+      return NextResponse.json(
+        { success: false, error: 'Type, title, and message are required' },
+        { status: 400 }
+      );
+    }
+
+    // Get user from token
+    const token = request.cookies.get('auth-token')?.value;
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const authService = getAuthService();
+    const user = await authService.verifyToken(token);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    // Get all admin users to send notification to
+    const allUsers = await authService.getAllUsers();
+    const adminUsers = allUsers.filter(u => u.role === 'admin');
+
+    if (adminUsers.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No admin users to notify'
+      });
+    }
+
+    const notificationService = getNotificationService();
+
+    // Create notification for each admin user
+    const results = await Promise.all(
+      adminUsers.map(admin =>
+        notificationService.createNotification({
+          user_id: admin.id,
+          type,
+          title,
+          message,
+          data: {
+            taskId,
+            requestedBy: userId,
+            requestedByName: userName,
+            link: taskId ? `/dashboard/tasks?taskId=${taskId}` : undefined
+          }
+        })
+      )
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: `Notification sent to ${adminUsers.length} admin(s)`,
+      notificationIds: results.map(r => r.notificationId).filter(Boolean)
+    });
+
+  } catch (error) {
+    logger.error('Create notification API error', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

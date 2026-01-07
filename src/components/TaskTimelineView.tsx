@@ -8,17 +8,23 @@ interface TaskTimelineViewProps {
   onTaskUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
   onTaskDelete: (id: string) => void;
   getPriorityColor: (priority: Task['priority']) => string;
+  userRole?: string;
+  onRefresh?: () => void;
 }
 
 export default function TaskTimelineView({
   tasks,
   onTaskUpdate,
   onTaskDelete,
-  getPriorityColor
+  getPriorityColor,
+  userRole,
+  onRefresh
 }: TaskTimelineViewProps) {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set(tasks.map(t => t.id)));
   const [editingNote, setEditingNote] = useState<{ taskId: string; subTaskId: string } | null>(null);
   const [noteValue, setNoteValue] = useState('');
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
   const toggleTaskExpanded = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
@@ -33,8 +39,9 @@ export default function TaskTimelineView({
   const getStatusColor = (status: Task['status']) => {
     switch (status) {
       case 'pending':
-      case 'blocked':
         return 'bg-orange-500';
+      case 'cancel':
+        return 'bg-red-500';
       case 'in_progress':
         return 'bg-blue-500';
       case 'completed':
@@ -49,12 +56,13 @@ export default function TaskTimelineView({
   const getStatusTextColor = (status: Task['status']) => {
     switch (status) {
       case 'pending':
-      case 'blocked':
         return 'text-orange-700';
       case 'in_progress':
         return 'text-blue-700';
       case 'completed':
         return 'text-green-700';
+      case 'cancel':
+        return 'text-red-700';
       case 'archived':
         return 'text-gray-700';
       default:
@@ -65,12 +73,13 @@ export default function TaskTimelineView({
   const getStatusBgColor = (status: Task['status']) => {
     switch (status) {
       case 'pending':
-      case 'blocked':
         return 'bg-orange-50 border-orange-200';
       case 'in_progress':
         return 'bg-blue-50 border-blue-200';
       case 'completed':
         return 'bg-green-50 border-green-200';
+      case 'cancel':
+        return 'bg-red-50 border-red-200';
       case 'archived':
         return 'bg-gray-50 border-gray-200';
       default:
@@ -173,6 +182,8 @@ export default function TaskTimelineView({
         const isExpanded = expandedTasks.has(task.id);
         const progress = calculateProgress(task);
         const hasSubTasks = task.subTasks && task.subTasks.length > 0;
+        const hasUpdates = task.updates && task.updates.length > 0;
+        const isExpandable = hasSubTasks || hasUpdates;
 
         return (
           <div
@@ -184,10 +195,11 @@ export default function TaskTimelineView({
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-3 flex-1">
                   {/* Expand/Collapse Button */}
-                  {hasSubTasks && (
+                  {isExpandable && (
                     <button
                       onClick={() => toggleTaskExpanded(task.id)}
                       className="p-1 hover:bg-gray-100 rounded transition-colors"
+                      title={isExpanded ? 'Collapse' : 'Expand to view details'}
                     >
                       <svg
                         className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
@@ -222,7 +234,7 @@ export default function TaskTimelineView({
                     <span className="text-xs text-gray-600 capitalize">{task.priority}</span>
                   </div>
 
-                  {/* Status Dropdown */}
+                  {/* Status Dropdown - All Users Can Change */}
                   <select
                     value={task.status}
                     onChange={(e) => handleStatusChange(task, e.target.value as Task['status'])}
@@ -231,20 +243,36 @@ export default function TaskTimelineView({
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
                     <option value="completed">Completed</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="archived">Archived</option>
+                    <option value="cancel">Cancel</option>
+                    {userRole === 'admin' && <option value="archived">Archived</option>}
                   </select>
 
-                  {/* Delete Button */}
+                  {/* Add Update Button */}
                   <button
-                    onClick={() => onTaskDelete(task.id)}
-                    className="p-1.5 hover:bg-red-50 rounded text-red-500 transition-all"
-                    title="Delete task"
+                    onClick={() => {
+                      setUpdatingTaskId(task.id);
+                      setShowUpdateModal(true);
+                    }}
+                    className="p-1.5 hover:bg-blue-50 rounded text-blue-600 transition-all"
+                    title="Add update/note"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
+
+                  {/* Delete Button - Admin Only */}
+                  {userRole === 'admin' && (
+                    <button
+                      onClick={() => onTaskDelete(task.id)}
+                      className="p-1.5 hover:bg-red-50 rounded text-red-500 transition-all"
+                      title="Delete task"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -274,25 +302,43 @@ export default function TaskTimelineView({
                     className="bg-white rounded-lg border border-gray-200 p-3 transition-all hover:shadow-sm group"
                   >
                     <div className="flex items-start space-x-3">
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => handleSubTaskToggle(task, subTask.id)}
-                        className="mt-0.5"
-                      >
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            subTask.completed
-                              ? 'bg-green-500 border-green-500'
-                              : 'border-gray-300 hover:border-green-500'
-                          }`}
+                      {/* Checkbox - Admin Only */}
+                      {userRole === 'admin' ? (
+                        <button
+                          onClick={() => handleSubTaskToggle(task, subTask.id)}
+                          className="mt-0.5"
                         >
-                          {subTask.completed && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
+                          <div
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              subTask.completed
+                                ? 'bg-green-500 border-green-500'
+                                : 'border-gray-300 hover:border-green-500'
+                            }`}
+                          >
+                            {subTask.completed && (
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="mt-0.5">
+                          <div
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              subTask.completed
+                                ? 'bg-green-500 border-green-500'
+                                : 'border-gray-300'
+                            }`}
+                          >
+                            {subTask.completed && (
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
                         </div>
-                      </button>
+                      )}
 
                       {/* Sub-task Content */}
                       <div className="flex-1">
@@ -306,30 +352,32 @@ export default function TaskTimelineView({
                             {subTask.title}
                           </p>
 
-                          {/* Action Buttons */}
-                          <div className="flex items-center space-x-1 ml-2">
-                            {/* Edit Note Button */}
-                            <button
-                              onClick={() => handleNoteEdit(task.id, subTask.id, subTask.notes || '')}
-                              className="p-1 hover:bg-gray-100 rounded transition-colors"
-                              title="Edit notes"
-                            >
-                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
+                          {/* Action Buttons - Admin Only */}
+                          {userRole === 'admin' && (
+                            <div className="flex items-center space-x-1 ml-2">
+                              {/* Edit Note Button */}
+                              <button
+                                onClick={() => handleNoteEdit(task.id, subTask.id, subTask.notes || '')}
+                                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                title="Edit notes"
+                              >
+                                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
 
-                            {/* Delete Subtask Button */}
-                            <button
-                              onClick={() => handleSubTaskDelete(task, subTask.id)}
-                              className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                              title="Delete subtask"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
+                              {/* Delete Subtask Button */}
+                              <button
+                                onClick={() => handleSubTaskDelete(task, subTask.id)}
+                                className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                title="Delete subtask"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Notes Display or Editor */}
@@ -375,9 +423,191 @@ export default function TaskTimelineView({
                 ))}
               </div>
             )}
+
+            {/* Task Updates History */}
+            {task.updates && task.updates.length > 0 && isExpanded && (
+              <div className="p-4 bg-blue-50 border-t border-blue-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-blue-900 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Updates ({task.updates.length})
+                  </h4>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {task.updates.slice().reverse().map((update, index) => (
+                    <div key={update.update_id} className="bg-white rounded-lg p-3 border border-blue-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-900">{update.user_name}</span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(update.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.update_text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
+
+      {/* Add Task Update Modal */}
+      {showUpdateModal && updatingTaskId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">Add Task Update</h3>
+                <button
+                  onClick={() => {
+                    setShowUpdateModal(false);
+                    setUpdatingTaskId(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Add progress notes or updates to this task. Updates are permanent and cannot be deleted.
+              </p>
+            </div>
+
+            <AddTaskUpdateForm
+              taskId={updatingTaskId}
+              task={tasks.find(t => t.id === updatingTaskId)}
+              onClose={() => {
+                setShowUpdateModal(false);
+                setUpdatingTaskId(null);
+              }}
+              onUpdateAdded={async () => {
+                setShowUpdateModal(false);
+                setUpdatingTaskId(null);
+                // Refresh tasks from parent
+                if (onRefresh) {
+                  onRefresh();
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Add Task Update Form Component
+interface AddTaskUpdateFormProps {
+  taskId: string;
+  task?: Task;
+  onClose: () => void;
+  onUpdateAdded: () => void;
+}
+
+function AddTaskUpdateForm({ taskId, task, onClose, onUpdateAdded }: AddTaskUpdateFormProps) {
+  const [updateText, setUpdateText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!updateText.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/tasks/updates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId,
+          updateText: updateText.trim()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add update');
+      }
+
+      onUpdateAdded();
+    } catch (error) {
+      console.error('Error adding task update:', error);
+      alert('Failed to add update. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="p-6">
+      <div className="mb-4">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Task: {task?.title}
+        </label>
+        <textarea
+          value={updateText}
+          onChange={(e) => setUpdateText(e.target.value)}
+          placeholder="Enter your update or progress note here..."
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+          rows={6}
+          disabled={isSubmitting}
+          required
+        />
+      </div>
+
+      {/* Display existing updates */}
+      {task?.updates && task.updates.length > 0 && (
+        <div className="mb-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Previous Updates</h4>
+          <div className="max-h-48 overflow-y-auto space-y-2">
+            {task.updates.slice().reverse().map((update) => (
+              <div key={update.update_id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-gray-900">{update.user_name}</span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(update.created_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.update_text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end space-x-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSubmitting || !updateText.trim()}
+        >
+          {isSubmitting ? 'Adding...' : 'Add Update'}
+        </button>
+      </div>
+    </form>
   );
 }

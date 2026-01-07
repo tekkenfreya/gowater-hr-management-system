@@ -64,18 +64,27 @@ export interface SubTask {
   completed: boolean;
 }
 
+export interface TaskUpdate {
+  update_id: string;
+  user_id: number;
+  user_name: string;
+  update_text: string;
+  created_at: string;
+}
+
 export interface Task {
   id: string;
   title: string;
   description: string;
   subTasks: SubTask[];
-  status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'archived';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancel' | 'archived';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   timeSpent: number; // seconds
   isTimerRunning: boolean;
   estimatedHours?: number;
   category?: string;
   tags: string[];
+  updates: TaskUpdate[];
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;

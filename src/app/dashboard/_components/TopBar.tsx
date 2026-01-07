@@ -22,12 +22,6 @@ interface Notification {
   time: string;
 }
 
-interface EmployeeWithStatus extends User {
-  isWorking: boolean;
-  isOnBreak: boolean;
-  checkInTime?: string;
-}
-
 /**
  * TopBar - Pure Presentational Component
  *
@@ -45,60 +39,7 @@ export default function TopBar({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [employees, setEmployees] = useState<EmployeeWithStatus[]>([]);
-  const [hoveredEmployee, setHoveredEmployee] = useState<number | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  // Fetch all employees and their attendance status
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const response = await fetch('/api/admin/users');
-        if (response.ok) {
-          const data = await response.json();
-          const users = data.users || [];
-
-          // Fetch attendance for all users
-          const usersWithStatus = await Promise.all(
-            users.map(async (u: User) => {
-              try {
-                const attendanceRes = await fetch(`/api/attendance?userId=${u.id}`);
-                if (attendanceRes.ok) {
-                  const attendanceData = await attendanceRes.json();
-                  const attendance = attendanceData.attendance;
-
-                  // Determine work status based on attendance data
-                  const hasCheckedIn = attendance && attendance.check_in_time;
-                  const hasCheckedOut = attendance && attendance.check_out_time;
-                  const isOnBreak = attendance && attendance.break_start_time && !attendance.break_end_time;
-                  const isWorking = hasCheckedIn && !hasCheckedOut && !isOnBreak;
-
-                  return {
-                    ...u,
-                    isWorking: isWorking || false,
-                    isOnBreak: isOnBreak || false,
-                    checkInTime: attendance?.check_in_time
-                  };
-                }
-              } catch (err) {
-                console.error(`Failed to fetch attendance for user ${u.id}`, err);
-              }
-              return { ...u, isWorking: false, isOnBreak: false };
-            })
-          );
-
-          setEmployees(usersWithStatus);
-        }
-      } catch (error) {
-        console.error('Failed to fetch employees', error);
-      }
-    };
-
-    fetchEmployees();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchEmployees, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Click outside to close user menu
   useEffect(() => {
@@ -154,100 +95,8 @@ export default function TopBar({
               </span>
             </div>
 
-            {/* Divider */}
-            <div className="h-8 w-px bg-gray-300 mx-4"></div>
-
-            {/* Center Section - Employee Gallery */}
-            <div className="flex items-center flex-1 px-2 overflow-x-auto scrollbar-hide">
-              <div className="flex items-center justify-evenly w-full gap-4 min-w-max">
-                {employees.map((employee) => (
-                  <div
-                    key={employee.id}
-                    className="relative group flex-shrink-0"
-                    onMouseEnter={() => setHoveredEmployee(employee.id)}
-                    onMouseLeave={() => setHoveredEmployee(null)}
-                  >
-                    {/* Employee Avatar */}
-                    <div className="flex flex-col items-center space-y-1 cursor-pointer">
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden ring-2 ring-gray-300 transition-all duration-300 group-hover:ring-4 group-hover:ring-blue-400">
-                          {employee.avatar ? (
-                            <img
-                              src={employee.avatar}
-                              alt={employee.name || 'User'}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-gray-700 font-bold text-sm">
-                              {employee.name?.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        {/* Status Indicator */}
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                          employee.isWorking ? 'bg-green-500' : employee.isOnBreak ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                      </div>
-                      {/* Employee Name */}
-                      <span className="text-xs font-medium text-gray-900 max-w-[60px] truncate" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-                        {employee.name?.split(' ')[0]}
-                      </span>
-                    </div>
-
-                    {/* Hover Tooltip */}
-                    {hoveredEmployee === employee.id && (
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-64 bg-neutral-800 rounded-lg shadow-2xl border border-neutral-700 p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-12 h-12 rounded-full bg-neutral-700 flex items-center justify-center overflow-hidden">
-                            {employee.avatar ? (
-                              <img
-                                src={employee.avatar}
-                                alt={employee.name || 'User'}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-white font-bold text-lg">
-                                {employee.name?.charAt(0).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-white" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-                              {employee.name}
-                            </p>
-                            <p className="text-xs text-neutral-400 mt-0.5">
-                              {employee.position || employee.role}
-                            </p>
-                            <div className="mt-2 flex items-center space-x-2">
-                              <div className={`w-2 h-2 rounded-full ${
-                                employee.isWorking ? 'bg-green-500 animate-pulse' : employee.isOnBreak ? 'bg-yellow-500 animate-pulse' : 'bg-red-400'
-                              }`} />
-                              <span className={`text-xs font-medium ${
-                                employee.isWorking ? 'text-green-400' : employee.isOnBreak ? 'text-yellow-400' : 'text-red-400'
-                              }`}>
-                                {employee.isWorking ? 'Working' : employee.isOnBreak ? 'On Break' : 'Offline'}
-                              </span>
-                            </div>
-                            {(employee.isWorking || employee.isOnBreak) && employee.checkInTime && (
-                              <p className="text-xs text-neutral-400 mt-1">
-                                Checked in: {new Date(employee.checkInTime).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: true
-                                })}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="h-8 w-px bg-gray-300 mx-4"></div>
+            {/* Spacer */}
+            <div className="flex-1"></div>
 
             {/* Right Section - User Profile */}
             <div className="flex items-center space-x-4 px-2">
