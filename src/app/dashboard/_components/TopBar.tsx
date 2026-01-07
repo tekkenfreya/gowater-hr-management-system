@@ -24,6 +24,7 @@ interface Notification {
 
 interface EmployeeWithStatus extends User {
   isWorking: boolean;
+  isOnBreak: boolean;
   checkInTime?: string;
 }
 
@@ -65,17 +66,24 @@ export default function TopBar({
                 if (attendanceRes.ok) {
                   const attendanceData = await attendanceRes.json();
                   const attendance = attendanceData.attendance;
-                  const isWorking = attendance && attendance.checkInTime && !attendance.checkOutTime;
+
+                  // Determine work status based on attendance data
+                  const hasCheckedIn = attendance && attendance.check_in_time;
+                  const hasCheckedOut = attendance && attendance.check_out_time;
+                  const isOnBreak = attendance && attendance.break_start_time && !attendance.break_end_time;
+                  const isWorking = hasCheckedIn && !hasCheckedOut && !isOnBreak;
+
                   return {
                     ...u,
-                    isWorking,
-                    checkInTime: attendance?.checkInTime
+                    isWorking: isWorking || false,
+                    isOnBreak: isOnBreak || false,
+                    checkInTime: attendance?.check_in_time
                   };
                 }
               } catch (err) {
                 console.error(`Failed to fetch attendance for user ${u.id}`, err);
               }
-              return { ...u, isWorking: false };
+              return { ...u, isWorking: false, isOnBreak: false };
             })
           );
 
@@ -177,7 +185,7 @@ export default function TopBar({
                         </div>
                         {/* Status Indicator */}
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                          employee.isWorking ? 'bg-green-500' : 'bg-red-500'
+                          employee.isWorking ? 'bg-green-500' : employee.isOnBreak ? 'bg-yellow-500' : 'bg-red-500'
                         }`} />
                       </div>
                       {/* Employee Name */}
@@ -212,15 +220,15 @@ export default function TopBar({
                             </p>
                             <div className="mt-2 flex items-center space-x-2">
                               <div className={`w-2 h-2 rounded-full ${
-                                employee.isWorking ? 'bg-green-500 animate-pulse' : 'bg-red-400'
+                                employee.isWorking ? 'bg-green-500 animate-pulse' : employee.isOnBreak ? 'bg-yellow-500 animate-pulse' : 'bg-red-400'
                               }`} />
                               <span className={`text-xs font-medium ${
-                                employee.isWorking ? 'text-green-400' : 'text-red-400'
+                                employee.isWorking ? 'text-green-400' : employee.isOnBreak ? 'text-yellow-400' : 'text-red-400'
                               }`}>
-                                {employee.isWorking ? 'Working' : 'Offline'}
+                                {employee.isWorking ? 'Working' : employee.isOnBreak ? 'On Break' : 'Offline'}
                               </span>
                             </div>
-                            {employee.isWorking && employee.checkInTime && (
+                            {(employee.isWorking || employee.isOnBreak) && employee.checkInTime && (
                               <p className="text-xs text-neutral-400 mt-1">
                                 Checked in: {new Date(employee.checkInTime).toLocaleTimeString('en-US', {
                                   hour: '2-digit',
