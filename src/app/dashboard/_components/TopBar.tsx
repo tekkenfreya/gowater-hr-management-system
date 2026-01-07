@@ -22,6 +22,11 @@ interface Notification {
   time: string;
 }
 
+interface EmployeeWithStatus extends User {
+  isWorking: boolean;
+  checkInTime?: string;
+}
+
 /**
  * TopBar - Pure Presentational Component
  *
@@ -39,7 +44,53 @@ export default function TopBar({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeWithStatus[]>([]);
+  const [hoveredEmployee, setHoveredEmployee] = useState<number | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch all employees and their attendance status
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await fetch('/api/admin/users');
+        if (response.ok) {
+          const data = await response.json();
+          const users = data.users || [];
+
+          // Fetch attendance for all users
+          const usersWithStatus = await Promise.all(
+            users.map(async (u: User) => {
+              try {
+                const attendanceRes = await fetch(`/api/attendance?userId=${u.id}`);
+                if (attendanceRes.ok) {
+                  const attendanceData = await attendanceRes.json();
+                  const attendance = attendanceData.attendance;
+                  const isWorking = attendance && attendance.checkInTime && !attendance.checkOutTime;
+                  return {
+                    ...u,
+                    isWorking,
+                    checkInTime: attendance?.checkInTime
+                  };
+                }
+              } catch (err) {
+                console.error(`Failed to fetch attendance for user ${u.id}`, err);
+              }
+              return { ...u, isWorking: false };
+            })
+          );
+
+          setEmployees(usersWithStatus);
+        }
+      } catch (error) {
+        console.error('Failed to fetch employees', error);
+      }
+    };
+
+    fetchEmployees();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchEmployees, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Click outside to close user menu
   useEffect(() => {
@@ -68,59 +119,130 @@ export default function TopBar({
   return (
     <>
       <header className="bg-white border-b border-gray-200 shadow-sm h-16 relative">
-        {/* Current Date & Time - Absolute Position Near Sidebar */}
-        <div className="hidden lg:flex items-center space-x-3 absolute left-2 top-1/2 -translate-y-1/2 pl-4 z-10">
-          {/* Time Display */}
-          <span className="text-xl font-bold text-gray-800 tabular-nums tracking-wider" style={{ fontFamily: 'var(--font-geist-mono)' }}>
-            {formatPhilippineTime(currentTime)}
-          </span>
+        <div className="flex items-center h-full px-4 lg:px-6">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden text-gray-700 mr-4"
+          >
+            <MenuIcon />
+          </button>
 
-          {/* Divider */}
-          <div className="h-6 w-px bg-gray-300"></div>
+          {/* Main Container - Gray rounded bar spanning entire TopBar */}
+          <div className="hidden lg:flex items-center flex-1 bg-gray-50 rounded-xl border border-gray-200 px-4 py-2">
 
-          {/* Date Display */}
-          <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-            {currentTime.toLocaleDateString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric'
-            })}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between px-4 lg:px-6 py-3 relative z-10 h-full">
-          {/* Left Section - Mobile Menu */}
-          <div className="flex items-center space-x-4 lg:invisible">
-            <button
-              onClick={onToggleSidebar}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden text-gray-700"
-            >
-              <MenuIcon />
-            </button>
-          </div>
-
-          {/* Center Section - Quick Actions */}
-          <div className="hidden md:flex items-center space-x-2">
-            <button className="flex items-center space-x-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 hover:scale-105 border border-blue-700 rounded-lg transition-all duration-300 shadow-sm" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-              <PlusIcon className="w-4 h-4" />
-              <span>Quick Add</span>
-            </button>
-
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search attendance, leaves..."
-                className="w-64 px-4 py-2 text-sm bg-gray-50 text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                style={{ fontFamily: 'var(--font-geist-sans)' }}
-              />
-              <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            {/* Left Section - Time & Date */}
+            <div className="flex items-center space-x-3 px-2">
+              <span className="text-xl font-bold text-gray-800 tabular-nums tracking-wider" style={{ fontFamily: 'var(--font-geist-mono)' }}>
+                {formatPhilippineTime(currentTime)}
+              </span>
+              <div className="h-6 w-px bg-gray-300"></div>
+              <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                {currentTime.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </span>
             </div>
-          </div>
 
-          {/* Right Section - Actions & Profile */}
-          <div className="flex items-center space-x-3">
-            {/* User Info & Status Panel */}
-            <div className="hidden lg:flex items-center space-x-4 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-300 mx-4"></div>
+
+            {/* Center Section - Employee Gallery */}
+            <div className="flex items-center flex-1 px-2 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center justify-evenly w-full gap-4 min-w-max">
+                {employees.map((employee) => (
+                  <div
+                    key={employee.id}
+                    className="relative group flex-shrink-0"
+                    onMouseEnter={() => setHoveredEmployee(employee.id)}
+                    onMouseLeave={() => setHoveredEmployee(null)}
+                  >
+                    {/* Employee Avatar */}
+                    <div className="flex flex-col items-center space-y-1 cursor-pointer">
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden ring-2 ring-gray-300 transition-all duration-300 group-hover:ring-4 group-hover:ring-blue-400">
+                          {employee.avatar ? (
+                            <img
+                              src={employee.avatar}
+                              alt={employee.name || 'User'}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-gray-700 font-bold text-sm">
+                              {employee.name?.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        {/* Status Indicator */}
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+                          employee.isWorking ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
+                      </div>
+                      {/* Employee Name */}
+                      <span className="text-xs font-medium text-gray-900 max-w-[60px] truncate" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                        {employee.name?.split(' ')[0]}
+                      </span>
+                    </div>
+
+                    {/* Hover Tooltip */}
+                    {hoveredEmployee === employee.id && (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-64 bg-neutral-800 rounded-lg shadow-2xl border border-neutral-700 p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-12 h-12 rounded-full bg-neutral-700 flex items-center justify-center overflow-hidden">
+                            {employee.avatar ? (
+                              <img
+                                src={employee.avatar}
+                                alt={employee.name || 'User'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-white font-bold text-lg">
+                                {employee.name?.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-white" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                              {employee.name}
+                            </p>
+                            <p className="text-xs text-neutral-400 mt-0.5">
+                              {employee.position || employee.role}
+                            </p>
+                            <div className="mt-2 flex items-center space-x-2">
+                              <div className={`w-2 h-2 rounded-full ${
+                                employee.isWorking ? 'bg-green-500 animate-pulse' : 'bg-red-400'
+                              }`} />
+                              <span className={`text-xs font-medium ${
+                                employee.isWorking ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {employee.isWorking ? 'Working' : 'Offline'}
+                              </span>
+                            </div>
+                            {employee.isWorking && employee.checkInTime && (
+                              <p className="text-xs text-neutral-400 mt-1">
+                                Checked in: {new Date(employee.checkInTime).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-300 mx-4"></div>
+
+            {/* Right Section - User Profile */}
+            <div className="flex items-center space-x-4 px-2">
               {/* Work Status Indicator */}
               <div className="flex items-center space-x-2">
                 {isWorking ? (
