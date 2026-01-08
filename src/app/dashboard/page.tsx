@@ -10,18 +10,6 @@ import { logger } from '@/lib/logger';
 import { formatPhilippineTime } from '@/lib/timezone';
 import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
 
-interface TeamMember {
-  id: number;
-  name: string;
-  email: string;
-  employeeId: string;
-  role: string;
-  position: string;
-  department: string;
-  isOnline: boolean;
-  isBoss: boolean;
-  avatar?: string;
-}
 
 interface WeeklyAttendanceData {
   date: string;
@@ -61,9 +49,6 @@ export default function Dashboard() {
   const { user, isLoading, logout, refetch } = useAuth();
   const { isTimedIn, isOnBreak, workDuration, breakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Team members state
-  const [allEmployees, setAllEmployees] = useState<TeamMember[]>([]);
 
   // Attendance calendar state
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
@@ -555,11 +540,10 @@ ${tasksSection}`;
     }
   }, [user, isLoading, router]);
 
-  // Fetch team data and weekly attendance
+  // Fetch weekly attendance
   useEffect(() => {
     if (user) {
       fetchWeeklyAttendance();
-      fetchTeamMembers();
     }
   }, [user, currentWeekStart]); // Re-fetch when week changes
 
@@ -650,35 +634,11 @@ ${tasksSection}`;
     }
   };
 
-  const fetchTeamMembers = async () => {
-    try {
-      const response = await fetch('/api/team/members');
-      logger.debug('Team members response status:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        logger.debug('Team members data:', data);
-        setAllEmployees(data.employees || []);
-      } else {
-        logger.error('Failed to fetch team members', { status: response.status, statusText: response.statusText });
-      }
-    } catch (error) {
-      logger.error('Failed to fetch team members', error);
-    }
-  };
-
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getInitials = (name: string) => {
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
   };
 
   if (!user) {
