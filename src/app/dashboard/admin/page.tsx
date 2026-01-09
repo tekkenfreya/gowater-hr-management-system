@@ -213,8 +213,8 @@ export default function AdminPage() {
           {/* Header Section */}
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-              <p className="text-gray-300">Manage employee accounts and system settings</p>
+              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-gray-700">Manage employee accounts and system settings</p>
             </div>
 
             {activeTab === 'users' && (
