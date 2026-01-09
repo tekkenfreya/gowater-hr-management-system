@@ -7,20 +7,7 @@ import ForcePasswordChangeModal from '@/components/ForcePasswordChangeModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
-import { formatPhilippineTime } from '@/lib/timezone';
 import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
-
-
-interface WeeklyAttendanceData {
-  date: string;
-  day: string;
-  checkInTime?: string;
-  checkOutTime?: string;
-  totalHours: number;
-  status: 'present' | 'absent' | 'late' | 'on_duty';
-  isWeekend?: boolean;
-  sessions?: Array<{ checkIn: string; checkOut: string }>;
-}
 
 interface Task {
   id: number;
@@ -48,28 +35,28 @@ export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout, refetch } = useAuth();
   const { isTimedIn, isOnBreak, workDuration, breakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Attendance calendar state
-  const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'summary'>('calendar');
-  const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'year'>('week');
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
-    // Initialize to current week's Sunday
-    const today = new Date();
-    const currentDay = today.getDay();
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - currentDay);
-    sunday.setHours(0, 0, 0, 0);
-    return sunday;
+  // Announcements state
+  const [announcements, setAnnouncements] = useState<Array<{
+    id: number;
+    title: string;
+    content: string;
+    priority: string;
+    created_at: string;
+  }>>([]);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+  const [showCreateAnnouncementModal, setShowCreateAnnouncementModal] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: '',
+    content: '',
+    priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
+    target_audience: 'all' as 'all' | 'managers' | 'employees',
+    expires_at: ''
   });
-  const [attendanceSummary, setAttendanceSummary] = useState({
-    totalHours: 0,
-    daysPresent: 0,
-    avgHoursPerDay: 0,
-    weekProgress: 0,
-    period: 'week' as 'week' | 'month' | 'year',
-    expectedHours: 40
+
+  // Today's stats state
+  const [todayStats, setTodayStats] = useState({
+    activeTasks: 0,
+    hoursToday: 0
   });
 
   // Check-in modal state
@@ -90,66 +77,83 @@ export default function Dashboard() {
   const [checkOutTasks, setCheckOutTasks] = useState<Task[]>([]);
   const [isLoadingCheckOutTasks, setIsLoadingCheckOutTasks] = useState(false);
 
-  // Get week dates based on currentWeekStart (Sunday to Saturday)
-  const getWeekDates = () => {
-    const weekDates = [];
-    for (let i = 0; i < 7; i++) { // Sunday to Saturday
-      const date = new Date(currentWeekStart);
-      date.setDate(currentWeekStart.getDate() + i);
-      weekDates.push(date);
-    }
-    return weekDates;
-  };
-
-  const weekDates = getWeekDates();
-
-  // Calculate real-time summary from weeklyAttendance
-  const calculateWeeklySummary = () => {
-    let totalHours = 0;
-    let daysPresent = 0;
-
-    weeklyAttendance.forEach(attendance => {
-      if (attendance.totalHours > 0) {
-        totalHours += attendance.totalHours;
-        daysPresent++;
+  // Fetch announcements
+  const fetchAnnouncements = async () => {
+    setIsLoadingAnnouncements(true);
+    try {
+      const response = await fetch('/api/announcements');
+      if (response.ok) {
+        const data = await response.json();
+        setAnnouncements(data.announcements || []);
       }
-    });
-
-    const avgHoursPerDay = daysPresent > 0 ? totalHours / daysPresent : 0;
-    const expectedHours = 40; // 5 days * 8 hours
-    const progress = (totalHours / expectedHours) * 100;
-
-    return {
-      totalHours: Math.round(totalHours * 10) / 10,
-      daysPresent,
-      avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
-      progress: Math.min(Math.round(progress), 100),
-      expectedHours
-    };
+    } catch (error) {
+      logger.error('Failed to fetch announcements', error);
+      setAnnouncements([]);
+    } finally {
+      setIsLoadingAnnouncements(false);
+    }
   };
 
-  const weeklySummary = calculateWeeklySummary();
-
-  // Navigation functions
-  const goToPreviousWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(currentWeekStart.getDate() - 7);
-    setCurrentWeekStart(newStart);
+  // Fetch today's stats
+  const fetchTodayStats = async () => {
+    try {
+      // Fetch tasks to count active ones
+      const response = await fetch('/api/tasks');
+      if (response.ok) {
+        const data = await response.json();
+        const today = new Date().toISOString().split('T')[0];
+        const activeTasks = (data.tasks || []).filter((task: Task) =>
+          task.status !== 'archived' &&
+          task.status !== 'completed' &&
+          (!task.due_date || task.due_date.startsWith(today))
+        );
+        setTodayStats(prev => ({ ...prev, activeTasks: activeTasks.length }));
+      }
+    } catch (error) {
+      logger.error('Failed to fetch today stats', error);
+    }
   };
 
-  const goToNextWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(currentWeekStart.getDate() + 7);
-    setCurrentWeekStart(newStart);
-  };
+  // Create announcement (admin only)
+  const handleCreateAnnouncement = async () => {
+    if (!newAnnouncement.title.trim() || !newAnnouncement.content.trim()) {
+      alert('Please enter both title and content');
+      return;
+    }
 
-  const goToCurrentWeek = () => {
-    const today = new Date();
-    const currentDay = today.getDay();
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - currentDay);
-    sunday.setHours(0, 0, 0, 0);
-    setCurrentWeekStart(sunday);
+    try {
+      const response = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newAnnouncement.title.trim(),
+          content: newAnnouncement.content.trim(),
+          priority: newAnnouncement.priority,
+          target_audience: newAnnouncement.target_audience,
+          expires_at: newAnnouncement.expires_at || null
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh announcements list
+        await fetchAnnouncements();
+        // Reset form
+        setNewAnnouncement({
+          title: '',
+          content: '',
+          priority: 'normal',
+          target_audience: 'all',
+          expires_at: ''
+        });
+        setShowCreateAnnouncementModal(false);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to create announcement');
+      }
+    } catch (error) {
+      logger.error('Failed to create announcement', error);
+      alert('Failed to create announcement');
+    }
   };
 
   // Fetch today's tasks for check-in modal
@@ -487,12 +491,16 @@ ${tasksSection}`;
 
             // Add sub-tasks if available
             if (task.subTasks && task.subTasks.length > 0) {
-              task.subTasks.forEach((subTask) => {
-                const checkbox = subTask.completed ? '[x]' : '[ ]';
+              task.subTasks.forEach((subTask, subIndex) => {
+                const checkbox = subTask.completed ? '[✓]' : '[ ]';
                 taskText += `\n   ${checkbox} ${subTask.title}`;
                 // Add notes in brackets below subtask if available
                 if (subTask.notes?.trim()) {
                   taskText += `\n   [${subTask.notes.trim()}]`;
+                }
+                // Add blank line after each subtask for readability (except the last one)
+                if (subIndex < task.subTasks!.length - 1) {
+                  taskText += `\n`;
                 }
               });
             }
@@ -540,106 +548,21 @@ ${tasksSection}`;
     }
   }, [user, isLoading, router]);
 
-  // Fetch weekly attendance
+  // Fetch announcements and today's stats on mount
   useEffect(() => {
     if (user) {
-      fetchWeeklyAttendance();
+      fetchAnnouncements();
+      fetchTodayStats();
     }
-  }, [user, currentWeekStart]); // Re-fetch when week changes
+  }, [user]);
 
-  // Fetch summary when time period changes
+  // Update today's hours worked in real-time
   useEffect(() => {
-    if (user && activeTab === 'summary') {
-      fetchAttendanceSummary(timePeriod);
+    if (isTimedIn) {
+      const hoursToday = workDuration / 3600;
+      setTodayStats(prev => ({ ...prev, hoursToday: Math.round(hoursToday * 10) / 10 }));
     }
-  }, [timePeriod, activeTab, user]);
-
-  // Update current time every second for live progress bar
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const fetchWeeklyAttendance = async () => {
-    try {
-      const startDateStr = currentWeekStart.toISOString().split('T')[0];
-      const response = await fetch(`/api/attendance/weekly?startDate=${startDateStr}`);
-      if (response.ok) {
-        const data = await response.json();
-        logger.debug('Weekly attendance data:', data);
-        logger.debug('Attendance array:', data.attendance);
-        setWeeklyAttendance(data.attendance || []);
-
-        // Calculate summary statistics
-        if (data.summary) {
-          const totalHours = data.summary.totalHours || 0;
-          const daysPresent = data.summary.presentDays || 0;
-          const avgHoursPerDay = daysPresent > 0 ? totalHours / daysPresent : 0;
-          const expectedHoursPerWeek = 40; // Standard 5-day work week, 8 hours/day
-          const weekProgress = (totalHours / expectedHoursPerWeek) * 100;
-
-          setAttendanceSummary({
-            totalHours: Math.round(totalHours * 10) / 10,
-            daysPresent,
-            avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
-            weekProgress: Math.min(Math.round(weekProgress), 100),
-            period: 'week',
-            expectedHours: expectedHoursPerWeek
-          });
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to fetch weekly attendance', error);
-    }
-  };
-
-  const fetchAttendanceSummary = async (period: 'week' | 'month' | 'year') => {
-    try {
-      const response = await fetch(`/api/attendance/summary?period=${period}`);
-      if (response.ok) {
-        const data = await response.json();
-        logger.debug(`${period} attendance summary:`, data);
-
-        if (data.summary) {
-          const totalHours = data.summary.totalHours || 0;
-          const daysPresent = data.summary.presentDays || 0;
-          const avgHoursPerDay = daysPresent > 0 ? totalHours / daysPresent : 0;
-
-          // Calculate expected hours based on period
-          let expectedHours = 40; // week
-          if (period === 'month') {
-            // Approximately 4.33 weeks per month, 5 working days per week
-            expectedHours = 173; // ~40 hours * 4.33 weeks
-          } else if (period === 'year') {
-            // 52 weeks per year
-            expectedHours = 2080; // 40 hours * 52 weeks
-          }
-
-          const progress = (totalHours / expectedHours) * 100;
-
-          setAttendanceSummary({
-            totalHours: Math.round(totalHours * 10) / 10,
-            daysPresent,
-            avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
-            weekProgress: Math.min(Math.round(progress), 100),
-            period,
-            expectedHours
-          });
-        }
-      }
-    } catch (error) {
-      logger.error(`Failed to fetch ${period} attendance summary`, error);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [isTimedIn, workDuration]);
 
   if (!user) {
     return null;
@@ -658,8 +581,8 @@ ${tasksSection}`;
       )}
 
       {/* Dashboard Content */}
-      <div className="h-full flex flex-col">
-          {/* Attendance Controls */}
+      <div className="h-full flex flex-col bg-gray-50">
+          {/* Check-in Controls */}
           <div className="px-6 py-4 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -720,7 +643,7 @@ ${tasksSection}`;
                       Work Duration:
                     </span>
                     <span className="text-2xl font-bold text-blue-600 tabular-nums" style={{ fontFamily: 'var(--font-geist-mono)' }}>
-                      {formatTime(workDuration)}
+                      {(workDuration / 3600).toFixed(2)} hrs
                     </span>
                   </div>
                   {checkInTime && (
@@ -736,479 +659,168 @@ ${tasksSection}`;
             </div>
           </div>
 
-          {/* Attendance Calendar View */}
-            <div className="flex-1 flex flex-col">
-              {/* Tabs */}
-              <div className="relative border-b border-gray-200 px-6 py-4 bg-white">
-                <div className="flex space-x-8">
-                  <button
-                    onClick={() => setActiveTab('calendar')}
-                    className={`pb-3 px-1 border-b-2 font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
-                      activeTab === 'calendar'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-blue-600'
-                    }`}
-                    style={{ fontFamily: 'var(--font-geist-sans)' }}
-                  >
-                    Attendance Calendar
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('summary')}
-                    className={`pb-3 px-1 border-b-2 font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
-                      activeTab === 'summary'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-blue-600'
-                    }`}
-                    style={{ fontFamily: 'var(--font-geist-sans)' }}
-                  >
-                    Attendance Summary
-                  </button>
+          {/* Home Page Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            {/* Quick Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              {/* Check-in Status Card */}
+              <div className="rounded-xl p-6 bg-white border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                    isTimedIn ? 'bg-green-500' : 'bg-gray-400'
+                  }`}>
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
                 </div>
+                <p className="text-sm font-medium text-gray-600 mb-2">Check-in Status</p>
+                <p className={`text-2xl font-bold mb-1 ${isTimedIn ? 'text-green-600' : 'text-gray-600'}`}>
+                  {isTimedIn ? 'Checked In' : 'Not Checked In'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {isTimedIn ? `Since ${new Date(checkInTime!).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : 'Click Check In to start'}
+                </p>
               </div>
 
-              {/* Calendar Content */}
-              <div className="relative px-6 py-4 flex-1 bg-white overflow-y-auto flex flex-col">
-                {activeTab === 'calendar' ? (
-                  <>
-                    {/* Week Navigation Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={goToPreviousWeek}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
-                          title="Previous week"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-
-                        <div className="flex items-center space-x-2">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="font-bold text-gray-900 uppercase tracking-wider" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-                            {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={goToNextWeek}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
-                          title="Next week"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={goToCurrentWeek}
-                        className="px-4 py-2 text-sm font-bold uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 rounded-lg transition-all duration-300"
-                        style={{ fontFamily: 'var(--font-geist-sans)' }}
-                      >
-                        Today
-                      </button>
-                    </div>
-
-                    {/* General shift info */}
-                    <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-gray-700 font-semibold" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-                        General [<span className="font-bold text-blue-600">12:00 AM - 12:00 AM</span>]
-                      </p>
-                    </div>
-
-                {/* Week calendar */}
-                <div className="flex-1 flex flex-col gap-2 relative overflow-y-auto">
-                  {weekDates.map((date) => {
-                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                    const dayNumber = date.getDate();
-                    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-                    const isSunday = dayOfWeek === 0;
-                    const isToday = date.toDateString() === currentTime.toDateString();
-
-                    // Check for saved attendance data for this day
-                    const savedAttendance = weeklyAttendance.find(a => {
-                      const attDate = new Date(a.date);
-                      return attDate.toDateString() === date.toDateString();
-                    });
-
-                    // Live calculation based on actual check-in time (only for today while clocked in)
-                    const hasLiveAttendance = !isSunday && isToday && isTimedIn && checkInTime;
-                    const hasSavedAttendance = savedAttendance && (savedAttendance.checkInTime || savedAttendance.sessions);
-
-                    // Build sessions array for display (includes past sessions + current live session)
-                    const displaySessions: Array<{checkIn: Date, checkOut: Date | null, isLive: boolean}> = [];
-
-                    if (hasSavedAttendance) {
-                      // Add completed sessions from history
-                      const sessions = savedAttendance.sessions || [];
-                      if (Array.isArray(sessions)) {
-                        sessions.forEach((session: { checkIn: string; checkOut: string }) => {
-                          displaySessions.push({
-                            checkIn: new Date(session.checkIn),
-                            checkOut: new Date(session.checkOut),
-                            isLive: false
-                          });
-                        });
-                      }
-
-                      // Add current session (either live or completed)
-                      if (savedAttendance.checkInTime) {
-                        let currentCheckOut: Date | null = null;
-                        if (!hasLiveAttendance && savedAttendance.checkOutTime) {
-                          currentCheckOut = new Date(savedAttendance.checkOutTime);
-                        }
-                        displaySessions.push({
-                          checkIn: new Date(savedAttendance.checkInTime),
-                          checkOut: currentCheckOut,
-                          isLive: Boolean(hasLiveAttendance)
-                        });
-                      }
-                    }
-
-                    const hoursWorked = savedAttendance?.totalHours ?
-                      formatTime(Math.floor(savedAttendance.totalHours * 3600)) :
-                      (hasLiveAttendance ? formatTime(workDuration) : '00:00:00');
-
-                    const hasAttendance = displaySessions.length > 0;
-
-                    return (
-                      <div
-                        key={date.toISOString()}
-                        className={`flex-1 flex items-center py-3 border-b border-gray-200 ${
-                          isSunday ? 'bg-gray-50' : ''
-                        } ${isToday ? 'bg-blue-50' : ''}`}
-                      >
-                        <div className="w-12 sm:w-16 text-sm font-medium text-gray-900">{dayName}</div>
-                        <div className="w-10 sm:w-12 text-sm text-gray-600">{dayNumber < 10 ? `0${dayNumber}` : dayNumber}</div>
-                        <div className="flex-1 px-2">
-                          {isSunday ? (
-                            <div className="flex items-center justify-center py-8">
-                              <span className="text-gray-500 text-sm font-medium">Rest Day</span>
-                            </div>
-                          ) : (
-                            <div className="relative h-10 border border-gray-300 rounded-lg overflow-hidden bg-white">
-                              {/* Time grid lines (every 3 hours) */}
-                              {[0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5].map((percent) => (
-                                <div
-                                  key={percent}
-                                  className="absolute top-0 bottom-0 w-px bg-gray-200"
-                                  style={{ left: `${percent}%` }}
-                                />
-                              ))}
-
-                              {/* Check-in time labels above bars */}
-
-                              {hasAttendance && displaySessions.map((session, sessionIndex) => {
-                                const checkInHour = session.checkIn.getHours() + session.checkIn.getMinutes() / 60;
-                                const checkInPercent = (checkInHour / 24) * 100;
-
-                                return (
-                                  <div
-                                    key={`label-${sessionIndex}`}
-                                    className="absolute -top-5 text-xs text-gray-600 font-medium"
-                                    style={{ left: `${checkInPercent}%` }}
-                                  >
-                                    {formatPhilippineTime(session.checkIn)}
-                                  </div>
-                                );
-                              })}
-
-                              {/* Green progress bars - Multiple sessions with gaps (Zoho style) */}
-                              {hasAttendance && displaySessions.map((session, sessionIndex) => {
-                                const checkInHour = session.checkIn.getHours() + session.checkIn.getMinutes() / 60;
-                                const checkInPercent = (checkInHour / 24) * 100;
-
-                                let checkOutHour = checkInHour;
-                                if (session.checkOut) {
-                                  checkOutHour = session.checkOut.getHours() + session.checkOut.getMinutes() / 60;
-                                } else if (session.isLive) {
-                                  checkOutHour = currentTime.getHours() + currentTime.getMinutes() / 60;
-                                }
-
-                                const durationPercent = ((checkOutHour - checkInHour) / 24) * 100;
-
-                                return (
-                                  <div key={sessionIndex}>
-                                    <div
-                                      className="absolute top-1 bottom-1 bg-gradient-to-r from-green-500 to-green-400 rounded flex items-center justify-between px-2"
-                                      style={{
-                                        left: `${checkInPercent}%`,
-                                        width: `${durationPercent}%`
-                                      }}
-                                    >
-                                      <span className="text-xs font-medium text-white">
-                                        {formatPhilippineTime(session.checkIn)}
-                                      </span>
-                                      {durationPercent > 5 && (
-                                        <span className="text-xs font-medium text-white">
-                                          {session.checkOut ?
-                                            formatPhilippineTime(session.checkOut) :
-                                            formatPhilippineTime(currentTime)
-                                          }
-                                        </span>
-                                      )}
-                                    </div>
-                                    {/* Pulsing dot at the end of progress bar (only for live session) */}
-                                    {session.isLive && (
-                                      <div
-                                        className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-green-400 rounded-full animate-pulse"
-                                        style={{
-                                          left: `${checkInPercent + durationPercent}%`
-                                        }}
-                                      />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        <div className="w-20 sm:w-24 text-right text-sm font-medium text-gray-900">
-                          {hasAttendance ? hoursWorked : '00:00:00'}
-                        </div>
-                        <div className="hidden sm:block w-32 text-right text-xs text-gray-500">
-                          Hrs worked
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Hour tracker labels at bottom */}
-                  <div className="flex items-center py-2 border-t-2 border-gray-300 mt-4">
-                    <div className="w-16"></div>
-                    <div className="w-12"></div>
-                    <div className="flex-1 px-2 relative">
-                      <div className="flex justify-between text-xs text-gray-500 font-medium">
-                        {['12AM', '02AM', '04AM', '06AM', '08AM', '10AM', '01PM', '03PM', '05PM', '07PM', '09PM', '11PM'].map((time) => (
-                          <span key={time} className="flex-shrink-0">
-                            {time}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="w-24"></div>
-                    <div className="w-32"></div>
+              {/* Active Tasks Card */}
+              <div className="rounded-xl p-6 bg-white border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
                   </div>
                 </div>
-                  </>
-                ) : (
-                  /* Attendance Summary View */
-                  <div className="space-y-6">
-                    {/* Week Navigation Header - Same as Calendar */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={goToPreviousWeek}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Previous week"
-                        >
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
+                <p className="text-sm font-medium text-gray-600 mb-2">Active Tasks</p>
+                <p className="text-4xl font-bold text-gray-900 mb-1">{todayStats.activeTasks}</p>
+                <p className="text-xs text-gray-500">Tasks for today</p>
+              </div>
 
-                        <div className="flex items-center space-x-2">
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="font-semibold text-gray-900">
-                            {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={goToNextWeek}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Next week"
-                        >
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={goToCurrentWeek}
-                        className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Today
-                      </button>
-                    </div>
-
-                    {/* Summary Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Total Hours Card */}
-                      <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 bg-p3-cyan rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <p className="text-sm font-medium text-gray-600 mb-2">Total Hours Worked</p>
-                        <p className="text-4xl font-bold text-gray-900 mb-1">{weeklySummary.totalHours}h</p>
-                        <p className="text-xs text-gray-500">This week</p>
-                      </div>
-
-                      {/* Days Present Card */}
-                      <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 bg-p3-cyan rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <p className="text-sm font-medium text-gray-600 mb-2">Days Present</p>
-                        <p className="text-4xl font-bold text-gray-900 mb-1">{weeklySummary.daysPresent}<span className="text-2xl text-gray-600">/5</span></p>
-                        <p className="text-xs text-gray-500">Working days</p>
-                      </div>
-
-                      {/* Average Hours Card */}
-                      <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 bg-p3-cyan rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                            </svg>
-                          </div>
-                        </div>
-                        <p className="text-sm font-medium text-gray-600 mb-2">Average Per Day</p>
-                        <p className="text-4xl font-bold text-gray-900 mb-1">{weeklySummary.avgHoursPerDay}h</p>
-                        <p className="text-xs text-gray-500">Daily average</p>
-                      </div>
-                    </div>
-
-                    {/* Weekly Target Progress Bar */}
-                    <div className="rounded-xl p-6 border border-gray-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-800 mb-1">Weekly Target Progress</h3>
-                          <p className="text-xs text-gray-600">{weeklySummary.totalHours}h of {weeklySummary.expectedHours}h expected</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-3xl font-bold text-blue-600">{weeklySummary.progress}%</p>
-                        </div>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-blue-600 to-cyan-500 h-3 rounded-full shadow-lg shadow-cyan-400/30 transition-all duration-500"
-                          style={{ width: `${weeklySummary.progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Daily Breakdown Table */}
-                    <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                        <h3 className="text-base font-semibold text-gray-800">Daily Breakdown</h3>
-                        <p className="text-xs text-gray-600 mt-1">Detailed attendance for the week</p>
-                      </div>
-                      <div className="overflow-x-auto -mx-6 sm:mx-0">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
-                              <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {weekDates.map((date) => {
-                              const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-                              const dayOfWeek = date.getDay();
-                              const isSunday = dayOfWeek === 0;
-                              const isToday = date.toDateString() === currentTime.toDateString();
-
-                              const savedAttendance = weeklyAttendance.find(a => {
-                                const attDate = new Date(a.date);
-                                return attDate.toDateString() === date.toDateString();
-                              });
-
-                              const hasAttendance = savedAttendance && (savedAttendance.checkInTime || savedAttendance.sessions);
-
-                              return (
-                                <tr key={date.toISOString()} className={`${isToday ? 'bg-blue-50' : ''} ${isSunday ? 'bg-gray-50' : ''}`}>
-                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {dayName}
-                                    {isToday && <span className="ml-2 text-xs text-blue-600 font-semibold">(Today)</span>}
-                                  </td>
-                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                  </td>
-                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {isSunday ? (
-                                      <span className="text-gray-400">Rest Day</span>
-                                    ) : hasAttendance && savedAttendance.checkInTime ? (
-                                      formatPhilippineTime(savedAttendance.checkInTime)
-                                    ) : (
-                                      <span className="text-gray-400">--</span>
-                                    )}
-                                  </td>
-                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {isSunday ? (
-                                      <span className="text-gray-400">Rest Day</span>
-                                    ) : hasAttendance && savedAttendance.checkOutTime ? (
-                                      formatPhilippineTime(savedAttendance.checkOutTime)
-                                    ) : hasAttendance && !savedAttendance.checkOutTime && isToday ? (
-                                      <span className="text-green-600 font-medium">Working...</span>
-                                    ) : (
-                                      <span className="text-gray-400">--</span>
-                                    )}
-                                  </td>
-                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                                    {isSunday ? (
-                                      <span className="text-gray-400 font-normal">--</span>
-                                    ) : hasAttendance ? (
-                                      <span>
-                                        {savedAttendance.totalHours
-                                          ? `${Math.round(savedAttendance.totalHours * 10) / 10}h`
-                                          : (isToday && isTimedIn ? formatTime(workDuration) : '0h')
-                                        }
-                                      </span>
-                                    ) : (
-                                      <span className="text-gray-400 font-normal">0h</span>
-                                    )}
-                                  </td>
-                                  <td className="px-3 sm:px-5 py-4 whitespace-nowrap">
-                                    {isSunday ? (
-                                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
-                                        Rest Day
-                                      </span>
-                                    ) : hasAttendance ? (
-                                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                        savedAttendance.status === 'present'
-                                          ? 'bg-green-100 text-green-700'
-                                          : savedAttendance.status === 'late'
-                                          ? 'bg-orange-100 text-orange-700'
-                                          : 'bg-blue-100 text-blue-700'
-                                      }`}>
-                                        {savedAttendance.status === 'present' ? 'Present' : savedAttendance.status === 'late' ? 'Late' : 'On Duty'}
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                                        Absent
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+              {/* Hours Today Card */}
+              <div className="rounded-xl p-6 bg-white border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
                   </div>
-                )}
+                </div>
+                <p className="text-sm font-medium text-gray-600 mb-2">Hours Today</p>
+                <p className="text-4xl font-bold text-gray-900 mb-1">{todayStats.hoursToday}h</p>
+                <p className="text-xs text-gray-500">Total hours worked</p>
               </div>
             </div>
+
+            {/* Announcements and Upcoming Events */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Announcements Section (Left 60% / 2 columns) */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-gray-900 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                        </svg>
+                        Company Announcements
+                      </h2>
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={() => setShowCreateAnnouncementModal(true)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span>Create</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    {isLoadingAnnouncements ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : announcements.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        <p>No announcements at this time</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-96 overflow-y-auto">
+                        {announcements.map((announcement) => (
+                          <div
+                            key={announcement.id}
+                            className={`p-4 rounded-lg border ${
+                              announcement.priority === 'urgent'
+                                ? 'bg-red-50 border-red-200'
+                                : announcement.priority === 'high'
+                                ? 'bg-orange-50 border-orange-200'
+                                : 'bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <h3 className="font-semibold text-gray-900">{announcement.title}</h3>
+                              {announcement.priority === 'urgent' && (
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                                  Urgent
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 mb-2">{announcement.content}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(announcement.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Upcoming Events Section (Right 40% / 1 column) */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100">
+                    <h2 className="text-lg font-bold text-gray-900 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Upcoming Events
+                    </h2>
+                  </div>
+                  <div className="p-6">
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {todayStats.activeTasks > 0 && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                              <span className="text-white font-bold text-sm">{todayStats.activeTasks}</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Tasks Due Today</p>
+                              <p className="text-xs text-gray-600">View in Tasks page</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div className="text-center py-8 text-gray-500">
+                        <svg className="w-10 h-10 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-sm">No upcoming events</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
       </div>
 
       {/* Check-In Modal */}
@@ -1764,6 +1376,133 @@ ${tasksSection}`;
           breakStartTime={breakStartTime}
           onEndBreak={handleEndBreak}
         />
+      )}
+
+      {/* Create Announcement Modal */}
+      {showCreateAnnouncementModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+              <h2 className="text-2xl font-bold text-white">Create Announcement</h2>
+              <p className="text-blue-50 text-sm mt-1">Share important updates with the team</p>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={newAnnouncement.title}
+                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    placeholder="e.g., Team Meeting Tomorrow"
+                  />
+                </div>
+
+                {/* Content */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                  <textarea
+                    value={newAnnouncement.content}
+                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 resize-none"
+                    placeholder="Write your announcement here..."
+                    rows={4}
+                  />
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['low', 'normal', 'high', 'urgent'] as const).map((priority) => (
+                      <button
+                        key={priority}
+                        type="button"
+                        onClick={() => setNewAnnouncement({ ...newAnnouncement, priority })}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                          newAnnouncement.priority === priority
+                            ? priority === 'urgent' ? 'bg-red-600 text-white shadow-md' :
+                              priority === 'high' ? 'bg-orange-600 text-white shadow-md' :
+                              priority === 'normal' ? 'bg-blue-600 text-white shadow-md' :
+                              'bg-gray-600 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Target Audience */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['all', 'managers', 'employees'] as const).map((audience) => (
+                      <button
+                        key={audience}
+                        type="button"
+                        onClick={() => setNewAnnouncement({ ...newAnnouncement, target_audience: audience })}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                          newAnnouncement.target_audience === audience
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {audience === 'all' ? 'Everyone' : audience.charAt(0).toUpperCase() + audience.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Expiration Date (Optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiration Date (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={newAnnouncement.expires_at}
+                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, expires_at: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Leave blank for no expiration</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowCreateAnnouncementModal(false);
+                  setNewAnnouncement({
+                    title: '',
+                    content: '',
+                    priority: 'normal',
+                    target_audience: 'all',
+                    expires_at: ''
+                  });
+                }}
+                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateAnnouncement}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Create Announcement</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
