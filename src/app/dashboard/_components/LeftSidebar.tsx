@@ -122,6 +122,12 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
       href: '/dashboard'
     },
     {
+      id: 'attendance',
+      label: 'Attendance',
+      icon: <ClockIcon />,
+      href: '/dashboard/attendance'
+    },
+    {
       id: 'tasks',
       label: 'Tasks',
       icon: <TaskIcon />,
