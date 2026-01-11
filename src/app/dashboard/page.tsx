@@ -325,9 +325,16 @@ export default function Dashboard() {
 
             // Add sub-tasks if available
             if (task.subTasks && task.subTasks.length > 0) {
-              task.subTasks.forEach((subTask) => {
-                const checkbox = subTask.completed ? '[x]' : '[ ]';
+              task.subTasks.forEach((subTask, subIndex) => {
+                const checkbox = subTask.completed ? '[✓]' : '[ ]';
                 taskText += `\n   ${checkbox} ${subTask.title}`;
+                if (subTask.notes?.trim()) {
+                  taskText += `\n   [${subTask.notes.trim()}]`;
+                }
+                // Add blank line after each subtask except the last
+                if (subIndex < task.subTasks!.length - 1) {
+                  taskText += `\n`;
+                }
               });
             }
 
