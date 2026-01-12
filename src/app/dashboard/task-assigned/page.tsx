@@ -110,12 +110,10 @@ export default function LeadsPage() {
     <div className="flex-1 flex h-full">
       {/* Sidebar Navigation - Microsoft Style */}
       <div className="w-64 border-r border-p3-cyan/20 p-6 flex flex-col bg-p3-navy-dark/30 backdrop-blur-sm">
-        <h2 className="text-lg font-semibold text-white mb-6">Categories</h2>
-
         {/* Add Item Button - Microsoft Primary */}
         <button
           onClick={openAddFlow}
-          className="w-full px-4 py-2 mb-6 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center justify-center gap-2"
+          className="w-full px-3 py-2.5 mb-6 bg-[#0078D4] text-white rounded text-sm font-medium hover:bg-[#005A9E] transition-colors duration-150 flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Add Item
