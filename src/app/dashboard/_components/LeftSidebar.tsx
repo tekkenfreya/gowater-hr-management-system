@@ -141,7 +141,7 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
     },
     {
       id: 'task-assigned',
-      label: 'Task Assigned',
+      label: 'Activities',
       icon: <LeadsIcon />,
       href: '/dashboard/task-assigned'
     },
