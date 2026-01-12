@@ -112,6 +112,15 @@ export default function LeadsPage() {
       <div className="w-64 border-r border-p3-cyan/20 p-6 flex flex-col bg-p3-navy-dark/30 backdrop-blur-sm">
         <h2 className="text-lg font-semibold text-white mb-6">Categories</h2>
 
+        {/* Add Item Button - Microsoft Primary */}
+        <button
+          onClick={openAddFlow}
+          className="w-full px-4 py-2 mb-6 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center justify-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Item
+        </button>
+
         {/* Category Navigation */}
         <nav className="space-y-1 mb-6">
           {CATEGORIES.map((category) => (
@@ -431,6 +440,19 @@ export default function LeadsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Add Button (shown when there are items) */}
+          {!loading && leads.length > 0 && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={openAddFlow}
+                className="px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}
+              </button>
             </div>
           )}
         </div>
