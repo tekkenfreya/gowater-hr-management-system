@@ -88,7 +88,7 @@ export default function ViewActivitiesModal({ lead, onClose }: ViewActivitiesMod
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 backdrop-blur-3xl bg-white/5 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-white border-b border-[#E1DFDD] px-6 py-4">
