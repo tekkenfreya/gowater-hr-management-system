@@ -141,7 +141,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-8 min-w-0">
         <div>
           {/* Category Title Header */}
           <div className="mb-6">
@@ -461,13 +461,13 @@ export default function LeadsPage() {
 
           {/* Add Button (shown when there are items) */}
           {!loading && leads.length > 0 && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-3 flex justify-center">
               <button
                 onClick={openAddFlow}
-                className="px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2"
+                className="w-8 h-8 rounded-full bg-white border border-[#C8C6C4] hover:border-[#0078D4] hover:bg-[#F3F2F1] transition-colors duration-150 flex items-center justify-center group"
+                title={`Add ${isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}`}
               >
-                <Plus className="w-4 h-4" />
-                Add {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}
+                <Plus className="w-4 h-4 text-[#605E5C] group-hover:text-[#0078D4]" />
               </button>
             </div>
           )}
