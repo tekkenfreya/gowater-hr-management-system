@@ -1263,8 +1263,7 @@ ${tasksSection}`;
                   onClick={handleCopyCheckInReport}
                   disabled={
                     isLoadingTasks ||
-                    checkInTasks.length === 0 ||
-                    !checkInTasks.some(task => task.subTasks && task.subTasks.length > 0)
+                    checkInTasks.length === 0
                   }
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
@@ -1288,8 +1287,7 @@ ${tasksSection}`;
                   onClick={handleSendReportAndCheckIn}
                   disabled={
                     isLoadingTasks ||
-                    checkInTasks.length === 0 ||
-                    !checkInTasks.some(task => task.subTasks && task.subTasks.length > 0)
+                    checkInTasks.length === 0
                   }
                   className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
