@@ -95,21 +95,28 @@ const baseLeadSchema = z.object({
   product: productTypeSchema.optional(),
   status: leadStatusSchema.optional(),
   remarks: z.string().max(1000).optional(),
-  next_action: z.string().max(500).optional(),
+  disposition: z.string().max(500).optional(),
   assigned_to: z.string().max(255).optional(),
 });
 
 // Lead-specific schema
 const leadSpecificSchema = z.object({
   category: z.literal('lead'),
-  company_name: z.string()
-    .min(1, 'Company name is required for leads')
-    .max(255, 'Company name must be less than 255 characters')
-    .trim(),
+  date_of_interaction: z.string().max(255).optional(),
+  lead_type: z.string().max(50).optional(),
+  company_name: z.string().max(255).optional(),
+  number_of_beneficiary: z.string().max(50).optional(),
   location: z.string().max(255).optional(),
   lead_source: z.string().max(255).optional(),
-  type_of_business: z.string().max(255).optional(),
-  number_of_employees: z.string().max(50).optional(),
+}).refine((data) => {
+  // Company name is required only when lead_type is 'company'
+  if (data.lead_type === 'company' && (!data.company_name || data.company_name.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Company name is required for company/organization leads',
+  path: ['company_name'],
 });
 
 // Event-specific schema
@@ -151,11 +158,12 @@ export const updateLeadSchema = z.object({
   category: leadCategorySchema.optional(),
 
   // Lead fields
+  date_of_interaction: z.string().max(255).optional(),
+  lead_type: z.string().max(50).optional(),
   company_name: z.string().max(255).optional(),
+  number_of_beneficiary: z.string().max(50).optional(),
   location: z.string().max(255).optional(),
   lead_source: z.string().max(255).optional(),
-  type_of_business: z.string().max(255).optional(),
-  number_of_employees: z.string().max(50).optional(),
 
   // Event fields
   event_name: z.string().max(255).optional(),
@@ -178,7 +186,7 @@ export const updateLeadSchema = z.object({
   product: productTypeSchema.optional(),
   status: leadStatusSchema.optional(),
   remarks: z.string().max(1000).optional(),
-  next_action: z.string().max(500).optional(),
+  disposition: z.string().max(500).optional(),
   assigned_to: z.string().max(255).optional(),
 });
 
