@@ -186,6 +186,7 @@ export default function LeadsPage() {
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Source</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
@@ -202,6 +203,7 @@ export default function LeadsPage() {
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Attendees</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
@@ -217,6 +219,7 @@ export default function LeadsPage() {
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
@@ -266,6 +269,7 @@ export default function LeadsPage() {
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
                           <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.disposition || ''}>
                               {lead.disposition || '-'}
@@ -339,6 +343,7 @@ export default function LeadsPage() {
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
                           <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.disposition || ''}>
                               {lead.disposition || '-'}
@@ -407,6 +412,7 @@ export default function LeadsPage() {
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
                           <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.disposition || ''}>
                               {lead.disposition || '-'}
