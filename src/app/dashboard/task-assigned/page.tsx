@@ -141,8 +141,8 @@ export default function LeadsPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-8">
-        <div className="max-w-full">
+      <div className="flex-1 p-8 overflow-x-auto">
+        <div>
           {/* Category Title Header */}
           <div className="mb-6">
             <h1 className="text-3xl font-semibold text-[#323130] mb-1">{categoryLabel}</h1>
@@ -150,7 +150,7 @@ export default function LeadsPage() {
           </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-[#E1DFDD] overflow-x-auto">
+        <div className="rounded-lg border border-[#E1DFDD]">
           {loading ? (
             <div className="p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#0078D4]"></div>
@@ -169,7 +169,7 @@ export default function LeadsPage() {
             </div>
           ) : (
             <div>
-              <table className="min-w-max w-full">
+              <table className="w-full table-auto" style={{minWidth: '1400px'}}>
                 <thead className="bg-[#F3F2F1] border-b border-[#E1DFDD]">
                   <tr>
                     {/* Dynamic headers based on category */}
