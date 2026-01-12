@@ -168,8 +168,8 @@ export default function LeadsPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto shadow-inner">
+              <table className="min-w-max w-full">
                 <thead className="bg-[#F3F2F1] border-b border-[#E1DFDD]">
                   <tr>
                     {/* Dynamic headers based on category */}
