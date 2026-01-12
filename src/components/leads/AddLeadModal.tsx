@@ -99,8 +99,8 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
     e.preventDefault();
 
     // Validate based on category
-    if (category === 'lead' && !formData.company_name?.trim()) {
-      alert('Company name is required for leads');
+    if (category === 'lead' && formData.lead_type === 'company' && !formData.company_name?.trim()) {
+      alert('Company name is required for company/organization leads');
       return;
     }
 
@@ -200,21 +200,23 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
                 </select>
               </div>
 
-              {/* Company/Organization Name */}
-              <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">
-                  Company/Organization Name <span className="text-[#D13438]">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="company_name"
-                  value={formData.company_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="Enter company/organization name"
-                />
-              </div>
+              {/* Company/Organization Name - conditional */}
+              {formData.lead_type === 'company' && (
+                <div>
+                  <label className="block text-sm font-semibold text-[#323130] mb-1.5">
+                    Company/Organization Name <span className="text-[#D13438]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="company_name"
+                    value={formData.company_name}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                    placeholder="Enter company/organization name"
+                  />
+                </div>
+              )}
 
               {/* Name (Contact Person & Designation) */}
               <div>

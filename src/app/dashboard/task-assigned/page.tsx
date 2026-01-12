@@ -9,7 +9,7 @@ import EditLeadModal from '@/components/leads/EditLeadModal';
 import LogActivityModal from '@/components/leads/LogActivityModal';
 import ViewActivitiesModal from '@/components/leads/ViewActivitiesModal';
 import DeleteConfirmationModal from '@/components/leads/DeleteConfirmationModal';
-import { Plus, ArrowLeft, Building2, Calendar, FileText, Eye, Package, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Building2, Calendar, FileText, Eye, Package, Pencil, Trash2 } from 'lucide-react';
 
 const CATEGORIES: { value: LeadCategory; label: string }[] = [
   { value: 'lead', label: 'Leads' },
@@ -112,15 +112,6 @@ export default function LeadsPage() {
       <div className="w-64 border-r border-p3-cyan/20 p-6 flex flex-col bg-p3-navy-dark/30 backdrop-blur-sm">
         <h2 className="text-lg font-semibold text-white mb-6">Categories</h2>
 
-        {/* Add Item Button - Microsoft Primary */}
-        <button
-          onClick={openAddFlow}
-          className="w-full px-4 py-2 mb-6 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add Item
-        </button>
-
         {/* Category Navigation */}
         <nav className="space-y-1 mb-6">
           {CATEGORIES.map((category) => (
@@ -140,33 +131,15 @@ export default function LeadsPage() {
             </button>
           ))}
         </nav>
-
-        {/* Back to Dashboard Button */}
-        <a
-          href="/dashboard"
-          className="w-full px-4 py-2 text-[#323130] hover:bg-[#F3F2F1] border border-[#C8C6C4] rounded font-medium transition-colors duration-150 flex items-center justify-center gap-2 text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </a>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 p-8">
         <div className="max-w-full">
           {/* Category Title Header */}
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold text-[#323130] mb-1">{categoryLabel}</h1>
-              <p className="text-[#605E5C] text-sm">Manage and track your {categoryLabel.toLowerCase()}</p>
-            </div>
-            <button
-              onClick={openAddFlow}
-              className="px-4 py-2 bg-[#0078D4] text-white rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}
-            </button>
+          <div className="mb-6">
+            <h1 className="text-3xl font-semibold text-[#323130] mb-1">{categoryLabel}</h1>
+            <p className="text-[#605E5C] text-sm">Manage and track your {categoryLabel.toLowerCase()}</p>
           </div>
 
         {/* Table */}
@@ -181,9 +154,10 @@ export default function LeadsPage() {
               <p className="text-[#605E5C] text-base">No {categoryLabel.toLowerCase()} found</p>
               <button
                 onClick={openAddFlow}
-                className="mt-4 px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150"
+                className="mt-4 px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2 mx-auto"
               >
-                Add First {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}
+                <Plus className="w-4 h-4" />
+                Add {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}
               </button>
             </div>
           ) : (
