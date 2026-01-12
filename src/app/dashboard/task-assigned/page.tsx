@@ -141,7 +141,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-8 overflow-x-auto">
+      <div className="flex-1 p-8">
         <div>
           {/* Category Title Header */}
           <div className="mb-6">
@@ -150,7 +150,7 @@ export default function LeadsPage() {
           </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-[#E1DFDD]">
+        <div className="rounded-lg border border-[#E1DFDD] overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#0078D4]"></div>
@@ -168,60 +168,60 @@ export default function LeadsPage() {
               </button>
             </div>
           ) : (
-            <div>
-              <table className="w-full table-auto" style={{minWidth: '1400px'}}>
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto" style={{minWidth: '1600px'}}>
                 <thead className="bg-[#F3F2F1] border-b border-[#E1DFDD]">
                   <tr>
                     {/* Dynamic headers based on category */}
                     {isLeadCategory && (
                       <>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Date</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Type</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Company Name</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide"># Beneficiary</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Source</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Date</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Type</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Company Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap"># Beneficiary</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Location</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Contact</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Mobile</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Email</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Source</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Product</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Assigned</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Disposition</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Actions</th>
                       </>
                     )}
                     {isEventCategory && (
                       <>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Event Name</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Venue</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Date</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Time</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Attendees</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Event Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Venue</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Date</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Time</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Contact</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Mobile</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Email</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Attendees</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Product</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Assigned</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Disposition</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Actions</th>
                       </>
                     )}
                     {isSupplierCategory && (
                       <>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Supplier Name</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Price</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Unit</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Supplier Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Location</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Product</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Price</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Unit</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Contact</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Mobile</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Email</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Assigned</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Disposition</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide whitespace-nowrap">Actions</th>
                       </>
                     )}
                   </tr>
