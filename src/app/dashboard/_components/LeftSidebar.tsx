@@ -143,23 +143,7 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
       id: 'task-assigned',
       label: 'Task Assigned',
       icon: <LeadsIcon />,
-      href: '/dashboard/task-assigned',
-      subItems: [
-        ...((user?.role === 'admin' || user?.role === 'manager') ? [
-          {
-            id: 'activity-monitor',
-            label: 'Activity Monitor',
-            icon: <ActivityIcon />,
-            href: '/dashboard/task-assigned/activity-monitor'
-          },
-          {
-            id: 'lead-analytics',
-            label: 'Lead Analytics',
-            icon: <ChartIcon />,
-            href: '/dashboard/task-assigned/analytics'
-          }
-        ] : [])
-      ]
+      href: '/dashboard/task-assigned'
     },
     {
       id: 'team',
