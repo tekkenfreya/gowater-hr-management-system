@@ -9,6 +9,7 @@ interface AttendanceContextType {
   isOnBreak: boolean;
   workDuration: number;
   breakDuration: number;
+  accumulatedBreakDuration: number; // Total break time from database (in seconds)
   checkInTime: Date | null;
   breakStartTime: Date | null;
   handleTimeIn: () => Promise<void>;
@@ -26,6 +27,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [workDuration, setWorkDuration] = useState(0);
   const [breakDuration, setBreakDuration] = useState(0);
+  const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState(0); // Total break time from DB
   const [workInterval, setWorkInterval] = useState<NodeJS.Timeout | null>(null);
   const [breakInterval, setBreakInterval] = useState<NodeJS.Timeout | null>(null);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
@@ -61,6 +63,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
           const durationInSeconds = Math.floor((currentTime.getTime() - checkIn.getTime()) / 1000);
           setWorkDuration(durationInSeconds);
 
+          // Set accumulated break duration from database
+          setAccumulatedBreakDuration(attendance.breakDuration || 0);
+
           const interval = setInterval(() => {
             setWorkDuration(prev => prev + 1);
           }, 1000);
@@ -77,6 +82,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
               setBreakDuration(prev => prev + 1);
             }, 1000);
             setBreakInterval(breakInt);
+          } else {
+            // No active break - reset the live timer
+            setBreakDuration(0);
           }
         }
       }
@@ -160,9 +168,17 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
+        const data = await response.json();
+
         setIsOnBreak(false);
         setBreakStartTime(null);
+        setBreakDuration(0); // Reset live timer
+
         if (breakInterval) clearInterval(breakInterval);
+
+        // Fetch updated attendance to get accumulated break duration
+        await fetchTodayAttendance();
+
         const interval = setInterval(() => {
           setWorkDuration(prev => prev + 1);
         }, 1000);
@@ -178,6 +194,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     isOnBreak,
     workDuration,
     breakDuration,
+    accumulatedBreakDuration,
     checkInTime,
     breakStartTime,
     handleTimeIn,

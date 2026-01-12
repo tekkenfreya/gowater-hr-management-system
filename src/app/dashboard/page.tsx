@@ -34,7 +34,7 @@ interface Task {
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout, refetch } = useAuth();
-  const { isTimedIn, isOnBreak, workDuration, breakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
+  const { isTimedIn, isOnBreak, workDuration, breakDuration, accumulatedBreakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
   // Announcements state
   const [announcements, setAnnouncements] = useState<Array<{
     id: number;
@@ -524,7 +524,7 @@ Position: ${user?.position || user?.role}
 Check-in Time: ${checkInTimeFormatted}
 Check-out Time: ${checkOutTimeFormatted}
 Hours Worked: ${hoursWorked} hours
-Break Time: ${formatBreakTime(breakDuration)}
+Break Time: ${formatBreakTime(accumulatedBreakDuration + (isOnBreak ? breakDuration : 0))}
 
 Today's Task Updates:
 ${tasksSection}`;
