@@ -169,7 +169,7 @@ export default function LeadsPage() {
             </div>
           ) : (
             <>
-              <table className="w-full table-auto" style={{minWidth: '1600px'}}>
+              <table className="table-auto" style={{minWidth: '1800px', width: '1800px'}}>
                 <thead className="bg-[#F3F2F1] border-b border-[#E1DFDD]">
                   <tr>
                     {/* Dynamic headers based on category */}
