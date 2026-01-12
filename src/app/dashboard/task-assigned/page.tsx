@@ -175,51 +175,51 @@ export default function LeadsPage() {
                     {/* Dynamic headers based on category */}
                     {isLeadCategory && (
                       <>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Company Name</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Lead Source</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Lead Type</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Company Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Source</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Type</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
                     {isEventCategory && (
                       <>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Event Name</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Venue</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Date</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Time</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Attendees</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product Needed</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Event Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Venue</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Date</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Time</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Attendees</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
                     {isSupplierCategory && (
                       <>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Supplier Name</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Price</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Unit Type</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Supplier Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Price</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Unit</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
                   </tr>
@@ -230,67 +230,71 @@ export default function LeadsPage() {
                       {/* Dynamic row data based on category */}
                       {isLeadCategory && (
                         <>
-                          <td className="px-3 py-3">
-                            <div className="font-medium text-[#323130] text-sm">{lead.company_name || 'N/A'}</div>
+                          <td className="px-2 py-2 max-w-[150px]">
+                            <div className="font-medium text-[#323130] text-xs truncate" title={lead.company_name || ''}>{lead.company_name || 'N/A'}</div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.location || ''}>
                               {lead.location || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.contact_person || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.mobile_number || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
+                            <div className="truncate" title={lead.contact_person || ''}>
+                              {lead.contact_person || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.mobile_number || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[150px]">
                             <div className="truncate" title={lead.email_address || ''}>
                               {lead.email_address || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.lead_source || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.lead_source || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">
                             <div className="truncate" title={lead.lead_type || ''}>
                               {lead.lead_type || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3">
-                            <span className="text-sm text-[#323130] capitalize">{lead.product || 'N/A'}</span>
+                          <td className="px-2 py-2">
+                            <span className="text-xs text-[#323130] capitalize">{lead.product || 'N/A'}</span>
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-2 py-2">
                             <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.disposition || ''}>
                               {lead.disposition || '-'}
                             </div>
                           </td>
-                          <td className="px-3 py-3">
-                            <div className="flex space-x-2">
+                          <td className="px-2 py-2">
+                            <div className="flex space-x-1">
                               <button
                                 onClick={() => openActivityModal(lead)}
-                                className="px-3 py-1.5 bg-[#0078D4] text-white text-xs rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
+                                className="px-2 py-1 bg-[#0078D4] text-white text-xs rounded font-medium hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
                               >
                                 <FileText className="w-3 h-3" />
-                                Log Activity
+                                Log
                               </button>
                               <button
                                 onClick={() => openViewActivitiesModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
                                 <Eye className="w-3 h-3" />
                                 View
                               </button>
                               <button
                                 onClick={() => openEditModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
                                 <Pencil className="w-3 h-3" />
                                 Edit
                               </button>
                               <button
                                 onClick={() => openDeleteModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 Delete
@@ -301,66 +305,70 @@ export default function LeadsPage() {
                       )}
                       {isEventCategory && (
                         <>
-                          <td className="px-3 py-3">
-                            <div className="font-medium text-[#323130] text-sm">{lead.event_name || 'N/A'}</div>
+                          <td className="px-2 py-2 max-w-[150px]">
+                            <div className="font-medium text-[#323130] text-xs truncate" title={lead.event_name || ''}>{lead.event_name || 'N/A'}</div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.venue || ''}>
                               {lead.venue || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">
+                          <td className="px-2 py-2 text-xs text-[#323130]">
                             {lead.event_date ? new Date(lead.event_date).toLocaleDateString() : 'N/A'}
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.event_time || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.contact_person || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.mobile_number || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.event_time || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
+                            <div className="truncate" title={lead.contact_person || ''}>
+                              {lead.contact_person || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.mobile_number || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[150px]">
                             <div className="truncate" title={lead.email_address || ''}>
                               {lead.email_address || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.number_of_attendees || 'N/A'}</td>
-                          <td className="px-3 py-3">
-                            <span className="text-sm text-[#323130] capitalize">{lead.product || 'N/A'}</span>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.number_of_attendees || 'N/A'}</td>
+                          <td className="px-2 py-2">
+                            <span className="text-xs text-[#323130] capitalize">{lead.product || 'N/A'}</span>
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-2 py-2">
                             <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.disposition || ''}>
                               {lead.disposition || '-'}
                             </div>
                           </td>
-                          <td className="px-3 py-3">
-                            <div className="flex space-x-2">
+                          <td className="px-2 py-2">
+                            <div className="flex space-x-1">
                               <button
                                 onClick={() => openActivityModal(lead)}
-                                className="px-3 py-1.5 bg-[#0078D4] text-white text-xs rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
+                                className="px-2 py-1 bg-[#0078D4] text-white text-xs rounded font-medium hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
                               >
                                 <FileText className="w-3 h-3" />
-                                Log Activity
+                                Log
                               </button>
                               <button
                                 onClick={() => openViewActivitiesModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
                                 <Eye className="w-3 h-3" />
                                 View
                               </button>
                               <button
                                 onClick={() => openEditModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
                                 <Pencil className="w-3 h-3" />
                                 Edit
                               </button>
                               <button
                                 onClick={() => openDeleteModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 Delete
@@ -371,61 +379,65 @@ export default function LeadsPage() {
                       )}
                       {isSupplierCategory && (
                         <>
-                          <td className="px-3 py-3">
-                            <div className="font-medium text-[#323130] text-sm">{lead.supplier_name || 'N/A'}</div>
+                          <td className="px-2 py-2 max-w-[150px]">
+                            <div className="font-medium text-[#323130] text-xs truncate" title={lead.supplier_name || ''}>{lead.supplier_name || 'N/A'}</div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.supplier_location || ''}>
                               {lead.supplier_location || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.supplier_product || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.price || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.unit_type || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.contact_person || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.mobile_number || 'N/A'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.supplier_product || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.price || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.unit_type || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
+                            <div className="truncate" title={lead.contact_person || ''}>
+                              {lead.contact_person || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.mobile_number || 'N/A'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[150px]">
                             <div className="truncate" title={lead.email_address || ''}>
                               {lead.email_address || 'N/A'}
                             </div>
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-2 py-2">
                             <span className={`px-2 py-1 rounded text-xs font-normal whitespace-nowrap uppercase tracking-wide ${STATUS_COLORS[lead.status] || 'bg-[#F3F2F1] text-[#605E5C] border border-[#C8C6C4]'}`}>
                               {lead.status.replace('-', ' ')}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
-                          <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
+                          <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.disposition || ''}>
                               {lead.disposition || '-'}
                             </div>
                           </td>
-                          <td className="px-3 py-3">
-                            <div className="flex space-x-2">
+                          <td className="px-2 py-2">
+                            <div className="flex space-x-1">
                               <button
                                 onClick={() => openActivityModal(lead)}
-                                className="px-3 py-1.5 bg-[#0078D4] text-white text-xs rounded font-semibold hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
+                                className="px-2 py-1 bg-[#0078D4] text-white text-xs rounded font-medium hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-1"
                               >
                                 <FileText className="w-3 h-3" />
-                                Log Activity
+                                Log
                               </button>
                               <button
                                 onClick={() => openViewActivitiesModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
                                 <Eye className="w-3 h-3" />
                                 View
                               </button>
                               <button
                                 onClick={() => openEditModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#323130] text-xs rounded font-medium hover:bg-[#F3F2F1] transition-colors duration-150 border border-[#C8C6C4] flex items-center gap-1"
                               >
                                 <Pencil className="w-3 h-3" />
                                 Edit
                               </button>
                               <button
                                 onClick={() => openDeleteModal(lead)}
-                                className="px-3 py-1.5 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
+                                className="px-2 py-1 bg-white text-[#D13438] text-xs rounded font-medium hover:bg-[#FEF0F1] transition-colors duration-150 border border-[#D13438] flex items-center gap-1"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 Delete
