@@ -175,13 +175,15 @@ export default function LeadsPage() {
                     {/* Dynamic headers based on category */}
                     {isLeadCategory && (
                       <>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Date</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Type</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Company Name</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide"># Beneficiary</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Location</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Contact</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Source</th>
-                        <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Type</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
                         <th className="px-2 py-2 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned</th>
@@ -230,9 +232,18 @@ export default function LeadsPage() {
                       {/* Dynamic row data based on category */}
                       {isLeadCategory && (
                         <>
+                          <td className="px-2 py-2 text-xs text-[#323130]">
+                            {lead.date_of_interaction ? new Date(lead.date_of_interaction).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">
+                            <div className="truncate" title={lead.lead_type || ''}>
+                              {lead.lead_type || 'N/A'}
+                            </div>
+                          </td>
                           <td className="px-2 py-2 max-w-[150px]">
                             <div className="font-medium text-[#323130] text-xs truncate" title={lead.company_name || ''}>{lead.company_name || 'N/A'}</div>
                           </td>
+                          <td className="px-2 py-2 text-xs text-[#323130]">{lead.number_of_beneficiary || 'N/A'}</td>
                           <td className="px-2 py-2 text-xs text-[#323130] max-w-[120px]">
                             <div className="truncate" title={lead.location || ''}>
                               {lead.location || 'N/A'}
@@ -250,11 +261,6 @@ export default function LeadsPage() {
                             </div>
                           </td>
                           <td className="px-2 py-2 text-xs text-[#323130]">{lead.lead_source || 'N/A'}</td>
-                          <td className="px-2 py-2 text-xs text-[#323130]">
-                            <div className="truncate" title={lead.lead_type || ''}>
-                              {lead.lead_type || 'N/A'}
-                            </div>
-                          </td>
                           <td className="px-2 py-2">
                             <span className="text-xs text-[#323130] capitalize">{lead.product || 'N/A'}</span>
                           </td>
