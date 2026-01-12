@@ -74,10 +74,15 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
     lead_source: '',
     // EVENT FIELDS
     event_name: '',
+    event_type: '',
     venue: '',
-    event_date: '',
+    event_date: '', // deprecated
+    event_start_date: '',
+    event_end_date: '',
     event_time: '',
+    event_lead: '',
     number_of_attendees: '',
+    event_report: '',
     // SUPPLIER FIELDS
     supplier_name: '',
     supplier_location: '',
@@ -151,7 +156,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
   const submitButtonText = loading ? 'Creating...' : isLead ? 'Create Lead' : isEvent ? 'Create Event' : 'Create Supplier';
 
   return (
-    <div className="fixed inset-0 backdrop-blur-3xl bg-white/5 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[#E1DFDD] px-6 py-4 rounded-t-lg">
@@ -403,29 +408,41 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
                 />
               </div>
 
-              {/* Venue */}
+              {/* Type of Event */}
               <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Venue</label>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Type of Event</label>
                 <input
                   type="text"
-                  name="venue"
-                  value={formData.venue}
+                  name="event_type"
+                  value={formData.event_type}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="Enter venue location"
+                  placeholder="e.g., Conference, Trade Show, Corporate Event"
                 />
               </div>
 
-              {/* Event Date */}
-              <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Event Date</label>
-                <input
-                  type="date"
-                  name="event_date"
-                  value={formData.event_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                />
+              {/* Event Start Date - Event End Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-[#323130] mb-1.5">Event Start Date</label>
+                  <input
+                    type="date"
+                    name="event_start_date"
+                    value={formData.event_start_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#323130] mb-1.5">Event End Date</label>
+                  <input
+                    type="date"
+                    name="event_end_date"
+                    value={formData.event_end_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  />
+                </div>
               </div>
 
               {/* Event Time */}
@@ -440,16 +457,16 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
                 />
               </div>
 
-              {/* Number of Attendees */}
+              {/* Event Lead */}
               <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Number of Attendees</label>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Event Lead</label>
                 <input
                   type="text"
-                  name="number_of_attendees"
-                  value={formData.number_of_attendees}
+                  name="event_lead"
+                  value={formData.event_lead}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="e.g., 200-300, 500+"
+                  placeholder="Enter event lead/organizer name"
                 />
               </div>
             </>
@@ -549,16 +566,18 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Mobile Number */}
+          {/* Contact Number / Mobile Number */}
           <div>
-            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Mobile Number</label>
+            <label className="block text-sm font-semibold text-[#323130] mb-1.5">
+              {isEvent ? 'Contact Number' : 'Mobile Number'}
+            </label>
             <input
               type="text"
               name="mobile_number"
               value={formData.mobile_number}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-              placeholder="Enter mobile number"
+              placeholder={isEvent ? 'Enter contact number' : 'Enter mobile number'}
             />
           </div>
 
@@ -579,7 +598,7 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
           {!isSupplier && (
             <div>
               <label className="block text-sm font-semibold text-[#323130] mb-1.5">
-                {isLead ? 'Product Interest' : 'Product Needed'}
+                {isLead ? 'Product Interest' : 'Product to Showcase'}
               </label>
               <select
                 name="product"
@@ -627,31 +646,53 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Remarks */}
-          <div>
-            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Remarks</label>
-            <textarea
-              name="remarks"
-              value={formData.remarks}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
-              placeholder="Add any additional notes"
-            />
-          </div>
+          {/* Event Report Upload (Events only) or Remarks (Supplier only) */}
+          {isEvent ? (
+            <div>
+              <label className="block text-sm font-semibold text-[#323130] mb-1.5">Upload Event Report</label>
+              <input
+                type="file"
+                name="event_report"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // For now, store file name. In production, upload to server first
+                    setFormData({ ...formData, event_report: file.name });
+                  }
+                }}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130] file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#F3F2F1] file:text-[#323130] hover:file:bg-[#E1DFDD]"
+              />
+              <p className="mt-1 text-xs text-[#605E5C]">Accepted: PDF, Word, Excel, Images</p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-[#323130] mb-1.5">Remarks</label>
+              <textarea
+                name="remarks"
+                value={formData.remarks}
+                onChange={handleChange}
+                rows={3}
+                className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
+                placeholder="Add any additional notes"
+              />
+            </div>
+          )}
 
-          {/* Next Action - for events and supplier only */}
-          <div>
-            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Next Action</label>
-            <textarea
-              name="disposition"
-              value={formData.disposition}
-              onChange={handleChange}
-              rows={2}
-              className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
-              placeholder={isEvent ? 'What should be done next for this event?' : 'What should be done next with this supplier?'}
-            />
-          </div>
+          {/* Next Action - for supplier only (removed for events) */}
+          {isSupplier && (
+            <div>
+              <label className="block text-sm font-semibold text-[#323130] mb-1.5">Next Action</label>
+              <textarea
+                name="disposition"
+                value={formData.disposition}
+                onChange={handleChange}
+                rows={2}
+                className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
+                placeholder="What should be done next with this supplier?"
+              />
+            </div>
+          )}
             </>
           )}
 

@@ -31,7 +31,7 @@ export default function BreakModal({ isOpen, breakStartTime, onEndBreak }: Break
   const progress = (elapsedSeconds / 3600) * 100;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-3xl bg-white/5 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
         {/* Header */}
         <div className="text-center mb-6">

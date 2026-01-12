@@ -25,10 +25,15 @@ export class LeadService {
 
       // EVENT-SPECIFIC FIELDS
       event_name: leadData.category === 'event' ? leadData.event_name || null : null,
+      event_type: leadData.category === 'event' ? leadData.event_type || null : null,
       venue: leadData.category === 'event' ? leadData.venue || null : null,
-      event_date: leadData.category === 'event' ? leadData.event_date || null : null,
+      event_date: leadData.category === 'event' ? leadData.event_date || null : null, // DEPRECATED
+      event_start_date: leadData.category === 'event' ? leadData.event_start_date || null : null,
+      event_end_date: leadData.category === 'event' ? leadData.event_end_date || null : null,
       event_time: leadData.category === 'event' ? leadData.event_time || null : null,
+      event_lead: leadData.category === 'event' ? leadData.event_lead || null : null,
       number_of_attendees: leadData.category === 'event' ? leadData.number_of_attendees || null : null,
+      event_report: leadData.category === 'event' ? leadData.event_report || null : null,
 
       // SUPPLIER-SPECIFIC FIELDS
       supplier_name: leadData.category === 'supplier' ? leadData.supplier_name || null : null,
@@ -85,10 +90,15 @@ export class LeadService {
 
     // EVENT-SPECIFIC FIELDS
     if (updates.event_name !== undefined) updateData.event_name = updates.event_name || null;
+    if (updates.event_type !== undefined) updateData.event_type = updates.event_type || null;
     if (updates.venue !== undefined) updateData.venue = updates.venue || null;
     if (updates.event_date !== undefined) updateData.event_date = updates.event_date || null;
+    if (updates.event_start_date !== undefined) updateData.event_start_date = updates.event_start_date || null;
+    if (updates.event_end_date !== undefined) updateData.event_end_date = updates.event_end_date || null;
     if (updates.event_time !== undefined) updateData.event_time = updates.event_time || null;
+    if (updates.event_lead !== undefined) updateData.event_lead = updates.event_lead || null;
     if (updates.number_of_attendees !== undefined) updateData.number_of_attendees = updates.number_of_attendees || null;
+    if (updates.event_report !== undefined) updateData.event_report = updates.event_report || null;
 
     // SUPPLIER-SPECIFIC FIELDS
     if (updates.supplier_name !== undefined) updateData.supplier_name = updates.supplier_name || null;

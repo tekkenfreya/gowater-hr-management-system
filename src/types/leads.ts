@@ -16,10 +16,15 @@ export interface Lead {
 
   // EVENT-SPECIFIC FIELDS (used when category = 'event')
   event_name: string | null;
+  event_type: string | null; // NEW
   venue: string | null;
-  event_date: string | null;
+  event_date: string | null; // DEPRECATED - use event_start_date
+  event_start_date: string | null; // NEW
+  event_end_date: string | null; // NEW
   event_time: string | null;
+  event_lead: string | null; // NEW
   number_of_attendees: string | null;
+  event_report: string | null; // NEW - file path
 
   // SUPPLIER-SPECIFIC FIELDS (used when category = 'supplier')
   supplier_name: string | null;
@@ -73,10 +78,15 @@ export interface LeadFormData {
 
   // EVENT-SPECIFIC FIELDS
   event_name?: string;
+  event_type?: string;
   venue?: string;
-  event_date?: string;
+  event_date?: string; // DEPRECATED
+  event_start_date?: string;
+  event_end_date?: string;
   event_time?: string;
+  event_lead?: string;
   number_of_attendees?: string;
+  event_report?: string;
 
   // SUPPLIER-SPECIFIC FIELDS
   supplier_name?: string;

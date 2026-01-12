@@ -69,7 +69,7 @@ export default function ForcePasswordChangeModal({ onPasswordChanged }: ForcePas
   };
 
   return (
-    <div className="fixed inset-0 backdrop-blur-3xl bg-white/5 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         {/* Warning Banner */}
         <div className="bg-gradient-to-r from-[#F59B00] to-[#FFA500] p-4 rounded-t-xl">

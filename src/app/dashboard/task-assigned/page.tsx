@@ -9,7 +9,7 @@ import EditLeadModal from '@/components/leads/EditLeadModal';
 import LogActivityModal from '@/components/leads/LogActivityModal';
 import ViewActivitiesModal from '@/components/leads/ViewActivitiesModal';
 import DeleteConfirmationModal from '@/components/leads/DeleteConfirmationModal';
-import { Plus, Building2, Calendar, FileText, Eye, Package, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Building2, Calendar, FileText, Eye, Package, Pencil, Trash2, Download } from 'lucide-react';
 
 const CATEGORIES: { value: LeadCategory; label: string }[] = [
   { value: 'lead', label: 'Leads' },
@@ -101,6 +101,38 @@ export default function LeadsPage() {
     fetchLeads(); // Refresh the leads list
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      const response = await fetch(`/api/leads/export?category=${selectedCategory}`);
+
+      if (!response.ok) {
+        const data = await response.json();
+        alert(`Failed to export: ${data.error}`);
+        logger.error('Failed to export leads', data.error);
+        return;
+      }
+
+      // Get the filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : `export-${Date.now()}.xlsx`;
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert('An error occurred while exporting');
+      logger.error('Error exporting leads', error);
+    }
+  };
+
   const isLeadCategory = selectedCategory === 'lead';
   const isEventCategory = selectedCategory === 'event';
   const isSupplierCategory = selectedCategory === 'supplier';
@@ -144,9 +176,21 @@ export default function LeadsPage() {
       <div className="flex-1 p-8 min-w-0">
         <div>
           {/* Category Title Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-semibold text-[#323130] mb-1">{categoryLabel}</h1>
-            <p className="text-[#605E5C] text-sm">Manage and track your {categoryLabel.toLowerCase()}</p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold text-[#323130] mb-1">{categoryLabel}</h1>
+              <p className="text-[#605E5C] text-sm">Manage and track your {categoryLabel.toLowerCase()}</p>
+            </div>
+            {leads.length > 0 && (
+              <button
+                onClick={handleExportToExcel}
+                className="px-4 py-2 bg-[#107C10] text-white rounded text-sm font-medium hover:bg-[#0B5A08] transition-colors duration-150 flex items-center gap-2"
+                title={`Export ${categoryLabel} to Excel`}
+              >
+                <Download className="w-4 h-4" />
+                Export to Excel
+              </button>
+            )}
           </div>
 
         {/* Table */}
@@ -158,13 +202,13 @@ export default function LeadsPage() {
             </div>
           ) : leads.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-[#605E5C] text-base">No {categoryLabel.toLowerCase()} found</p>
+              <p className="text-[#605E5C] text-base mb-4">No {categoryLabel.toLowerCase()} found</p>
               <button
                 onClick={openAddFlow}
-                className="mt-4 px-4 py-2 bg-[#0078D4] text-white rounded hover:bg-[#005A9E] transition-colors duration-150 flex items-center gap-2 mx-auto"
+                className="w-8 h-8 rounded-full bg-white border border-[#C8C6C4] hover:border-[#0078D4] hover:bg-[#F3F2F1] transition-colors duration-150 flex items-center justify-center group mx-auto"
+                title={`Add ${isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}`}
               >
-                <Plus className="w-4 h-4" />
-                Add {isLeadCategory ? 'Lead' : isEventCategory ? 'Event' : 'Supplier'}
+                <Plus className="w-4 h-4 text-[#605E5C] group-hover:text-[#0078D4]" />
               </button>
             </div>
           ) : (

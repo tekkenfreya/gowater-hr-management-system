@@ -110,7 +110,7 @@ export default function UserPermissionsModal({
   const isAdmin = userRole === 'admin';
 
   return (
-    <div className="fixed inset-0 backdrop-blur-3xl bg-white/5 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[#E1DFDD] px-6 py-4 rounded-t-lg">

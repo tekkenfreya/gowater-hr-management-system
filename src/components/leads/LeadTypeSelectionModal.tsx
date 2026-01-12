@@ -10,7 +10,7 @@ interface LeadTypeSelectionModalProps {
 
 export default function LeadTypeSelectionModal({ onSelect, onClose }: LeadTypeSelectionModalProps) {
   return (
-    <div className="fixed inset-0 backdrop-blur-3xl bg-white/5 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">

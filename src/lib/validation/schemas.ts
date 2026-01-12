@@ -126,10 +126,15 @@ const eventSpecificSchema = z.object({
     .min(1, 'Event name is required for events')
     .max(255, 'Event name must be less than 255 characters')
     .trim(),
+  event_type: z.string().max(255).optional(),
   venue: z.string().max(255).optional(),
-  event_date: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
+  event_date: z.string().optional(), // DEPRECATED - kept for backward compatibility
+  event_start_date: z.string().max(255).optional(),
+  event_end_date: z.string().max(255).optional(),
   event_time: z.string().max(50).optional(),
+  event_lead: z.string().max(255).optional(),
   number_of_attendees: z.string().max(50).optional(),
+  event_report: z.string().max(500).optional(), // File path
 });
 
 // Supplier-specific schema
@@ -167,10 +172,15 @@ export const updateLeadSchema = z.object({
 
   // Event fields
   event_name: z.string().max(255).optional(),
+  event_type: z.string().max(255).optional(),
   venue: z.string().max(255).optional(),
-  event_date: z.string().optional(),
+  event_date: z.string().optional(), // DEPRECATED
+  event_start_date: z.string().max(255).optional(),
+  event_end_date: z.string().max(255).optional(),
   event_time: z.string().max(50).optional(),
+  event_lead: z.string().max(255).optional(),
   number_of_attendees: z.string().max(50).optional(),
+  event_report: z.string().max(500).optional(),
 
   // Supplier fields
   supplier_name: z.string().max(255).optional(),
