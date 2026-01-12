@@ -150,7 +150,7 @@ export default function LeadsPage() {
           </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-[#E1DFDD] overflow-hidden">
+        <div className="rounded-lg border border-[#E1DFDD] overflow-x-auto">
           {loading ? (
             <div className="p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#0078D4]"></div>
@@ -168,7 +168,7 @@ export default function LeadsPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto shadow-inner">
+            <div>
               <table className="min-w-max w-full">
                 <thead className="bg-[#F3F2F1] border-b border-[#E1DFDD]">
                   <tr>
