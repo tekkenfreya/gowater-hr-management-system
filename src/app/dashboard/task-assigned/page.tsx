@@ -200,11 +200,11 @@ export default function LeadsPage() {
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Mobile</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Lead Source</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Business Type</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Lead Type</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
@@ -221,7 +221,7 @@ export default function LeadsPage() {
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Product Needed</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
@@ -237,7 +237,7 @@ export default function LeadsPage() {
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Email</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Status</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Assigned To</th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Next Action</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Disposition</th>
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[#605E5C] uppercase tracking-wide">Actions</th>
                       </>
                     )}
@@ -266,8 +266,8 @@ export default function LeadsPage() {
                           </td>
                           <td className="px-3 py-3 text-sm text-[#323130]">{lead.lead_source || 'N/A'}</td>
                           <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
-                            <div className="truncate" title={lead.type_of_business || ''}>
-                              {lead.type_of_business || 'N/A'}
+                            <div className="truncate" title={lead.lead_type || ''}>
+                              {lead.lead_type || 'N/A'}
                             </div>
                           </td>
                           <td className="px-3 py-3">
@@ -280,8 +280,8 @@ export default function LeadsPage() {
                           </td>
                           <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
                           <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
-                            <div className="truncate" title={lead.next_action || ''}>
-                              {lead.next_action || '-'}
+                            <div className="truncate" title={lead.disposition || ''}>
+                              {lead.disposition || '-'}
                             </div>
                           </td>
                           <td className="px-3 py-3">
@@ -350,8 +350,8 @@ export default function LeadsPage() {
                           </td>
                           <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
                           <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
-                            <div className="truncate" title={lead.next_action || ''}>
-                              {lead.next_action || '-'}
+                            <div className="truncate" title={lead.disposition || ''}>
+                              {lead.disposition || '-'}
                             </div>
                           </td>
                           <td className="px-3 py-3">
@@ -415,8 +415,8 @@ export default function LeadsPage() {
                           </td>
                           <td className="px-3 py-3 text-sm text-[#323130]">{lead.assigned_to || 'Unassigned'}</td>
                           <td className="px-3 py-3 text-sm text-[#323130] max-w-xs">
-                            <div className="truncate" title={lead.next_action || ''}>
-                              {lead.next_action || '-'}
+                            <div className="truncate" title={lead.disposition || ''}>
+                              {lead.disposition || '-'}
                             </div>
                           </td>
                           <td className="px-3 py-3">

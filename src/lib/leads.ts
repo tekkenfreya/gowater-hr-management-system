@@ -16,11 +16,12 @@ export class LeadService {
       category: leadData.category,
 
       // LEAD-SPECIFIC FIELDS
+      date_of_interaction: leadData.category === 'lead' ? leadData.date_of_interaction || null : null,
+      lead_type: leadData.category === 'lead' ? leadData.lead_type || null : null,
       company_name: leadData.category === 'lead' ? leadData.company_name || null : null,
+      number_of_beneficiary: leadData.category === 'lead' ? leadData.number_of_beneficiary || null : null,
       location: leadData.category === 'lead' ? leadData.location || null : null,
       lead_source: leadData.category === 'lead' ? leadData.lead_source || null : null,
-      type_of_business: leadData.category === 'lead' ? leadData.type_of_business || null : null,
-      number_of_employees: leadData.category === 'lead' ? leadData.number_of_employees || null : null,
 
       // EVENT-SPECIFIC FIELDS
       event_name: leadData.category === 'event' ? leadData.event_name || null : null,
@@ -43,7 +44,7 @@ export class LeadService {
       product: leadData.product || null,
       status: leadData.status || 'not-started',
       remarks: leadData.remarks || null,
-      next_action: leadData.next_action || null,
+      disposition: leadData.disposition || null,
       assigned_to: leadData.assigned_to || employeeName,
       created_by: employeeName,
       created_at: now,
@@ -75,11 +76,12 @@ export class LeadService {
     };
 
     // LEAD-SPECIFIC FIELDS
+    if (updates.date_of_interaction !== undefined) updateData.date_of_interaction = updates.date_of_interaction || null;
+    if (updates.lead_type !== undefined) updateData.lead_type = updates.lead_type || null;
     if (updates.company_name !== undefined) updateData.company_name = updates.company_name || null;
+    if (updates.number_of_beneficiary !== undefined) updateData.number_of_beneficiary = updates.number_of_beneficiary || null;
     if (updates.location !== undefined) updateData.location = updates.location || null;
     if (updates.lead_source !== undefined) updateData.lead_source = updates.lead_source || null;
-    if (updates.type_of_business !== undefined) updateData.type_of_business = updates.type_of_business || null;
-    if (updates.number_of_employees !== undefined) updateData.number_of_employees = updates.number_of_employees || null;
 
     // EVENT-SPECIFIC FIELDS
     if (updates.event_name !== undefined) updateData.event_name = updates.event_name || null;
@@ -102,7 +104,7 @@ export class LeadService {
     if (updates.product !== undefined) updateData.product = updates.product || null;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.remarks !== undefined) updateData.remarks = updates.remarks || null;
-    if (updates.next_action !== undefined) updateData.next_action = updates.next_action || null;
+    if (updates.disposition !== undefined) updateData.disposition = updates.disposition || null;
     if (updates.assigned_to !== undefined) updateData.assigned_to = updates.assigned_to || null;
 
     await this.db.update('leads', updateData, { id: leadId });

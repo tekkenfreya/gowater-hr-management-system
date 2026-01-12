@@ -39,11 +39,12 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
   const [formData, setFormData] = useState<LeadFormData>({
     category: lead.category,
     // LEAD FIELDS
+    date_of_interaction: lead.date_of_interaction || '',
+    lead_type: lead.lead_type || '',
     company_name: lead.company_name || '',
+    number_of_beneficiary: lead.number_of_beneficiary || '',
     location: lead.location || '',
     lead_source: lead.lead_source || '',
-    type_of_business: lead.type_of_business || '',
-    number_of_employees: lead.number_of_employees || '',
     // EVENT FIELDS
     event_name: lead.event_name || '',
     venue: lead.venue || '',
@@ -63,7 +64,7 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
     product: lead.product || undefined,
     status: lead.status || 'not-started',
     remarks: lead.remarks || '',
-    next_action: lead.next_action || '',
+    disposition: lead.disposition || '',
     assigned_to: lead.assigned_to || '',
   });
   const [loading, setLoading] = useState(false);
@@ -186,6 +187,44 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
                 />
               </div>
 
+              {/* Date of Interaction */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Date of Interaction</label>
+                <input
+                  type="date"
+                  name="date_of_interaction"
+                  value={formData.date_of_interaction}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                />
+              </div>
+
+              {/* Lead Type */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Lead Type</label>
+                <input
+                  type="text"
+                  name="lead_type"
+                  value={formData.lead_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="e.g., Company/Organization, Individual"
+                />
+              </div>
+
+              {/* Number of Beneficiary */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Number of Beneficiary</label>
+                <input
+                  type="text"
+                  name="number_of_beneficiary"
+                  value={formData.number_of_beneficiary}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter number of beneficiaries"
+                />
+              </div>
+
               {/* Lead Source */}
               <div>
                 <label className="block text-sm font-semibold text-[#323130] mb-1.5">Lead Source</label>
@@ -196,32 +235,6 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
                   placeholder="e.g., Referral, Website, Cold Call"
-                />
-              </div>
-
-              {/* Type of Business */}
-              <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Type of Business</label>
-                <input
-                  type="text"
-                  name="type_of_business"
-                  value={formData.type_of_business}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="e.g., Manufacturing, Education, Retail"
-                />
-              </div>
-
-              {/* Number of Employees */}
-              <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Number of Employees</label>
-                <input
-                  type="text"
-                  name="number_of_employees"
-                  value={formData.number_of_employees}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="e.g., 50-100, 200+"
                 />
               </div>
             </>
@@ -482,16 +495,16 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
             />
           </div>
 
-          {/* Next Action */}
+          {/* Disposition */}
           <div>
-            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Next Action</label>
+            <label className="block text-sm font-semibold text-[#323130] mb-1.5">Disposition</label>
             <textarea
-              name="next_action"
-              value={formData.next_action}
+              name="disposition"
+              value={formData.disposition}
               onChange={handleChange}
               rows={2}
               className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
-              placeholder={isLead ? 'What should be done next with this lead?' : isEvent ? 'What should be done next for this event?' : 'What should be done next with this supplier?'}
+              placeholder={isLead ? 'What is the current disposition of this lead?' : isEvent ? 'What is the status of this event?' : 'What is the status with this supplier?'}
             />
           </div>
 

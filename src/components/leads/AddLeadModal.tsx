@@ -35,15 +35,43 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
+const LEAD_TYPE_OPTIONS = [
+  { value: 'company', label: 'Company/Organization' },
+  { value: 'individual', label: 'Individual' },
+];
+
+const LEAD_SOURCE_OPTIONS = [
+  { value: 'referral', label: 'Referral' },
+  { value: 'own-leads', label: 'Own Leads' },
+  { value: 'website', label: 'Website' },
+  { value: 'social-media', label: 'Social Media' },
+  { value: 'events', label: 'Events' },
+];
+
+const DISPOSITION_OPTIONS = [
+  { value: 'lead-generation', label: 'Lead Generation' },
+  { value: 'introduction', label: 'Introduction' },
+  { value: 'sending-proposal', label: 'Sending Proposal' },
+  { value: 'for-presentation', label: 'For Presentation (Meeting)' },
+  { value: 'for-follow-up', label: 'For Follow up' },
+  { value: 'interested', label: 'Interested' },
+  { value: 'for-deposit', label: 'For Deposit' },
+  { value: 'for-fabrication', label: 'For Fabrication and Materials Purchase' },
+  { value: 'for-delivery', label: 'For Delivery' },
+  { value: 'for-negotiation', label: 'For Further Negotiation' },
+];
+
 export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadModalProps) {
   const [formData, setFormData] = useState<LeadFormData>({
     category,
     // LEAD FIELDS
+    date_of_interaction: '',
+    lead_type: 'company',
     company_name: '',
+    contact_person: '',
+    number_of_beneficiary: '',
     location: '',
     lead_source: '',
-    type_of_business: '',
-    number_of_employees: '',
     // EVENT FIELDS
     event_name: '',
     venue: '',
@@ -57,13 +85,12 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
     price: '',
     unit_type: '',
     // SHARED FIELDS
-    contact_person: '',
     mobile_number: '',
     email_address: '',
     product: undefined,
     status: 'not-started',
     remarks: '',
-    next_action: '',
+    disposition: '',
     assigned_to: '',
   });
   const [loading, setLoading] = useState(false);
@@ -144,10 +171,39 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
           {/* LEAD FIELDS */}
           {isLead && (
             <>
-              {/* Company Name */}
+              {/* Date of Interaction */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Date of Interaction</label>
+                <input
+                  type="date"
+                  name="date_of_interaction"
+                  value={formData.date_of_interaction}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                />
+              </div>
+
+              {/* Lead Type */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Type</label>
+                <select
+                  name="lead_type"
+                  value={formData.lead_type || 'company'}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                >
+                  {LEAD_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Company/Organization Name */}
               <div>
                 <label className="block text-sm font-semibold text-[#323130] mb-1.5">
-                  Company Name <span className="text-[#D13438]">*</span>
+                  Company/Organization Name <span className="text-[#D13438]">*</span>
                 </label>
                 <input
                   type="text"
@@ -156,9 +212,37 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="Enter company name"
+                  placeholder="Enter company/organization name"
                 />
               </div>
+
+              {/* Name (Contact Person & Designation) */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Name (Contact Person & Designation)</label>
+                <input
+                  type="text"
+                  name="contact_person"
+                  value={formData.contact_person}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="e.g., John Doe - Manager"
+                />
+              </div>
+
+              {/* Number of Beneficiary - conditional */}
+              {formData.lead_type === 'company' && (
+                <div>
+                  <label className="block text-sm font-semibold text-[#323130] mb-1.5">Number of Beneficiary</label>
+                  <input
+                    type="text"
+                    name="number_of_beneficiary"
+                    value={formData.number_of_beneficiary}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                    placeholder="e.g., 50, 100-200"
+                  />
+                </div>
+              )}
 
               {/* Location */}
               <div>
@@ -173,43 +257,127 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
                 />
               </div>
 
+              {/* Contact # */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Contact #</label>
+                <input
+                  type="text"
+                  name="mobile_number"
+                  value={formData.mobile_number}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter contact number"
+                />
+              </div>
+
+              {/* Email Address */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  name="email_address"
+                  value={formData.email_address}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Enter email address"
+                />
+              </div>
+
               {/* Lead Source */}
               <div>
                 <label className="block text-sm font-semibold text-[#323130] mb-1.5">Lead Source</label>
-                <input
-                  type="text"
+                <select
                   name="lead_source"
-                  value={formData.lead_source}
+                  value={formData.lead_source || ''}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="e.g., Referral, Website, Cold Call"
+                >
+                  <option value="">Select lead source</option>
+                  {LEAD_SOURCE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Product Interest */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Product Interest</label>
+                <select
+                  name="product"
+                  value={formData.product || ''}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                >
+                  <option value="">Select product</option>
+                  {PRODUCT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Status</label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assigned To */}
+              <div>
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Assign To</label>
+                <input
+                  type="text"
+                  name="assigned_to"
+                  value={formData.assigned_to}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
+                  placeholder="Leave blank to auto-assign to yourself"
                 />
               </div>
 
-              {/* Type of Business */}
+              {/* Remarks */}
               <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Type of Business</label>
-                <input
-                  type="text"
-                  name="type_of_business"
-                  value={formData.type_of_business}
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Remarks</label>
+                <textarea
+                  name="remarks"
+                  value={formData.remarks}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="e.g., Manufacturing, Education, Retail"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
+                  placeholder="Add any additional notes"
                 />
               </div>
 
-              {/* Number of Employees */}
+              {/* Disposition */}
               <div>
-                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Number of Employees</label>
-                <input
-                  type="text"
-                  name="number_of_employees"
-                  value={formData.number_of_employees}
+                <label className="block text-sm font-semibold text-[#323130] mb-1.5">Disposition</label>
+                <select
+                  name="disposition"
+                  value={formData.disposition || ''}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent text-[#323130]"
-                  placeholder="e.g., 50-100, 200+"
-                />
+                >
+                  <option value="">Select disposition</option>
+                  {DISPOSITION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </>
           )}
@@ -363,8 +531,9 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             </>
           )}
 
-          {/* SHARED FIELDS (used by leads, events, and supplier) */}
-
+          {/* SHARED FIELDS (used by events and supplier only - leads has its own fields) */}
+          {!isLead && (
+            <>
           {/* Contact Person */}
           <div>
             <label className="block text-sm font-semibold text-[#323130] mb-1.5">Contact Person</label>
@@ -469,18 +638,20 @@ export default function AddLeadModal({ category, onClose, onSuccess }: AddLeadMo
             />
           </div>
 
-          {/* Next Action */}
+          {/* Next Action - for events and supplier only */}
           <div>
             <label className="block text-sm font-semibold text-[#323130] mb-1.5">Next Action</label>
             <textarea
-              name="next_action"
-              value={formData.next_action}
+              name="disposition"
+              value={formData.disposition}
               onChange={handleChange}
               rows={2}
               className="w-full px-3 py-2 border border-[#C8C6C4] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent resize-none text-[#323130]"
-              placeholder={isLead ? 'What should be done next with this lead?' : isEvent ? 'What should be done next for this event?' : 'What should be done next with this supplier?'}
+              placeholder={isEvent ? 'What should be done next for this event?' : 'What should be done next with this supplier?'}
             />
           </div>
+            </>
+          )}
 
           {/* Actions */}
           <div className="flex space-x-3 pt-4">

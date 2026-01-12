@@ -7,11 +7,12 @@ export interface Lead {
   category: LeadCategory;
 
   // LEAD-SPECIFIC FIELDS (used when category = 'lead')
+  date_of_interaction: string | null;
+  lead_type: string | null;
   company_name: string | null;
+  number_of_beneficiary: string | null;
   location: string | null;
   lead_source: string | null;
-  type_of_business: string | null;
-  number_of_employees: string | null;
 
   // EVENT-SPECIFIC FIELDS (used when category = 'event')
   event_name: string | null;
@@ -34,7 +35,7 @@ export interface Lead {
   product: ProductType | null;
   status: string;
   remarks: string | null;
-  next_action: string | null;
+  disposition: string | null;
   assigned_to: string | null; // Employee name
   created_by: string;
   created_at: string;
@@ -63,11 +64,12 @@ export interface LeadFormData {
   category: LeadCategory;
 
   // LEAD-SPECIFIC FIELDS
+  date_of_interaction?: string;
+  lead_type?: string;
   company_name?: string;
+  number_of_beneficiary?: string;
   location?: string;
   lead_source?: string;
-  type_of_business?: string;
-  number_of_employees?: string;
 
   // EVENT-SPECIFIC FIELDS
   event_name?: string;
@@ -90,7 +92,7 @@ export interface LeadFormData {
   product?: ProductType;
   status?: string;
   remarks?: string;
-  next_action?: string;
+  disposition?: string;
   assigned_to?: string;
 }
 
