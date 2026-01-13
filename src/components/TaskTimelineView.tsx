@@ -129,7 +129,7 @@ export default function TaskTimelineView({
 
   const handleSubTaskToggle = async (task: Task, subTaskId: string) => {
     const updatedSubTasks = task.subTasks.map(st =>
-      st.id === subTaskId ? { ...st, status: st.status === 'completed' ? 'pending' : 'completed' } : st
+      st.id === subTaskId ? { ...st, status: (st.status === 'completed' ? 'pending' : 'completed') as 'pending' | 'completed' } : st
     );
     await onTaskUpdate(task.id, { subTasks: updatedSubTasks });
   };
