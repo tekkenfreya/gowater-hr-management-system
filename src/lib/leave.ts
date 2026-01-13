@@ -45,12 +45,10 @@ export interface CreateLeaveRequestData {
 }
 
 export interface LeaveBalance {
-  annual: { used: number; total: number };
+  vacation: { used: number; total: number };
   sick: { used: number; total: number };
-  personal: { used: number; total: number };
-  maternity: { used: number; total: number };
-  paternity: { used: number; total: number };
-  unpaid: { used: number; total: number };
+  absent: { count: number };
+  offset: { available: number };
 }
 
 export class LeaveService {
@@ -276,38 +274,46 @@ export class LeaveService {
       `, [userId, currentYear]);
 
       const usedLeave = {
-        annual: 0,
-        sick: 0,
-        personal: 0,
-        maternity: 0,
-        paternity: 0,
-        unpaid: 0
+        vacation: 0,
+        sick: 0
       };
 
       leaveRequests?.forEach(leave => {
-        if (leave.leave_type in usedLeave) {
-          usedLeave[leave.leave_type as keyof typeof usedLeave] = parseInt(leave.total_days) || 0;
+        if (leave.leave_type === 'vacation' || leave.leave_type === 'annual') {
+          usedLeave.vacation += parseInt(leave.total_days) || 0;
+        } else if (leave.leave_type === 'sick') {
+          usedLeave.sick += parseInt(leave.total_days) || 0;
         }
       });
 
-      // Standard leave allocations (can be made configurable later)
+      // Get absent count from attendance records (status='absent')
+      const absentResult = await this.db.executeRawSQL(`
+        SELECT COUNT(*) as count
+        FROM attendance
+        WHERE user_id = $1
+          AND status = 'absent'
+          AND EXTRACT(YEAR FROM date) = $2
+      `, [userId, currentYear]);
+      const absentCount = parseInt(absentResult?.[0]?.count) || 0;
+
+      // Get offset credits (TODO: implement offset tracking table)
+      // For now return 0, will need offsets table to track holiday work credits
+      const offsetCredits = 0;
+
+      // Standard leave allocations
       return {
-        annual: { used: usedLeave.annual, total: 20 },
+        vacation: { used: usedLeave.vacation, total: 20 },
         sick: { used: usedLeave.sick, total: 10 },
-        personal: { used: usedLeave.personal, total: 5 },
-        maternity: { used: usedLeave.maternity, total: 90 },
-        paternity: { used: usedLeave.paternity, total: 14 },
-        unpaid: { used: usedLeave.unpaid, total: 365 }
+        absent: { count: absentCount },
+        offset: { available: offsetCredits }
       };
     } catch (error) {
       logger.error('Get leave balance error', error);
       return {
-        annual: { used: 0, total: 20 },
+        vacation: { used: 0, total: 20 },
         sick: { used: 0, total: 10 },
-        personal: { used: 0, total: 5 },
-        maternity: { used: 0, total: 90 },
-        paternity: { used: 0, total: 14 },
-        unpaid: { used: 0, total: 365 }
+        absent: { count: 0 },
+        offset: { available: 0 }
       };
     }
   }

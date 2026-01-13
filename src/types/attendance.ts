@@ -20,12 +20,10 @@ export interface WorkSchedule {
 }
 
 export interface LeaveBalance {
-  annual: number;
-  sick: number;
-  personal: number;
-  maternity?: number;
-  paternity?: number;
-  total: number;
+  vacation: { used: number; total: number };
+  sick: { used: number; total: number };
+  absent: { count: number };
+  offset: { available: number };
 }
 
 export interface AttendanceRecord {
