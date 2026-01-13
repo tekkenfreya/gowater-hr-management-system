@@ -275,7 +275,7 @@ export default function Dashboard() {
         id: st.id || `temp-${Date.now()}`,
         title: st.title || '',
         notes: st.notes || '',
-        completed: st.completed || false
+        status: st.status || 'pending'
       })),
       priority: (task.priority || 'medium') as 'low' | 'medium' | 'high' | 'urgent'
     });
