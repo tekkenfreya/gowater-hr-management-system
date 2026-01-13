@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger';
 interface LeaveRequest {
   id: number;
   user_id: number;
-  leave_type: 'annual' | 'sick' | 'personal' | 'emergency';
+  leave_type: 'vacation' | 'sick' | 'absent' | 'offset';
   start_date: string;
   end_date: string;
   reason: string;
@@ -35,15 +35,15 @@ export default function LeaveTracker() {
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
   const [leaveBalance, setLeaveBalance] = useState({
-    annual: { used: 0, total: 20 },
+    vacation: { used: 0, total: 20 },
     sick: { used: 0, total: 10 },
-    personal: { used: 0, total: 5 },
-    emergency: { used: 0, total: 3 }
+    absent: { count: 0 }, // Number of absences (no total, just count)
+    offset: { available: 0 } // Credits earned from working holidays
   });
-  
+
   // Leave application form state
   const [newLeave, setNewLeave] = useState({
-    type: 'annual' as LeaveRequest['leave_type'],
+    type: 'vacation' as LeaveRequest['leave_type'],
     startDate: '',
     endDate: '',
     reason: ''
@@ -139,7 +139,7 @@ export default function LeaveTracker() {
 
       // Reset form and refresh data
       setNewLeave({
-        type: 'annual',
+        type: 'vacation',
         startDate: '',
         endDate: '',
         reason: ''
@@ -168,11 +168,21 @@ export default function LeaveTracker() {
 
   const getLeaveTypeColor = (type: LeaveRequest['leave_type']) => {
     switch (type) {
-      case 'annual': return 'bg-blue-100 text-blue-800';
+      case 'vacation': return 'bg-blue-100 text-blue-800';
       case 'sick': return 'bg-red-100 text-red-800';
-      case 'personal': return 'bg-purple-100 text-purple-800';
-      case 'emergency': return 'bg-orange-100 text-orange-800';
+      case 'absent': return 'bg-orange-100 text-orange-800';
+      case 'offset': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getLeaveTypeLabel = (type: LeaveRequest['leave_type']) => {
+    switch (type) {
+      case 'vacation': return 'Vacation Leave';
+      case 'sick': return 'Sick Leave';
+      case 'absent': return 'Absent';
+      case 'offset': return 'Offset';
+      default: return type;
     }
   };
 
@@ -215,12 +225,13 @@ export default function LeaveTracker() {
         </div>
 
         {/* Leave Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Vacation Leave */}
           <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-6 shadow-md border-2 border-cyan-200 hover:shadow-lg hover:border-cyan-300 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-gray-800">Vacation Leave</p>
-                <p className="text-2xl font-bold text-blue-600">{leaveBalance.annual.total - leaveBalance.annual.used}</p>
+                <p className="text-2xl font-bold text-blue-600">{leaveBalance.vacation.total - leaveBalance.vacation.used}</p>
                 <p className="text-xs text-gray-800">Available days</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
@@ -229,18 +240,19 @@ export default function LeaveTracker() {
             </div>
             <div className="mt-4">
               <div className="flex justify-between text-sm text-gray-800">
-                <span>Used: {leaveBalance.annual.used}</span>
-                <span>Total: {leaveBalance.annual.total}</span>
+                <span>Used: {leaveBalance.vacation.used}</span>
+                <span>Total: {leaveBalance.vacation.total}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                 <div
                   className="bg-gradient-to-r from-blue-600 to-cyan-500 h-2 rounded-full shadow-md shadow-blue-300/50"
-                  style={{ width: `${(leaveBalance.annual.used / leaveBalance.annual.total) * 100}%` }}
+                  style={{ width: `${(leaveBalance.vacation.used / leaveBalance.vacation.total) * 100}%` }}
                 ></div>
               </div>
             </div>
           </div>
 
+          {/* Sick Leave */}
           <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 shadow-md border-2 border-red-200 hover:shadow-lg hover:border-red-300 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
@@ -266,28 +278,37 @@ export default function LeaveTracker() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 shadow-md border-2 border-purple-200 hover:shadow-lg hover:border-purple-300 transition-all duration-300">
+          {/* Absents */}
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 shadow-md border-2 border-orange-200 hover:shadow-lg hover:border-orange-300 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-800">Personal Leave</p>
-                <p className="text-2xl font-bold text-purple-600">{leaveBalance.personal.total - leaveBalance.personal.used}</p>
-                <p className="text-xs text-gray-800">Available days</p>
+                <p className="text-sm font-semibold text-gray-800">Absents</p>
+                <p className="text-2xl font-bold text-orange-600">{leaveBalance.absent.count}</p>
+                <p className="text-xs text-gray-800">Total absences</p>
               </div>
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <UserIcon className="w-6 h-6 text-purple-600" />
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <AbsentIcon className="w-6 h-6 text-orange-600" />
               </div>
             </div>
             <div className="mt-4">
-              <div className="flex justify-between text-sm text-gray-800">
-                <span>Used: {leaveBalance.personal.used}</span>
-                <span>Total: {leaveBalance.personal.total}</span>
+              <p className="text-xs text-gray-600">Number of times absent without prior notice</p>
+            </div>
+          </div>
+
+          {/* Offsets */}
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 shadow-md border-2 border-green-200 hover:shadow-lg hover:border-green-300 transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Offsets</p>
+                <p className="text-2xl font-bold text-green-600">{leaveBalance.offset.available}</p>
+                <p className="text-xs text-gray-800">Available credits</p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                <div
-                  className="bg-gradient-to-r from-purple-600 to-purple-700 h-2 rounded-full shadow-md shadow-purple-300/50"
-                  style={{ width: `${(leaveBalance.personal.used / leaveBalance.personal.total) * 100}%` }}
-                ></div>
+              <div className="bg-green-100 p-3 rounded-lg">
+                <OffsetIcon className="w-6 h-6 text-green-600" />
               </div>
+            </div>
+            <div className="mt-4">
+              <p className="text-xs text-gray-600">Credits earned from working on holidays</p>
             </div>
           </div>
         </div>
@@ -339,10 +360,10 @@ export default function LeaveTracker() {
                       onChange={(e) => setNewLeave({ ...newLeave, type: e.target.value as LeaveRequest['leave_type'] })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan"
                     >
-                      <option value="annual">Annual Leave</option>
+                      <option value="vacation">Vacation Leave</option>
                       <option value="sick">Sick Leave</option>
-                      <option value="personal">Personal</option>
-                      <option value="emergency">Emergency</option>
+                      <option value="absent">Absent</option>
+                      <option value="offset">Offset</option>
                     </select>
                   </div>
 
@@ -420,7 +441,7 @@ export default function LeaveTracker() {
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLeaveTypeColor(request.leave_type)}`}>
-                              {request.leave_type === 'annual' ? 'Annual' : request.leave_type.charAt(0).toUpperCase() + request.leave_type.slice(1)}
+                              {getLeaveTypeLabel(request.leave_type)}
                             </span>
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(request.status)}`}>
                               {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
@@ -470,6 +491,22 @@ function CalendarIcon({ className }: { className?: string }) {
   return (
     <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function AbsentIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+    </svg>
+  );
+}
+
+function OffsetIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }
