@@ -53,7 +53,7 @@ export default function TasksPage() {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    subTasks: [] as { id: string; title: string; notes: string; completed: boolean }[],
+    subTasks: [] as { id: string; title: string; notes: string; status: 'pending' | 'in_progress' | 'completed' | 'cancel' }[],
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
 
@@ -1061,7 +1061,7 @@ ${tasksSection}`;
                         id: `temp-${Date.now()}`,
                         title: '',
                         notes: '',
-                        completed: false
+                        status: 'pending' as const
                       };
                       setNewTask({ ...newTask, subTasks: [...newTask.subTasks, newSubTask] });
                     }}
@@ -1290,7 +1290,7 @@ ${tasksSection}`;
                         id: `temp-${Date.now()}`,
                         title: '',
                         notes: '',
-                        completed: false
+                        status: 'pending' as const
                       };
                       setEditingTask({
                         ...editingTask,

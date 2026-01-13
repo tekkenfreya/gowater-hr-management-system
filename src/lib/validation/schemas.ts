@@ -298,7 +298,7 @@ export const updateTaskSchema = z.object({
   description: z.string().max(1000).optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'blocked', 'archived']).optional(),
+  status: z.enum(['pending', 'in_progress', 'completed', 'cancel', 'archived']).optional(),
 });
 
 // ================================================================

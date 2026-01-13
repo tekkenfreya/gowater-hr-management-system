@@ -61,7 +61,7 @@ export interface SubTask {
   id: string;
   title: string;
   notes: string;
-  completed: boolean;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancel';
 }
 
 export interface TaskUpdate {

@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
 import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
+import { calculateTaskStatus, getStatusBadgeClass, getStatusLabel } from '@/utils/taskStatusCalculator';
 
 interface Task {
   id: number;
@@ -20,7 +21,7 @@ interface Task {
     id: string;
     title: string;
     notes: string;
-    completed: boolean;
+    status: 'pending' | 'in_progress' | 'completed' | 'cancel';
   }>;
   updates?: Array<{
     update_id: string;
@@ -29,6 +30,22 @@ interface Task {
     update_text: string;
     created_at: string;
   }>;
+}
+
+// Helper function to format subtask status for WhatsApp
+function formatSubTaskStatus(status: string): string {
+  switch (status) {
+    case 'completed':
+      return 'Done';
+    case 'in_progress':
+      return 'In Progress';
+    case 'pending':
+      return 'Pending';
+    case 'cancel':
+      return 'Canceled';
+    default:
+      return status;
+  }
 }
 
 export default function Dashboard() {
@@ -69,7 +86,7 @@ export default function Dashboard() {
   const [checkInCopied, setCheckInCopied] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
-    subTasks: [] as { id: string; title: string; notes: string; completed: boolean }[],
+    subTasks: [] as { id: string; title: string; notes: string; status: 'pending' | 'in_progress' | 'completed' | 'cancel' }[],
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
 
@@ -166,11 +183,34 @@ export default function Dashboard() {
         const data = await response.json();
         // Filter for today's active/pending tasks
         const today = new Date().toISOString().split('T')[0];
-        const todaysTasks = (data.tasks || []).filter((task: Task) =>
-          task.status !== 'archived' &&
-          task.status !== 'completed' &&
-          (!task.due_date || task.due_date.startsWith(today))
-        );
+        const todaysTasks = (data.tasks || [])
+          .filter((task: Task) =>
+            task.status !== 'archived' &&
+            task.status !== 'completed' &&
+            (!task.due_date || task.due_date.startsWith(today))
+          )
+          .map((task: Task) => {
+            // Filter out completed subtasks from check-in view
+            if (task.subTasks && task.subTasks.length > 0) {
+              const originalSubTaskCount = task.subTasks.length;
+              const incompleteSubTasks = task.subTasks.filter(st => st.status !== 'completed');
+
+              return {
+                ...task,
+                subTasks: incompleteSubTasks,
+                _hadSubTasks: originalSubTaskCount > 0, // Track if task originally had subtasks
+                _allSubTasksCompleted: incompleteSubTasks.length === 0
+              };
+            }
+            return task;
+          })
+          // Remove tasks where all subtasks are completed
+          .filter((task: any) => {
+            if (task._allSubTasksCompleted) {
+              return false; // Hide task if all subtasks are done
+            }
+            return true;
+          });
         setCheckInTasks(todaysTasks);
       }
     } catch (error) {
@@ -327,8 +367,8 @@ export default function Dashboard() {
             // Add sub-tasks if available
             if (task.subTasks && task.subTasks.length > 0) {
               task.subTasks.forEach((subTask, subIndex) => {
-                const checkbox = subTask.completed ? '[✓]' : '[ ]';
-                taskText += `\n   ${checkbox} ${subTask.title}`;
+                const statusLabel = formatSubTaskStatus(subTask.status);
+                taskText += `\n   ${subTask.title} [${statusLabel}]`;
                 if (subTask.notes?.trim()) {
                   taskText += `\n   [${subTask.notes.trim()}]`;
                 }
@@ -398,8 +438,8 @@ ${tasksSection}`;
             // Add sub-tasks if available
             if (task.subTasks && task.subTasks.length > 0) {
               task.subTasks.forEach((subTask, subIndex) => {
-                const checkbox = subTask.completed ? '[✓]' : '[ ]';
-                taskText += `\n   ${checkbox} ${subTask.title}`;
+                const statusLabel = formatSubTaskStatus(subTask.status);
+                taskText += `\n   ${subTask.title} [${statusLabel}]`;
                 if (subTask.notes?.trim()) {
                   taskText += `\n   [${subTask.notes.trim()}]`;
                 }
@@ -450,12 +490,30 @@ ${tasksSection}`;
         const data = await response.json();
         // Get only active tasks (pending/in_progress) to update status
         const today = new Date().toISOString().split('T')[0];
-        const todaysTasks = (data.tasks || []).filter((task: Task) =>
-          task.status !== 'archived' &&
-          task.status !== 'completed' &&
-          (task.status === 'pending' || task.status === 'in_progress' || task.status === 'blocked') &&
-          (!task.due_date || task.due_date.startsWith(today))
-        );
+        const todaysTasks = (data.tasks || [])
+          .filter((task: Task) =>
+            task.status !== 'archived' &&
+            task.status !== 'completed' &&
+            (task.status === 'pending' || task.status === 'in_progress' || task.status === 'cancel') &&
+            (!task.due_date || task.due_date.startsWith(today))
+          )
+          .map((task: Task) => {
+            // Filter out already-completed subtasks (from previous sessions)
+            if (task.subTasks && task.subTasks.length > 0) {
+              return {
+                ...task,
+                subTasks: task.subTasks.filter(st => st.status !== 'completed')
+              };
+            }
+            return task;
+          })
+          // Remove tasks where all subtasks were already completed
+          .filter((task: Task) => {
+            if (task.subTasks && task.subTasks.length === 0) {
+              return false; // Hide task if no incomplete subtasks
+            }
+            return true;
+          });
         setCheckOutTasks(todaysTasks);
       }
     } catch (error) {
@@ -473,38 +531,17 @@ ${tasksSection}`;
   };
 
   // Update task status
-  const handleUpdateTaskStatus = async (taskId: number, newStatus: string) => {
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: taskId,
-          status: newStatus
-        }),
-      });
-
-      if (response.ok) {
-        // Update local state
-        setCheckOutTasks(prevTasks =>
-          prevTasks.map(task =>
-            task.id === taskId ? { ...task, status: newStatus } : task
-          )
-        );
-      } else {
-        alert('Failed to update task status');
-      }
-    } catch (error) {
-      logger.error('Failed to update task status', error);
-      alert('Failed to update task status');
-    }
-  };
-
   // Save all subtask updates before checking out
   const saveSubTaskUpdates = async () => {
     try {
       for (const task of checkOutTasks) {
         if (task.subTasks && task.subTasks.length > 0) {
+          // Auto-calculate main task status from subtasks before saving
+          const calculatedStatus = calculateTaskStatus(
+            task.subTasks,
+            task.status as any
+          );
+
           await fetch('/api/tasks', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -513,7 +550,7 @@ ${tasksSection}`;
               title: task.title,
               description: task.description || '',
               priority: task.priority,
-              status: task.status,
+              status: calculatedStatus, // Save the auto-calculated status
               subTasks: task.subTasks
             }),
           });
@@ -566,8 +603,8 @@ ${tasksSection}`;
             // Add sub-tasks if available
             if (task.subTasks && task.subTasks.length > 0) {
               task.subTasks.forEach((subTask, subIndex) => {
-                const checkbox = subTask.completed ? '[✓]' : '[ ]';
-                taskText += `\n   ${checkbox} ${subTask.title}`;
+                const statusLabel = formatSubTaskStatus(subTask.status);
+                taskText += `\n   ${subTask.title} [${statusLabel}]`;
                 // Add notes in brackets below subtask if available
                 if (subTask.notes?.trim()) {
                   taskText += `\n   [${subTask.notes.trim()}]`;
@@ -956,7 +993,7 @@ ${tasksSection}`;
                                     id: `temp-${Date.now()}`,
                                     title: '',
                                     notes: '',
-                                    completed: false
+                                    status: 'pending' as const
                                   };
                                   setNewTask({ ...newTask, subTasks: [...newTask.subTasks, newSubTask] });
                                 }}
@@ -1080,7 +1117,7 @@ ${tasksSection}`;
                                     id: `temp-${Date.now()}`,
                                     title: '',
                                     notes: '',
-                                    completed: false
+                                    status: 'pending' as const
                                   };
                                   setNewTask({ ...newTask, subTasks: [...newTask.subTasks, newSubTask] });
                                 }}
@@ -1365,21 +1402,9 @@ ${tasksSection}`;
                                 </span>
                                 <h4 className="font-semibold text-gray-900">{task.title}</h4>
                               </div>
-                              <select
-                                value={task.status}
-                                onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
-                                className={`px-3 py-2 border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                                  task.status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
-                                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                                  task.status === 'blocked' ? 'bg-red-100 text-red-800 border-red-300' :
-                                  'bg-gray-100 text-gray-800 border-gray-300'
-                                }`}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="completed">Completed</option>
-                                <option value="blocked">Blocked</option>
-                              </select>
+                              <div className={`px-3 py-2 border rounded-lg text-sm font-bold ${getStatusBadgeClass(task.status as any)}`}>
+                                {getStatusLabel(task.status)}
+                              </div>
                             </div>
 
                             {/* Sub-tasks */}
@@ -1387,24 +1412,45 @@ ${tasksSection}`;
                               <div className="ml-9 space-y-2">
                                 {task.subTasks.map((subTask, subIndex) => (
                                   <div key={subTask.id} className="border border-gray-200 rounded-lg p-3 bg-white">
-                                    <div className="flex items-start space-x-2">
-                                      <input
-                                        type="checkbox"
-                                        checked={subTask.completed}
-                                        onChange={(e) => {
-                                          const updatedTasks = [...checkOutTasks];
-                                          const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
-                                          if (taskIdx !== -1 && updatedTasks[taskIdx].subTasks) {
-                                            updatedTasks[taskIdx].subTasks![subIndex].completed = e.target.checked;
-                                            setCheckOutTasks(updatedTasks);
-                                          }
-                                        }}
-                                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                                      />
-                                      <div className="flex-1">
-                                        <label className="text-sm font-medium text-gray-900 cursor-pointer">
-                                          {subTask.title}
-                                        </label>
+                                    <div className="flex items-start space-x-3">
+                                      <div className="flex-1 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-sm font-semibold text-gray-900">
+                                            {subTask.title}
+                                          </label>
+                                          <select
+                                            value={subTask.status}
+                                            onChange={(e) => {
+                                              const updatedTasks = [...checkOutTasks];
+                                              const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
+                                              if (taskIdx !== -1 && updatedTasks[taskIdx].subTasks) {
+                                                // Update subtask status
+                                                updatedTasks[taskIdx].subTasks![subIndex].status = e.target.value as any;
+
+                                                // Auto-calculate main task status based on subtasks
+                                                const mainTask = updatedTasks[taskIdx];
+                                                const newMainStatus = calculateTaskStatus(
+                                                  mainTask.subTasks!,
+                                                  mainTask.status as any
+                                                );
+                                                updatedTasks[taskIdx].status = newMainStatus;
+
+                                                setCheckOutTasks(updatedTasks);
+                                              }
+                                            }}
+                                            className={`px-2 py-1 border rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                                              subTask.status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
+                                              subTask.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                              subTask.status === 'cancel' ? 'bg-red-100 text-red-800 border-red-300' :
+                                              'bg-gray-100 text-gray-800 border-gray-300'
+                                            }`}
+                                          >
+                                            <option value="pending">Pending</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="cancel">Cancel</option>
+                                          </select>
+                                        </div>
                                         <textarea
                                           value={subTask.notes || ''}
                                           onChange={(e) => {
@@ -1416,7 +1462,7 @@ ${tasksSection}`;
                                             }
                                           }}
                                           placeholder="Add details about what was done..."
-                                          className="w-full mt-2 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
                                           rows={2}
                                         />
                                       </div>
