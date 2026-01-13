@@ -37,7 +37,7 @@ export interface CreateLeaveRequestData {
   user_id: number;
   start_date: string;
   end_date: string;
-  leave_type: 'annual' | 'sick' | 'personal' | 'maternity' | 'paternity' | 'unpaid';
+  leave_type: 'vacation' | 'sick' | 'absent' | 'offset' | 'annual' | 'personal' | 'maternity' | 'paternity' | 'unpaid' | 'emergency';
   reason: string;
   halfDay?: boolean;
   attachments?: string[];
