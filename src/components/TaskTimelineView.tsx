@@ -119,7 +119,7 @@ export default function TaskTimelineView({
 
   const calculateProgress = (task: Task) => {
     if (!task.subTasks || task.subTasks.length === 0) return 0;
-    const completed = task.subTasks.filter(st => st.completed).length;
+    const completed = task.subTasks.filter(st => st.status === 'completed').length;
     return (completed / task.subTasks.length) * 100;
   };
 
@@ -129,7 +129,7 @@ export default function TaskTimelineView({
 
   const handleSubTaskToggle = async (task: Task, subTaskId: string) => {
     const updatedSubTasks = task.subTasks.map(st =>
-      st.id === subTaskId ? { ...st, completed: !st.completed } : st
+      st.id === subTaskId ? { ...st, status: st.status === 'completed' ? 'pending' : 'completed' } : st
     );
     await onTaskUpdate(task.id, { subTasks: updatedSubTasks });
   };
@@ -310,12 +310,12 @@ export default function TaskTimelineView({
                         >
                           <div
                             className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                              subTask.completed
+                              subTask.status === 'completed'
                                 ? 'bg-green-500 border-green-500'
                                 : 'border-gray-300 hover:border-green-500'
                             }`}
                           >
-                            {subTask.completed && (
+                            {subTask.status === 'completed' && (
                               <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
@@ -326,12 +326,12 @@ export default function TaskTimelineView({
                         <div className="mt-0.5">
                           <div
                             className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                              subTask.completed
+                              subTask.status === 'completed'
                                 ? 'bg-green-500 border-green-500'
                                 : 'border-gray-300'
                             }`}
                           >
-                            {subTask.completed && (
+                            {subTask.status === 'completed' && (
                               <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
@@ -345,7 +345,7 @@ export default function TaskTimelineView({
                         <div className="flex items-start justify-between">
                           <p
                             className={`text-sm font-medium flex-1 ${
-                              subTask.completed ? 'line-through text-gray-500' : 'text-gray-900'
+                              subTask.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900'
                             }`}
                           >
                             <span className="text-gray-500 mr-2">{index + 1}.</span>
