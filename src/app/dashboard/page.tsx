@@ -205,7 +205,7 @@ export default function Dashboard() {
             return task;
           })
           // Remove tasks where all subtasks are completed
-          .filter((task: any) => {
+          .filter((task: Task & { _allSubTasksCompleted?: boolean }) => {
             if (task._allSubTasksCompleted) {
               return false; // Hide task if all subtasks are done
             }
@@ -539,7 +539,7 @@ ${tasksSection}`;
           // Auto-calculate main task status from subtasks before saving
           const calculatedStatus = calculateTaskStatus(
             task.subTasks,
-            task.status as any
+            task.status as 'pending' | 'in_progress' | 'completed' | 'cancel' | 'archived'
           );
 
           await fetch('/api/tasks', {
@@ -1402,7 +1402,7 @@ ${tasksSection}`;
                                 </span>
                                 <h4 className="font-semibold text-gray-900">{task.title}</h4>
                               </div>
-                              <div className={`px-3 py-2 border rounded-lg text-sm font-bold ${getStatusBadgeClass(task.status as any)}`}>
+                              <div className={`px-3 py-2 border rounded-lg text-sm font-bold ${getStatusBadgeClass(task.status as 'pending' | 'in_progress' | 'completed' | 'cancel' | 'archived')}`}>
                                 {getStatusLabel(task.status)}
                               </div>
                             </div>
@@ -1425,13 +1425,13 @@ ${tasksSection}`;
                                               const taskIdx = updatedTasks.findIndex(t => t.id === task.id);
                                               if (taskIdx !== -1 && updatedTasks[taskIdx].subTasks) {
                                                 // Update subtask status
-                                                updatedTasks[taskIdx].subTasks![subIndex].status = e.target.value as any;
+                                                updatedTasks[taskIdx].subTasks![subIndex].status = e.target.value as 'pending' | 'in_progress' | 'completed' | 'cancel';
 
                                                 // Auto-calculate main task status based on subtasks
                                                 const mainTask = updatedTasks[taskIdx];
                                                 const newMainStatus = calculateTaskStatus(
                                                   mainTask.subTasks!,
-                                                  mainTask.status as any
+                                                  mainTask.status as 'pending' | 'in_progress' | 'completed' | 'cancel' | 'archived'
                                                 );
                                                 updatedTasks[taskIdx].status = newMainStatus;
 
