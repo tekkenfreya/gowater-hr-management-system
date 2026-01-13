@@ -127,6 +127,18 @@ export class LeaveService {
         });
       }
 
+      // Also notify all admins
+      const admins = await this.db.all('users', { role: 'admin', status: 'active' });
+      for (const admin of admins) {
+        await this.notificationService.createNotification({
+          user_id: admin.id,
+          type: 'leave_request',
+          title: 'New Leave Request',
+          message: `${user.name} has submitted a leave request for ${data.leave_type} leave`,
+          data: { leave_request_id: leaveRequest.id, employee_name: user.name }
+        });
+      }
+
       return { success: true, leaveRequestId: leaveRequest.id };
     } catch (error) {
       logger.error('Create leave request error', error);
@@ -302,16 +314,16 @@ export class LeaveService {
 
       // Standard leave allocations
       return {
-        vacation: { used: usedLeave.vacation, total: 20 },
-        sick: { used: usedLeave.sick, total: 10 },
+        vacation: { used: usedLeave.vacation, total: 10 },
+        sick: { used: usedLeave.sick, total: 5 },
         absent: { count: absentCount },
         offset: { available: offsetCredits }
       };
     } catch (error) {
       logger.error('Get leave balance error', error);
       return {
-        vacation: { used: 0, total: 20 },
-        sick: { used: 0, total: 10 },
+        vacation: { used: 0, total: 10 },
+        sick: { used: 0, total: 5 },
         absent: { count: 0 },
         offset: { available: 0 }
       };

@@ -145,6 +145,25 @@ export default function LeaveTracker() {
         reason: ''
       });
 
+      // Open email client with leave details (auto-filled like WhatsApp report)
+      const emailTo = 'mark.belen@nxtlvlwater.xyz,rubyanne.talosig@nxtlvlwater.xyz';
+      const emailSubject = encodeURIComponent(`Leave Request - ${newLeave.type.charAt(0).toUpperCase() + newLeave.type.slice(1)} Leave`);
+      const emailBody = encodeURIComponent(
+        `Dear Admin,\n\n` +
+        `I would like to request leave with the following details:\n\n` +
+        `Leave Type: ${newLeave.type.charAt(0).toUpperCase() + newLeave.type.slice(1)} Leave\n` +
+        `Start Date: ${newLeave.startDate}\n` +
+        `End Date: ${newLeave.endDate}\n` +
+        `Total Days: ${calculateDays(newLeave.startDate, newLeave.endDate)} day(s)\n` +
+        `Reason: ${newLeave.reason}\n\n` +
+        `Please review and approve my leave request.\n\n` +
+        `Best regards,\n` +
+        `${user?.name || 'Employee'}`
+      );
+
+      // Open email client with recipients
+      window.location.href = `mailto:${emailTo}?subject=${emailSubject}&body=${emailBody}`;
+
       // Refresh leave requests and balance
       await fetchLeaveRequests();
       await fetchLeaveBalance();
