@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger';
 interface LeaveRequestWithDetails {
   id: number;
   user_id: number;
-  leave_type: 'annual' | 'sick' | 'personal' | 'maternity' | 'paternity' | 'unpaid';
+  leave_type: 'vacation' | 'sick' | 'absent' | 'offset';
   start_date: string;
   end_date: string;
   reason: string;
@@ -151,24 +151,20 @@ export default function TeamLeaveApprovals() {
 
   const getLeaveTypeColor = (type: LeaveRequestWithDetails['leave_type']) => {
     const colors = {
-      annual: 'text-blue-600',
+      vacation: 'text-blue-600',
       sick: 'text-red-600',
-      personal: 'text-purple-600',
-      maternity: 'text-pink-600',
-      paternity: 'text-green-600',
-      unpaid: 'text-gray-800'
+      absent: 'text-orange-600',
+      offset: 'text-green-600'
     };
     return colors[type];
   };
 
   const getLeaveTypeLabel = (type: LeaveRequestWithDetails['leave_type']) => {
     const labels = {
-      annual: 'Annual Leave',
+      vacation: 'Vacation Leave',
       sick: 'Sick Leave',
-      personal: 'Personal Leave',
-      maternity: 'Maternity Leave',
-      paternity: 'Paternity Leave',
-      unpaid: 'Unpaid Leave'
+      absent: 'Absent',
+      offset: 'Offset'
     };
     return labels[type];
   };

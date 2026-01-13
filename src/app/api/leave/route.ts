@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['vacation', 'sick', 'absent', 'offset', 'annual', 'personal', 'emergency'].includes(leave_type)) {
+    // Only accept the 4 leave types used in the UI
+    if (!['vacation', 'sick', 'absent', 'offset'].includes(leave_type)) {
       return NextResponse.json(
         { success: false, error: 'Invalid leave type' },
         { status: 400 }

@@ -259,7 +259,7 @@ export const createLeaveRequestSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in YYYY-MM-DD format'),
   end_date: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in YYYY-MM-DD format'),
-  leave_type: z.enum(['annual', 'sick', 'personal', 'emergency']),
+  leave_type: z.enum(['vacation', 'sick', 'absent', 'offset']),
   reason: z.string()
     .min(1, 'Reason is required')
     .max(500, 'Reason must be less than 500 characters')
