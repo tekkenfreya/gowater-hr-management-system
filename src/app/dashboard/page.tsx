@@ -1403,7 +1403,7 @@ ${tasksSection}`;
                                 <h4 className="font-semibold text-gray-900">{task.title}</h4>
                               </div>
                               <div className={`px-3 py-2 border rounded-lg text-sm font-bold ${getStatusBadgeClass(task.status as 'pending' | 'in_progress' | 'completed' | 'cancel' | 'archived')}`}>
-                                {getStatusLabel(task.status)}
+                                {getStatusLabel(task.status as 'pending' | 'in_progress' | 'completed' | 'cancel' | 'archived')}
                               </div>
                             </div>
 
