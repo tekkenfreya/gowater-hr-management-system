@@ -5,7 +5,12 @@ import {
   AttendanceManagementFilters,
   AttendanceRecordWithUser,
   AttendanceManagementResponse,
-  BulkAttendanceOperation
+  BulkAttendanceOperation,
+  AttendanceEditRequest,
+  AttendanceEditRequestWithUser,
+  CreateAttendanceEditRequestData,
+  AttendanceEditRequestFilters,
+  AttendanceEditRequestsResponse
 } from '@/types/attendance';
 
 export interface AttendanceRecord {
@@ -16,7 +21,7 @@ export interface AttendanceRecord {
   checkOutTime?: string;
   breakStartTime?: string;
   breakEndTime?: string;
-  breakDuration?: number;
+  breakDuration: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
   workLocation?: 'WFH' | 'Onsite';
@@ -173,6 +178,8 @@ export class AttendanceService {
         date: record.date,
         checkInTime: record.check_in_time,
         checkOutTime: record.check_out_time,
+        breakStartTime: record.break_start_time,
+        breakEndTime: record.break_end_time,
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
@@ -576,6 +583,469 @@ export class AttendanceService {
         averageHours: 0,
         automatedCount: 0
       };
+    }
+  }
+
+  // =====================================================
+  // ATTENDANCE TIME EDIT REQUEST METHODS
+  // =====================================================
+
+  /**
+   * Create an attendance time edit request (for non-admin users)
+   */
+  async createEditRequest(
+    userId: number,
+    data: CreateAttendanceEditRequestData
+  ): Promise<{ success: boolean; requestId?: number; error?: string }> {
+    try {
+      // Get the attendance record to snapshot original times
+      const attendance = await this.db.get('attendance', { id: data.attendanceId });
+
+      if (!attendance) {
+        return { success: false, error: 'Attendance record not found' };
+      }
+
+      // Verify the user owns this attendance record
+      if (attendance.user_id !== userId) {
+        return { success: false, error: 'You can only edit your own attendance records' };
+      }
+
+      // Check if there's already a pending request for this attendance
+      const existingRequest = await this.db.get('attendance_edit_requests', {
+        attendance_id: data.attendanceId,
+        status: 'pending'
+      });
+
+      if (existingRequest) {
+        return { success: false, error: 'A pending edit request already exists for this attendance record' };
+      }
+
+      // Create the edit request
+      const result = await this.db.insert('attendance_edit_requests', {
+        attendance_id: data.attendanceId,
+        user_id: userId,
+        original_check_in_time: attendance.check_in_time,
+        original_check_out_time: attendance.check_out_time,
+        original_break_start_time: attendance.break_start_time,
+        original_break_end_time: attendance.break_end_time,
+        requested_check_in_time: data.requestedCheckInTime || null,
+        requested_check_out_time: data.requestedCheckOutTime || null,
+        requested_break_start_time: data.requestedBreakStartTime || null,
+        requested_break_end_time: data.requestedBreakEndTime || null,
+        reason: data.reason,
+        status: 'pending'
+      });
+
+      logger.info(`Edit request created for attendance ${data.attendanceId} by user ${userId}`);
+
+      return { success: true, requestId: result?.id };
+    } catch (error) {
+      logger.error('Create edit request error', error);
+      return { success: false, error: 'Failed to create edit request' };
+    }
+  }
+
+  /**
+   * Update attendance time directly (for admin users)
+   */
+  async updateAttendanceTimeDirect(
+    attendanceId: number,
+    adminId: number,
+    updates: {
+      checkInTime?: string;
+      checkOutTime?: string;
+      breakStartTime?: string;
+      breakEndTime?: string;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const attendance = await this.db.get('attendance', { id: attendanceId });
+
+      if (!attendance) {
+        return { success: false, error: 'Attendance record not found' };
+      }
+
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date()
+      };
+
+      if (updates.checkInTime !== undefined) {
+        updateData.check_in_time = updates.checkInTime;
+      }
+
+      if (updates.checkOutTime !== undefined) {
+        updateData.check_out_time = updates.checkOutTime;
+      }
+
+      if (updates.breakStartTime !== undefined) {
+        updateData.break_start_time = updates.breakStartTime;
+      }
+
+      if (updates.breakEndTime !== undefined) {
+        updateData.break_end_time = updates.breakEndTime;
+      }
+
+      // Recalculate total hours if check-in or check-out times changed
+      const newCheckIn = updates.checkInTime || attendance.check_in_time;
+      const newCheckOut = updates.checkOutTime || attendance.check_out_time;
+
+      if (newCheckIn && newCheckOut) {
+        const checkInDate = new Date(newCheckIn);
+        const checkOutDate = new Date(newCheckOut);
+        const sessionHours = (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60);
+        const breakDurationHours = (attendance.break_duration || 0) / 3600;
+        updateData.total_hours = Math.max(0, sessionHours - breakDurationHours);
+      }
+
+      await this.db.update('attendance', updateData, { id: attendanceId });
+
+      logger.info(`Attendance ${attendanceId} time updated directly by admin ${adminId}`);
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Update attendance time direct error', error);
+      return { success: false, error: 'Failed to update attendance time' };
+    }
+  }
+
+  /**
+   * Get edit requests with filters (for admin)
+   */
+  async getEditRequests(filters: AttendanceEditRequestFilters = {}): Promise<AttendanceEditRequestsResponse> {
+    try {
+      const page = filters.page || 1;
+      const limit = filters.limit || 50;
+      const offset = (page - 1) * limit;
+
+      const conditions: string[] = ['1=1'];
+      const params: (string | number)[] = [];
+      let paramIndex = 1;
+
+      if (filters.userId) {
+        conditions.push(`r.user_id = $${paramIndex++}`);
+        params.push(filters.userId);
+      }
+
+      if (filters.status) {
+        conditions.push(`r.status = $${paramIndex++}`);
+        params.push(filters.status);
+      }
+
+      if (filters.startDate) {
+        conditions.push(`a.date >= $${paramIndex++}`);
+        params.push(filters.startDate);
+      }
+
+      if (filters.endDate) {
+        conditions.push(`a.date <= $${paramIndex++}`);
+        params.push(filters.endDate);
+      }
+
+      const whereClause = conditions.join(' AND ');
+
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM attendance_edit_requests r
+        JOIN attendance a ON r.attendance_id = a.id
+        WHERE ${whereClause}
+      `;
+
+      const countResult = await this.db.executeRawSQL(countQuery, params);
+      const total = parseInt(countResult[0]?.total || '0');
+
+      // Get paginated records
+      const recordsQuery = `
+        SELECT
+          r.id,
+          r.attendance_id,
+          r.user_id,
+          r.original_check_in_time,
+          r.original_check_out_time,
+          r.original_break_start_time,
+          r.original_break_end_time,
+          r.requested_check_in_time,
+          r.requested_check_out_time,
+          r.requested_break_start_time,
+          r.requested_break_end_time,
+          r.reason,
+          r.status,
+          r.approver_id,
+          r.approved_at,
+          r.comments,
+          r.created_at,
+          r.updated_at,
+          u.name as user_name,
+          u.email as user_email,
+          u.department as user_department,
+          a.date as attendance_date,
+          approver.name as approver_name
+        FROM attendance_edit_requests r
+        JOIN users u ON r.user_id = u.id
+        JOIN attendance a ON r.attendance_id = a.id
+        LEFT JOIN users approver ON r.approver_id = approver.id
+        WHERE ${whereClause}
+        ORDER BY r.created_at DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex}
+      `;
+
+      const records = await this.db.executeRawSQL(recordsQuery, [...params, limit, offset]);
+
+      const mappedRecords: AttendanceEditRequestWithUser[] = records.map((r: Record<string, unknown>) => ({
+        id: r.id as number,
+        attendanceId: r.attendance_id as number,
+        userId: r.user_id as number,
+        originalCheckInTime: r.original_check_in_time as string | undefined,
+        originalCheckOutTime: r.original_check_out_time as string | undefined,
+        originalBreakStartTime: r.original_break_start_time as string | undefined,
+        originalBreakEndTime: r.original_break_end_time as string | undefined,
+        requestedCheckInTime: r.requested_check_in_time as string | undefined,
+        requestedCheckOutTime: r.requested_check_out_time as string | undefined,
+        requestedBreakStartTime: r.requested_break_start_time as string | undefined,
+        requestedBreakEndTime: r.requested_break_end_time as string | undefined,
+        reason: r.reason as string,
+        status: r.status as 'pending' | 'approved' | 'rejected',
+        approverId: r.approver_id as number | undefined,
+        approvedAt: r.approved_at as string | undefined,
+        comments: r.comments as string | undefined,
+        createdAt: r.created_at as string,
+        updatedAt: r.updated_at as string,
+        userName: r.user_name as string,
+        userEmail: r.user_email as string,
+        userDepartment: r.user_department as string,
+        attendanceDate: r.attendance_date as string,
+        approverName: r.approver_name as string | undefined
+      }));
+
+      return {
+        requests: mappedRecords,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      logger.error('Get edit requests error', error);
+      return {
+        requests: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0
+      };
+    }
+  }
+
+  /**
+   * Get user's own edit requests
+   */
+  async getUserEditRequests(userId: number): Promise<AttendanceEditRequestWithUser[]> {
+    try {
+      const query = `
+        SELECT
+          r.id,
+          r.attendance_id,
+          r.user_id,
+          r.original_check_in_time,
+          r.original_check_out_time,
+          r.original_break_start_time,
+          r.original_break_end_time,
+          r.requested_check_in_time,
+          r.requested_check_out_time,
+          r.requested_break_start_time,
+          r.requested_break_end_time,
+          r.reason,
+          r.status,
+          r.approver_id,
+          r.approved_at,
+          r.comments,
+          r.created_at,
+          r.updated_at,
+          u.name as user_name,
+          u.email as user_email,
+          u.department as user_department,
+          a.date as attendance_date,
+          approver.name as approver_name
+        FROM attendance_edit_requests r
+        JOIN users u ON r.user_id = u.id
+        JOIN attendance a ON r.attendance_id = a.id
+        LEFT JOIN users approver ON r.approver_id = approver.id
+        WHERE r.user_id = $1
+        ORDER BY r.created_at DESC
+      `;
+
+      const records = await this.db.executeRawSQL(query, [userId]);
+
+      return records.map((r: Record<string, unknown>) => ({
+        id: r.id as number,
+        attendanceId: r.attendance_id as number,
+        userId: r.user_id as number,
+        originalCheckInTime: r.original_check_in_time as string | undefined,
+        originalCheckOutTime: r.original_check_out_time as string | undefined,
+        originalBreakStartTime: r.original_break_start_time as string | undefined,
+        originalBreakEndTime: r.original_break_end_time as string | undefined,
+        requestedCheckInTime: r.requested_check_in_time as string | undefined,
+        requestedCheckOutTime: r.requested_check_out_time as string | undefined,
+        requestedBreakStartTime: r.requested_break_start_time as string | undefined,
+        requestedBreakEndTime: r.requested_break_end_time as string | undefined,
+        reason: r.reason as string,
+        status: r.status as 'pending' | 'approved' | 'rejected',
+        approverId: r.approver_id as number | undefined,
+        approvedAt: r.approved_at as string | undefined,
+        comments: r.comments as string | undefined,
+        createdAt: r.created_at as string,
+        updatedAt: r.updated_at as string,
+        userName: r.user_name as string,
+        userEmail: r.user_email as string,
+        userDepartment: r.user_department as string,
+        attendanceDate: r.attendance_date as string,
+        approverName: r.approver_name as string | undefined
+      }));
+    } catch (error) {
+      logger.error('Get user edit requests error', error);
+      return [];
+    }
+  }
+
+  /**
+   * Approve an edit request and apply the changes (admin only)
+   */
+  async approveEditRequest(
+    requestId: number,
+    adminId: number,
+    comments?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const request = await this.db.get('attendance_edit_requests', { id: requestId });
+
+      if (!request) {
+        return { success: false, error: 'Edit request not found' };
+      }
+
+      if (request.status !== 'pending') {
+        return { success: false, error: 'This request has already been processed' };
+      }
+
+      // Apply the requested changes to the attendance record
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date()
+      };
+
+      if (request.requested_check_in_time) {
+        updateData.check_in_time = request.requested_check_in_time;
+      }
+
+      if (request.requested_check_out_time) {
+        updateData.check_out_time = request.requested_check_out_time;
+      }
+
+      if (request.requested_break_start_time) {
+        updateData.break_start_time = request.requested_break_start_time;
+      }
+
+      if (request.requested_break_end_time) {
+        updateData.break_end_time = request.requested_break_end_time;
+      }
+
+      // Get the attendance record for recalculation
+      const attendance = await this.db.get('attendance', { id: request.attendance_id });
+
+      if (attendance) {
+        // Recalculate total hours
+        const newCheckIn = request.requested_check_in_time || attendance.check_in_time;
+        const newCheckOut = request.requested_check_out_time || attendance.check_out_time;
+
+        if (newCheckIn && newCheckOut) {
+          const checkInDate = new Date(newCheckIn);
+          const checkOutDate = new Date(newCheckOut);
+          const sessionHours = (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60);
+          const breakDurationHours = (attendance.break_duration || 0) / 3600;
+          updateData.total_hours = Math.max(0, sessionHours - breakDurationHours);
+        }
+
+        await this.db.update('attendance', updateData, { id: request.attendance_id });
+      }
+
+      // Update the request status
+      await this.db.update('attendance_edit_requests', {
+        status: 'approved',
+        approver_id: adminId,
+        approved_at: new Date().toISOString(),
+        comments: comments || null,
+        updated_at: new Date()
+      }, { id: requestId });
+
+      logger.info(`Edit request ${requestId} approved by admin ${adminId}`);
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Approve edit request error', error);
+      return { success: false, error: 'Failed to approve edit request' };
+    }
+  }
+
+  /**
+   * Reject an edit request (admin only)
+   */
+  async rejectEditRequest(
+    requestId: number,
+    adminId: number,
+    comments: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const request = await this.db.get('attendance_edit_requests', { id: requestId });
+
+      if (!request) {
+        return { success: false, error: 'Edit request not found' };
+      }
+
+      if (request.status !== 'pending') {
+        return { success: false, error: 'This request has already been processed' };
+      }
+
+      await this.db.update('attendance_edit_requests', {
+        status: 'rejected',
+        approver_id: adminId,
+        approved_at: new Date().toISOString(),
+        comments: comments,
+        updated_at: new Date()
+      }, { id: requestId });
+
+      logger.info(`Edit request ${requestId} rejected by admin ${adminId}`);
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Reject edit request error', error);
+      return { success: false, error: 'Failed to reject edit request' };
+    }
+  }
+
+  /**
+   * Get a single attendance record by ID
+   */
+  async getAttendanceById(attendanceId: number): Promise<AttendanceRecord | null> {
+    try {
+      const record = await this.db.get('attendance', { id: attendanceId });
+
+      if (!record) return null;
+
+      return {
+        id: record.id,
+        userId: record.user_id,
+        date: record.date,
+        checkInTime: record.check_in_time,
+        checkOutTime: record.check_out_time,
+        breakStartTime: record.break_start_time,
+        breakEndTime: record.break_end_time,
+        breakDuration: record.break_duration || 0,
+        totalHours: record.total_hours || 0,
+        status: record.status,
+        workLocation: record.work_location as 'WFH' | 'Onsite',
+        notes: record.notes
+      };
+    } catch (error) {
+      logger.error('Get attendance by ID error', error);
+      return null;
     }
   }
 }

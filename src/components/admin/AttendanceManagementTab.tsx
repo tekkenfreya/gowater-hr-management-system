@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { logger } from '@/lib/logger';
 import { AttendanceRecordWithUser, AttendanceManagementFilters } from '@/types/attendance';
+import EditRequestsApprovalSection from './EditRequestsApprovalSection';
 
 interface AttendanceStats {
   totalRecords: number;
@@ -275,6 +276,11 @@ export default function AttendanceManagementTab() {
 
   return (
     <div className="space-y-6">
+      {/* Time Edit Requests Section */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <EditRequestsApprovalSection />
+      </div>
+
       {/* Manual Attendance Controls - Full Width */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="mb-4">

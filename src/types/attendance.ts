@@ -343,3 +343,67 @@ export interface AutomationLog {
   reason?: string;
   createdAt: Date;
 }
+
+// =====================================================
+// ATTENDANCE TIME EDIT REQUEST TYPES
+// =====================================================
+
+export interface AttendanceEditRequest {
+  id: number;
+  attendanceId: number;
+  userId: number;
+  // Original times (snapshot for audit trail)
+  originalCheckInTime?: string;
+  originalCheckOutTime?: string;
+  originalBreakStartTime?: string;
+  originalBreakEndTime?: string;
+  // Requested new times (null means no change requested)
+  requestedCheckInTime?: string;
+  requestedCheckOutTime?: string;
+  requestedBreakStartTime?: string;
+  requestedBreakEndTime?: string;
+  // Request details
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  // Review details
+  approverId?: number;
+  approvedAt?: string;
+  comments?: string;
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceEditRequestWithUser extends AttendanceEditRequest {
+  userName: string;
+  userEmail: string;
+  userDepartment: string;
+  attendanceDate: string;
+  approverName?: string;
+}
+
+export interface CreateAttendanceEditRequestData {
+  attendanceId: number;
+  requestedCheckInTime?: string;
+  requestedCheckOutTime?: string;
+  requestedBreakStartTime?: string;
+  requestedBreakEndTime?: string;
+  reason: string;
+}
+
+export interface AttendanceEditRequestFilters {
+  userId?: number;
+  status?: 'pending' | 'approved' | 'rejected';
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AttendanceEditRequestsResponse {
+  requests: AttendanceEditRequestWithUser[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

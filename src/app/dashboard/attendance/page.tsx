@@ -6,12 +6,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
 import { formatPhilippineTime } from '@/lib/timezone';
+import AttendanceEditModal from '@/components/AttendanceEditModal';
 
 interface WeeklyAttendanceData {
+  id?: number;
   date: string;
   day: string;
   checkInTime?: string;
   checkOutTime?: string;
+  breakStartTime?: string;
+  breakEndTime?: string;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
   isWeekend?: boolean;
@@ -27,6 +31,11 @@ export default function AttendancePage() {
   // Attendance calendar state
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
   const [activeTab, setActiveTab] = useState<'calendar' | 'summary'>('calendar');
+
+  // Edit modal state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingAttendance, setEditingAttendance] = useState<WeeklyAttendanceData | null>(null);
+
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
     // Initialize to current week's Sunday
     const today = new Date();
@@ -139,6 +148,32 @@ export default function AttendancePage() {
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Open edit modal for a specific attendance record
+  const handleEditAttendance = (attendance: WeeklyAttendanceData) => {
+    setEditingAttendance(attendance);
+    setEditModalOpen(true);
+  };
+
+  // Handle successful edit submission
+  const handleEditSuccess = () => {
+    fetchWeeklyAttendance();
+    setEditModalOpen(false);
+    setEditingAttendance(null);
+  };
+
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
+
+  // Export attendance to Excel
+  const handleExportExcel = () => {
+    const startDateStr = currentWeekStart.toISOString().split('T')[0];
+    const endDate = new Date(currentWeekStart);
+    endDate.setDate(currentWeekStart.getDate() + 6);
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    window.location.href = `/api/attendance/export?startDate=${startDateStr}&endDate=${endDateStr}`;
   };
 
   if (!user) {
@@ -440,12 +475,23 @@ export default function AttendancePage() {
                   </button>
                 </div>
 
-                <button
-                  onClick={goToCurrentWeek}
-                  className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  Today
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={goToCurrentWeek}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={handleExportExcel}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Export Excel</span>
+                  </button>
+                </div>
               </div>
 
               {/* Summary Stats Cards */}
@@ -528,6 +574,7 @@ export default function AttendancePage() {
                         <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
                         <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
                         <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-3 sm:px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -608,6 +655,19 @@ export default function AttendancePage() {
                                 </span>
                               )}
                             </td>
+                            <td className="px-3 sm:px-5 py-4 whitespace-nowrap">
+                              {!isSunday && hasAttendance && savedAttendance.id && (
+                                <button
+                                  onClick={() => handleEditAttendance(savedAttendance)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title={isAdmin ? 'Edit time directly' : 'Request time edit'}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -619,6 +679,25 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
+
+      {/* Attendance Edit Modal */}
+      {editingAttendance && (
+        <AttendanceEditModal
+          isOpen={editModalOpen}
+          onClose={() => {
+            setEditModalOpen(false);
+            setEditingAttendance(null);
+          }}
+          attendanceId={editingAttendance.id!}
+          date={editingAttendance.date}
+          currentCheckInTime={editingAttendance.checkInTime}
+          currentCheckOutTime={editingAttendance.checkOutTime}
+          currentBreakStartTime={editingAttendance.breakStartTime}
+          currentBreakEndTime={editingAttendance.breakEndTime}
+          isAdmin={isAdmin}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }
