@@ -7,7 +7,6 @@ import ForcePasswordChangeModal from '@/components/ForcePasswordChangeModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { logger } from '@/lib/logger';
-import { simpleWhatsAppService } from '@/lib/whatsapp-simple';
 import { calculateTaskStatus, getStatusBadgeClass, getStatusLabel } from '@/utils/taskStatusCalculator';
 
 interface Task {
@@ -94,6 +93,10 @@ export default function Dashboard() {
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
   const [checkOutTasks, setCheckOutTasks] = useState<Task[]>([]);
   const [isLoadingCheckOutTasks, setIsLoadingCheckOutTasks] = useState(false);
+
+  // Work location modal state
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [currentWorkArrangement, setCurrentWorkArrangement] = useState<'WFH' | 'Onsite' | 'Field' | null>(null);
 
   // Fetch announcements
   const fetchAnnouncements = async () => {
@@ -344,8 +347,13 @@ export default function Dashboard() {
     }
   };
 
-  // Send report to WhatsApp and complete check-in
-  const handleSendReportAndCheckIn = async () => {
+  // Show location selection modal when Confirm Login is clicked
+  const handleConfirmLogin = () => {
+    setShowLocationModal(true);
+  };
+
+  // Handle location selection and complete check-in
+  const handleLocationSelect = async (location: 'WFH' | 'Onsite' | 'Field') => {
     try {
       const now = new Date();
       const dateOptions: Intl.DateTimeFormatOptions = {
@@ -388,6 +396,7 @@ export default function Dashboard() {
 Date: ${formattedDate}
 Employee: ${user?.employeeName || user?.name}
 Position: ${user?.position || user?.role}
+Work Arrangement: ${location}
 Login Time: ${checkInTimeFormatted}
 Logout Time: N/A
 Hours Worked: 0.00 hours
@@ -396,22 +405,23 @@ Break Time: 0m
 Today's Planned Tasks:
 ${tasksSection}`;
 
-      // Send to WhatsApp
-      await simpleWhatsAppService.sendReport(report);
+      // Copy report to clipboard for manual pasting
+      await navigator.clipboard.writeText(report);
 
-      // Small delay to ensure WhatsApp window opens
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Save work arrangement for EOD report
+      setCurrentWorkArrangement(location);
 
-      // Complete check-in
-      await handleTimeIn();
+      // Complete check-in with selected location
+      await handleTimeIn(location);
 
-      // Close modal
+      // Close modals
+      setShowLocationModal(false);
       setShowCheckInModal(false);
 
-      logger.info('Check-in report sent and user checked in successfully');
+      logger.info('Check-in completed and report copied to clipboard');
     } catch (error) {
-      logger.error('Failed to send check-in report', error);
-      alert('Failed to send report. Please try again.');
+      logger.error('Failed to confirm login', error);
+      alert('Failed to login. Please try again.');
     }
   };
 
@@ -561,8 +571,8 @@ ${tasksSection}`;
     }
   };
 
-  // Send end-of-day report and check out
-  const handleSendReportAndCheckOut = async () => {
+  // Copy end-of-day report and check out
+  const handleConfirmLogout = async () => {
     try {
       // Save subtask updates first
       await saveSubTaskUpdates();
@@ -625,6 +635,7 @@ ${tasksSection}`;
 Date: ${formattedDate}
 Employee: ${user?.employeeName || user?.name}
 Position: ${user?.position || user?.role}
+Work Arrangement: ${currentWorkArrangement || 'N/A'}
 Login Time: ${checkInTimeFormatted}
 Logout Time: ${checkOutTimeFormatted}
 Hours Worked: ${hoursWorked} hours
@@ -633,11 +644,8 @@ Break Time: ${formatBreakTime(accumulatedBreakDuration + (isOnBreak ? breakDurat
 Today's Task Updates:
 ${tasksSection}`;
 
-      // Send to WhatsApp
-      await simpleWhatsAppService.sendReport(report);
-
-      // Small delay to ensure WhatsApp window opens
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Copy report to clipboard for manual pasting
+      await navigator.clipboard.writeText(report);
 
       // Complete check-out
       await handleTimeOut();
@@ -645,10 +653,10 @@ ${tasksSection}`;
       // Close modal
       setShowCheckOutModal(false);
 
-      logger.info('Check-out report sent and user checked out successfully');
+      logger.info('Check-out completed and report copied to clipboard');
     } catch (error) {
-      logger.error('Failed to send check-out report', error);
-      alert('Failed to send report. Please try again.');
+      logger.error('Failed to confirm logout', error);
+      alert('Failed to logout. Please try again.');
     }
   };
 
@@ -674,6 +682,26 @@ ${tasksSection}`;
       setTodayStats(prev => ({ ...prev, hoursToday: Math.round(hoursToday * 10) / 10 }));
     }
   }, [isTimedIn, workDuration]);
+
+  // Fetch work arrangement from attendance when already checked in (e.g., page refresh)
+  useEffect(() => {
+    const fetchWorkArrangement = async () => {
+      if (isTimedIn && !currentWorkArrangement) {
+        try {
+          const response = await fetch('/api/attendance');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.attendance?.workLocation) {
+              setCurrentWorkArrangement(data.attendance.workLocation);
+            }
+          }
+        } catch (error) {
+          logger.error('Failed to fetch work arrangement', error);
+        }
+      }
+    };
+    fetchWorkArrangement();
+  }, [isTimedIn, currentWorkArrangement]);
 
   if (!user) {
     return null;
@@ -941,7 +969,7 @@ ${tasksSection}`;
             {/* Modal Header */}
             <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700">
               <h2 className="text-2xl font-bold text-white">Start of Day Login</h2>
-              <p className="text-green-50 text-sm mt-1">Review your tasks and send report to begin your day</p>
+              <p className="text-green-50 text-sm mt-1">Review your tasks and confirm login. Report will be copied to clipboard.</p>
             </div>
 
             {/* Modal Body */}
@@ -1321,19 +1349,91 @@ ${tasksSection}`;
                   )}
                 </button>
                 <button
-                  onClick={handleSendReportAndCheckIn}
+                  onClick={handleConfirmLogin}
                   disabled={
                     isLoadingTasks ||
                     checkInTasks.length === 0
                   }
                   className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Send Report & Login</span>
+                  <span>Confirm Login</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Work Location Selection Modal */}
+      {showLocationModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+              <h2 className="text-lg font-bold text-white">Select Work Location</h2>
+              <p className="text-blue-100 text-sm mt-0.5">Where are you working today?</p>
+            </div>
+
+            {/* Location Options */}
+            <div className="p-5 space-y-3">
+              <button
+                onClick={() => handleLocationSelect('WFH')}
+                className="w-full flex items-center p-4 rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900 group-hover:text-blue-600">WFH</p>
+                  <p className="text-sm text-gray-500">Work From Home</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleLocationSelect('Onsite')}
+                className="w-full flex items-center p-4 rounded-lg border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-4">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900 group-hover:text-green-600">Onsite</p>
+                  <p className="text-sm text-gray-500">Office Location</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleLocationSelect('Field')}
+                className="w-full flex items-center p-4 rounded-lg border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mr-4">
+                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900 group-hover:text-orange-600">Field</p>
+                  <p className="text-sm text-gray-500">On-site / Client Location</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Cancel Button */}
+            <div className="px-5 pb-5">
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="w-full py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -1346,7 +1446,7 @@ ${tasksSection}`;
             {/* Modal Header */}
             <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-red-600 to-red-700">
               <h2 className="text-2xl font-bold text-white">End of Day Logout</h2>
-              <p className="text-red-50 text-sm mt-1">Update task statuses and send report to end your day</p>
+              <p className="text-red-50 text-sm mt-1">Update task statuses and confirm logout. Report will be copied to clipboard.</p>
             </div>
 
             {/* Modal Body */}
@@ -1504,14 +1604,14 @@ ${tasksSection}`;
                 Cancel
               </button>
               <button
-                onClick={handleSendReportAndCheckOut}
+                onClick={handleConfirmLogout}
                 disabled={isLoadingCheckOutTasks}
                 className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Send Report & Logout</span>
+                <span>Confirm Logout</span>
               </button>
             </div>
           </div>

@@ -12,7 +12,7 @@ interface AttendanceContextType {
   accumulatedBreakDuration: number; // Total break time from database (in seconds)
   checkInTime: Date | null;
   breakStartTime: Date | null;
-  handleTimeIn: () => Promise<void>;
+  handleTimeIn: (workLocation?: 'WFH' | 'Onsite' | 'Field') => Promise<void>;
   handleTimeOut: () => Promise<void>;
   handleStartBreak: () => Promise<void>;
   handleEndBreak: () => Promise<void>;
@@ -93,12 +93,12 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleTimeIn = async () => {
+  const handleTimeIn = async (workLocation: 'WFH' | 'Onsite' | 'Field' = 'WFH') => {
     try {
       const response = await fetch('/api/attendance/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workLocation: 'WFH' })
+        body: JSON.stringify({ workLocation })
       });
 
       if (response.ok) {
