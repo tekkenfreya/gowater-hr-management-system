@@ -61,7 +61,15 @@ export class LeadService {
   }
 
   async getLeadsByCategory(category: LeadCategory): Promise<Lead[]> {
-    const leads = await this.db.all('leads', { category }, 'created_at');
+    // Sort by the appropriate date field for each category
+    let orderByField = 'created_at';
+    if (category === 'lead') {
+      orderByField = 'date_of_interaction';
+    } else if (category === 'event') {
+      orderByField = 'event_date';
+    }
+
+    const leads = await this.db.all('leads', { category }, orderByField);
     return (leads || []) as Lead[];
   }
 
