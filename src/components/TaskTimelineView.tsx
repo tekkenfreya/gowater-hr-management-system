@@ -87,34 +87,46 @@ export default function TaskTimelineView({
     }
   };
 
-  const formatDate = (dateString: Date | string | undefined) => {
-    if (!dateString) return 'No date';
+  // Helper to safely convert date to timestamp for comparison
+  const getTimestamp = (dateValue: Date | string | undefined | null): number => {
+    if (!dateValue) return 0;
+    try {
+      const date = new Date(dateValue);
+      const timestamp = date.getTime();
+      return isNaN(timestamp) ? 0 : timestamp;
+    } catch {
+      return 0;
+    }
+  };
+
+  const formatDate = (dateValue: Date | string | undefined | null): string => {
+    if (!dateValue) return 'No date';
 
     try {
-      const date = new Date(dateString);
+      const date = new Date(dateValue);
 
       // Check if date is valid
       if (isNaN(date.getTime())) {
         return 'No date';
       }
 
-      const now = new Date();
-      const diffTime = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7 && diffDays > 0) return `${diffDays} days ago`;
-      if (diffDays < 0 && diffDays > -1) return 'Today';
-
+      // Show exact date format: "Jan 14, 2026"
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+        year: 'numeric'
       });
-    } catch (error) {
+    } catch {
       return 'No date';
     }
+  };
+
+  // Check if task was updated after creation (with 1 second tolerance)
+  const wasUpdated = (task: Task): boolean => {
+    const createdTs = getTimestamp(task.createdAt);
+    const updatedTs = getTimestamp(task.updatedAt);
+    // Consider updated if updatedAt is more than 1 second after createdAt
+    return updatedTs > 0 && createdTs > 0 && (updatedTs - createdTs) > 1000;
   };
 
   const calculateProgress = (task: Task) => {
@@ -176,9 +188,21 @@ export default function TaskTimelineView({
     );
   }
 
+  // Sort tasks by date (latest first)
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const dateA = getTimestamp(a.createdAt);
+    const dateB = getTimestamp(b.createdAt);
+    // If both have valid dates, sort by newest first
+    // If one has no date (0), put it at the end
+    if (dateA === 0 && dateB === 0) return 0;
+    if (dateA === 0) return 1; // a goes after b
+    if (dateB === 0) return -1; // b goes after a
+    return dateB - dateA; // Descending order (newest first)
+  });
+
   return (
     <div className="space-y-4 pb-6">
-      {tasks.map((task) => {
+      {sortedTasks.map((task) => {
         const isExpanded = expandedTasks.has(task.id);
         const progress = calculateProgress(task);
         const hasSubTasks = task.subTasks && task.subTasks.length > 0;
@@ -217,10 +241,16 @@ export default function TaskTimelineView({
                     <div className="flex items-center space-x-2">
                       <h3 className="text-base font-bold text-gray-900">{task.title}</h3>
                       {/* Date Badge */}
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded" title={`Created: ${formatDate(task.createdAt)}`}>
-                        {task.updatedAt && task.updatedAt !== task.createdAt
-                          ? `Updated ${formatDate(task.updatedAt)}`
-                          : formatDate(task.createdAt)}
+                      <span
+                        className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded"
+                        title={wasUpdated(task)
+                          ? `Created: ${formatDate(task.createdAt)} | Updated: ${formatDate(task.updatedAt)}`
+                          : `Created: ${formatDate(task.createdAt)}`}
+                      >
+                        {formatDate(task.createdAt)}
+                        {wasUpdated(task) && (
+                          <span className="ml-1 text-blue-500">•</span>
+                        )}
                       </span>
                     </div>
                     {task.description && (
