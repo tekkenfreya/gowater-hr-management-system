@@ -50,6 +50,16 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
   const fetchTodayAttendance = async () => {
     try {
+      // Clear existing intervals to prevent duplicates
+      if (workInterval) {
+        clearInterval(workInterval);
+        setWorkInterval(null);
+      }
+      if (breakInterval) {
+        clearInterval(breakInterval);
+        setBreakInterval(null);
+      }
+
       const response = await fetch('/api/attendance');
       if (response.ok) {
         const data = await response.json();
@@ -60,31 +70,41 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
           const checkIn = new Date(attendance.checkInTime);
           setCheckInTime(checkIn);
           const currentTime = new Date();
-          const durationInSeconds = Math.floor((currentTime.getTime() - checkIn.getTime()) / 1000);
-          setWorkDuration(durationInSeconds);
 
           // Set accumulated break duration from database
           setAccumulatedBreakDuration(attendance.breakDuration || 0);
 
-          const interval = setInterval(() => {
-            setWorkDuration(prev => prev + 1);
-          }, 1000);
-          setWorkInterval(interval);
-
-          // Check break state
+          // Check break state first
           if (attendance.breakStartTime && !attendance.breakEndTime) {
-            setIsOnBreak(true);
+            // User is on break - calculate work duration excluding current break
             const breakStart = new Date(attendance.breakStartTime);
+            const durationUntilBreak = Math.floor((breakStart.getTime() - checkIn.getTime()) / 1000);
+            // Subtract previous breaks from work duration
+            const previousBreaks = attendance.breakDuration || 0;
+            setWorkDuration(Math.max(0, durationUntilBreak - previousBreaks));
+
+            setIsOnBreak(true);
             setBreakStartTime(breakStart);
             const currentBreakDuration = Math.floor((currentTime.getTime() - breakStart.getTime()) / 1000);
             setBreakDuration(currentBreakDuration);
+
+            // Only start break interval, NOT work interval
             const breakInt = setInterval(() => {
               setBreakDuration(prev => prev + 1);
             }, 1000);
             setBreakInterval(breakInt);
           } else {
-            // No active break - reset the live timer
+            // Not on break - calculate work duration minus total breaks
+            const totalDuration = Math.floor((currentTime.getTime() - checkIn.getTime()) / 1000);
+            const totalBreaks = attendance.breakDuration || 0;
+            setWorkDuration(Math.max(0, totalDuration - totalBreaks));
             setBreakDuration(0);
+
+            // Start work interval
+            const interval = setInterval(() => {
+              setWorkDuration(prev => prev + 1);
+            }, 1000);
+            setWorkInterval(interval);
           }
         }
       }
@@ -168,21 +188,14 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        const data = await response.json();
-
         setIsOnBreak(false);
         setBreakStartTime(null);
         setBreakDuration(0); // Reset live timer
 
         if (breakInterval) clearInterval(breakInterval);
 
-        // Fetch updated attendance to get accumulated break duration
+        // Fetch updated attendance - this will recalculate work duration and start work interval
         await fetchTodayAttendance();
-
-        const interval = setInterval(() => {
-          setWorkDuration(prev => prev + 1);
-        }, 1000);
-        setWorkInterval(interval);
       }
     } catch (error) {
       logger.error('Failed to end break', error);
