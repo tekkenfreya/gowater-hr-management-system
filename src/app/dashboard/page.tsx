@@ -118,15 +118,13 @@ export default function Dashboard() {
   // Fetch today's stats
   const fetchTodayStats = async () => {
     try {
-      // Fetch tasks to count active ones
+      // Fetch tasks to count active ones (incomplete tasks persist until completed)
       const response = await fetch('/api/tasks');
       if (response.ok) {
         const data = await response.json();
-        const today = new Date().toISOString().split('T')[0];
         const activeTasks = (data.tasks || []).filter((task: Task) =>
           task.status !== 'archived' &&
-          task.status !== 'completed' &&
-          (!task.due_date || task.due_date.startsWith(today))
+          task.status !== 'completed'
         );
         setTodayStats(prev => ({ ...prev, activeTasks: activeTasks.length }));
       }
@@ -177,20 +175,18 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch today's tasks for check-in modal
+  // Fetch tasks for check-in modal (incomplete tasks persist until completed)
   const fetchCheckInTasks = async () => {
     setIsLoadingTasks(true);
     try {
       const response = await fetch('/api/tasks');
       if (response.ok) {
         const data = await response.json();
-        // Filter for today's active/pending tasks
-        const today = new Date().toISOString().split('T')[0];
-        const todaysTasks = (data.tasks || [])
+        // Filter for all incomplete tasks (not archived, not completed)
+        const activeTasks = (data.tasks || [])
           .filter((task: Task) =>
             task.status !== 'archived' &&
-            task.status !== 'completed' &&
-            (!task.due_date || task.due_date.startsWith(today))
+            task.status !== 'completed'
           )
           .map((task: Task) => {
             // Filter out completed subtasks from check-in view
@@ -214,7 +210,7 @@ export default function Dashboard() {
             }
             return true;
           });
-        setCheckInTasks(todaysTasks);
+        setCheckInTasks(activeTasks);
       }
     } catch (error) {
       logger.error('Failed to fetch check-in tasks', error);
@@ -491,21 +487,19 @@ ${tasksSection}`;
     }
   };
 
-  // Fetch today's tasks for check-out modal
+  // Fetch tasks for check-out modal (incomplete tasks persist until completed)
   const fetchCheckOutTasks = async () => {
     setIsLoadingCheckOutTasks(true);
     try {
       const response = await fetch('/api/tasks');
       if (response.ok) {
         const data = await response.json();
-        // Get only active tasks (pending/in_progress) to update status
-        const today = new Date().toISOString().split('T')[0];
-        const todaysTasks = (data.tasks || [])
+        // Get all incomplete tasks (pending/in_progress/cancel) - tasks persist until completed
+        const activeTasks = (data.tasks || [])
           .filter((task: Task) =>
             task.status !== 'archived' &&
             task.status !== 'completed' &&
-            (task.status === 'pending' || task.status === 'in_progress' || task.status === 'cancel') &&
-            (!task.due_date || task.due_date.startsWith(today))
+            (task.status === 'pending' || task.status === 'in_progress' || task.status === 'cancel')
           )
           .map((task: Task) => {
             // Filter out already-completed subtasks (from previous sessions)
@@ -524,7 +518,7 @@ ${tasksSection}`;
             }
             return true;
           });
-        setCheckOutTasks(todaysTasks);
+        setCheckOutTasks(activeTasks);
       }
     } catch (error) {
       logger.error('Failed to fetch check-out tasks', error);
