@@ -293,6 +293,46 @@ export default function AttendancePage() {
     setEditingAttendance(null);
   };
 
+  // Create attendance record for absent day (admin only for team members)
+  const handleAddTeamAttendance = async (date: string) => {
+    if (!isAdmin || teamUsers.length === 0) return;
+
+    const selectedUser = teamUsers[selectedUserIndex];
+    if (!selectedUser) return;
+
+    try {
+      const response = await fetch('/api/admin/attendance/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          date: date,
+          checkInTime: null,
+          checkOutTime: null,
+          status: 'present',
+          workLocation: 'Onsite',
+          notes: 'Added by admin'
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || 'Failed to create attendance record');
+        return;
+      }
+
+      // Refresh team attendance to get the new record
+      await fetchTeamAttendance(selectedUser.id);
+
+      // Find the newly created record and open edit modal
+      // The record will have the new attendance ID after refresh
+    } catch (error) {
+      logger.error('Failed to add team attendance', error);
+      alert('Failed to create attendance record');
+    }
+  };
+
   // Export attendance to Excel
   const handleExportExcel = () => {
     const startDateStr = currentWeekStart.toISOString().split('T')[0];
@@ -1006,16 +1046,28 @@ export default function AttendancePage() {
                                 )}
                               </td>
                               <td className="px-5 py-4 whitespace-nowrap">
-                                {!isSunday && hasAttendance && attendance.id && (
-                                  <button
-                                    onClick={() => handleEditAttendance(attendance)}
-                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                    title="Edit time directly"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </button>
+                                {!isSunday && (
+                                  hasAttendance && attendance.id ? (
+                                    <button
+                                      onClick={() => handleEditAttendance(attendance)}
+                                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title="Edit time directly"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleAddTeamAttendance(attendance.date)}
+                                      className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                      title="Add attendance"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                      </svg>
+                                    </button>
+                                  )
                                 )}
                               </td>
                             </tr>

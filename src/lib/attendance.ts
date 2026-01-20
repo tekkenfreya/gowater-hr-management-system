@@ -646,6 +646,55 @@ export class AttendanceService {
   }
 
   /**
+   * Create attendance record for a user (admin only)
+   * Used when admin needs to add attendance for an absent day
+   */
+  async createAttendanceForUser(
+    userId: number,
+    date: string,
+    data: {
+      checkInTime?: string;
+      checkOutTime?: string;
+      status?: 'present' | 'absent' | 'late' | 'on_duty';
+      workLocation?: 'WFH' | 'Onsite' | 'Field';
+      notes?: string;
+    }
+  ): Promise<{ success: boolean; attendanceId?: number; error?: string }> {
+    try {
+      // Check if attendance already exists for this user and date
+      const existing = await this.db.get('attendance', { user_id: userId, date });
+
+      if (existing) {
+        return { success: false, error: 'Attendance record already exists for this date' };
+      }
+
+      // Calculate total hours if both check-in and check-out provided
+      let totalHours = 0;
+      if (data.checkInTime && data.checkOutTime) {
+        const checkIn = new Date(data.checkInTime);
+        const checkOut = new Date(data.checkOutTime);
+        totalHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
+      }
+
+      const result = await this.db.insert('attendance', {
+        user_id: userId,
+        date,
+        check_in_time: data.checkInTime || null,
+        check_out_time: data.checkOutTime || null,
+        status: data.status || 'present',
+        work_location: data.workLocation || 'Onsite',
+        total_hours: totalHours,
+        notes: data.notes || 'Added by admin'
+      });
+
+      return { success: true, attendanceId: result?.id };
+    } catch (error) {
+      logger.error('Create attendance for user error', error);
+      return { success: false, error: 'Failed to create attendance record' };
+    }
+  }
+
+  /**
    * Update attendance time directly (for admin users)
    */
   async updateAttendanceTimeDirect(
