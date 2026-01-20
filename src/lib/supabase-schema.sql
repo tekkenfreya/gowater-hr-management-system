@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   employee_name TEXT,
-  role TEXT DEFAULT 'employee' CHECK (role IN ('admin', 'employee', 'manager')),
+  role TEXT DEFAULT 'employee' CHECK (role IN ('admin', 'employee', 'manager', 'intern')),
   department TEXT,
   hire_date DATE DEFAULT CURRENT_DATE,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),

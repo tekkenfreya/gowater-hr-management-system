@@ -348,7 +348,7 @@ export class PermissionsService {
    */
   async grantDefaultPermissions(
     userId: number,
-    role: 'admin' | 'employee' | 'manager',
+    role: 'admin' | 'employee' | 'manager' | 'intern',
     grantedBy: number
   ): Promise<boolean> {
     try {
@@ -361,6 +361,7 @@ export class PermissionsService {
           'can_view_all_leads',
         ],
         employee: [], // Employees get no default permissions
+        intern: [], // Interns have same permissions as employees (none by default)
       };
 
       const permissions = defaultPermissions[role] || [];

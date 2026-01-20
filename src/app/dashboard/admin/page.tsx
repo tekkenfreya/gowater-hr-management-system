@@ -14,7 +14,7 @@ interface CreateUserForm {
   password: string;
   name: string;
   employeeId: string;
-  role: 'admin' | 'employee' | 'manager';
+  role: 'admin' | 'employee' | 'manager' | 'intern';
   position: string;
   department: string;
   employeeName: string;
@@ -23,7 +23,7 @@ interface CreateUserForm {
 interface EditUserForm {
   name: string;
   employeeId: string;
-  role: 'admin' | 'employee' | 'manager';
+  role: 'admin' | 'employee' | 'manager' | 'intern';
   position: string;
   department: string;
   employeeName: string;
@@ -316,9 +316,11 @@ export default function AdminPage() {
                               ? 'bg-red-100 text-red-800'
                               : userItem.role === 'manager'
                               ? 'bg-purple-100 text-purple-800'
+                              : userItem.role === 'intern'
+                              ? 'bg-orange-100 text-orange-800'
                               : 'bg-green-100 text-green-800'
                           }`}>
-                            {userItem.role}
+                            {userItem.role === 'intern' ? 'OJT/Intern' : userItem.role}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-800">
@@ -445,10 +447,11 @@ export default function AdminPage() {
                     <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
                     <select
                       value={createForm.role}
-                      onChange={(e) => setCreateForm({...createForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
+                      onChange={(e) => setCreateForm({...createForm, role: e.target.value as 'admin' | 'manager' | 'employee' | 'intern'})}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                     >
                       <option value="employee">Employee</option>
+                      <option value="intern">OJT/Intern</option>
                       <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
                     </select>
@@ -582,10 +585,11 @@ export default function AdminPage() {
                     <label className="block text-sm font-medium text-gray-800 mb-1">Role</label>
                     <select
                       value={editForm.role}
-                      onChange={(e) => setEditForm({...editForm, role: e.target.value as 'admin' | 'manager' | 'employee'})}
+                      onChange={(e) => setEditForm({...editForm, role: e.target.value as 'admin' | 'manager' | 'employee' | 'intern'})}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-p3-cyan focus:border-p3-cyan text-gray-900 bg-white transition-all duration-200"
                     >
                       <option value="employee">Employee</option>
+                      <option value="intern">OJT/Intern</option>
                       <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
                     </select>
