@@ -325,8 +325,20 @@ export default function AttendancePage() {
       // Refresh team attendance to get the new record
       await fetchTeamAttendance(selectedUser.id);
 
-      // Find the newly created record and open edit modal
-      // The record will have the new attendance ID after refresh
+      // Open edit modal with the newly created record
+      const newAttendance: WeeklyAttendanceData = {
+        id: data.attendanceId,
+        date: date,
+        day: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+        totalHours: 0,
+        status: 'present',
+        checkInTime: undefined,
+        checkOutTime: undefined,
+        breakStartTime: undefined,
+        breakEndTime: undefined
+      };
+      setEditingAttendance(newAttendance);
+      setEditModalOpen(true);
     } catch (error) {
       logger.error('Failed to add team attendance', error);
       alert('Failed to create attendance record');
