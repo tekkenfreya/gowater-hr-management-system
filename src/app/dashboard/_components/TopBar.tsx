@@ -147,6 +147,8 @@ export default function TopBar({
                         <span className="text-blue-600 font-semibold uppercase tracking-wider">Admin</span>
                       ) : user?.role === 'manager' ? (
                         <span className="text-blue-600 font-semibold uppercase tracking-wider">Manager</span>
+                      ) : user?.role === 'intern' ? (
+                        <span className="text-orange-500 font-semibold uppercase tracking-wider">OJT/Intern</span>
                       ) : (
                         <span className="text-gray-500 uppercase tracking-wider">Employee</span>
                       )}

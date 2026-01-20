@@ -316,9 +316,9 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                               employee.isWorking ? 'bg-green-500 animate-pulse' : employee.isOnBreak ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'
                             }`} />
-                            {/* Employee Name */}
+                            {/* Employee Name - Use employeeName (Display Name) if available, otherwise name */}
                             <span className="text-xs font-medium truncate" style={{ fontFamily: 'var(--font-geist-sans)' }}>
-                              {employee.name}
+                              {employee.employeeName || employee.name}
                             </span>
                             {/* Status Text */}
                             <span className={`text-[10px] ml-auto flex-shrink-0 ${
