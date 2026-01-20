@@ -22,6 +22,15 @@ interface WeeklyAttendanceData {
   sessions?: Array<{ checkIn: string; checkOut: string }>;
 }
 
+interface TeamUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  position?: string;
+  employeeName?: string;
+}
+
 export default function AttendancePage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -30,7 +39,13 @@ export default function AttendancePage() {
 
   // Attendance calendar state
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'summary'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'summary' | 'team'>('calendar');
+
+  // Team attendance state (admin only)
+  const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
+  const [selectedUserIndex, setSelectedUserIndex] = useState(0);
+  const [teamWeeklyAttendance, setTeamWeeklyAttendance] = useState<WeeklyAttendanceData[]>([]);
+  const [isLoadingTeamAttendance, setIsLoadingTeamAttendance] = useState(false);
 
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -45,6 +60,9 @@ export default function AttendancePage() {
     sunday.setHours(0, 0, 0, 0);
     return sunday;
   });
+
+  // Check if user is admin (needed early for useEffects)
+  const isAdmin = user?.role === 'admin';
 
   // Get week dates based on currentWeekStart (Sunday to Saturday)
   const getWeekDates = () => {
@@ -130,6 +148,23 @@ export default function AttendancePage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch team users when switching to team tab (admin only)
+  useEffect(() => {
+    if (activeTab === 'team' && isAdmin && teamUsers.length === 0) {
+      fetchTeamUsers();
+    }
+  }, [activeTab, isAdmin]);
+
+  // Fetch team attendance when user selection or week changes
+  useEffect(() => {
+    if (activeTab === 'team' && isAdmin && teamUsers.length > 0) {
+      const selectedUser = teamUsers[selectedUserIndex];
+      if (selectedUser) {
+        fetchTeamAttendance(selectedUser.id);
+      }
+    }
+  }, [activeTab, selectedUserIndex, teamUsers, currentWeekStart, isAdmin]);
+
   const fetchWeeklyAttendance = async () => {
     try {
       const startDateStr = currentWeekStart.toISOString().split('T')[0];
@@ -140,6 +175,94 @@ export default function AttendancePage() {
       }
     } catch (error) {
       logger.error('Failed to fetch weekly attendance', error);
+    }
+  };
+
+  // Fetch team users (admin only)
+  const fetchTeamUsers = async () => {
+    try {
+      const response = await fetch('/api/admin/users');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter out current user from the list
+        const otherUsers = (data.users || []).filter((u: TeamUser) => u.id !== user?.id);
+        setTeamUsers(otherUsers);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch team users', error);
+    }
+  };
+
+  // Fetch team member's attendance (admin only)
+  const fetchTeamAttendance = async (userId: number) => {
+    setIsLoadingTeamAttendance(true);
+    try {
+      const startDateStr = currentWeekStart.toISOString().split('T')[0];
+      const endDate = new Date(currentWeekStart);
+      endDate.setDate(currentWeekStart.getDate() + 6);
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      const response = await fetch(`/api/admin/attendance?userId=${userId}&startDate=${startDateStr}&endDate=${endDateStr}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Transform the data to match WeeklyAttendanceData format
+        const attendanceRecords = data.records || [];
+        const weeklyData: WeeklyAttendanceData[] = [];
+
+        // Create entries for each day of the week
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(currentWeekStart);
+          date.setDate(currentWeekStart.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+
+          const record = attendanceRecords.find((r: { date: string }) => {
+            const recordDate = new Date(r.date).toISOString().split('T')[0];
+            return recordDate === dateStr;
+          });
+
+          if (record) {
+            weeklyData.push({
+              id: record.id,
+              date: record.date,
+              day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+              checkInTime: record.check_in_time,
+              checkOutTime: record.check_out_time,
+              breakStartTime: record.break_start_time,
+              breakEndTime: record.break_end_time,
+              totalHours: record.total_hours || 0,
+              status: record.status || 'present',
+              isWeekend: date.getDay() === 0,
+            });
+          } else {
+            weeklyData.push({
+              date: dateStr,
+              day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+              totalHours: 0,
+              status: 'absent',
+              isWeekend: date.getDay() === 0,
+            });
+          }
+        }
+
+        setTeamWeeklyAttendance(weeklyData);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch team attendance', error);
+    } finally {
+      setIsLoadingTeamAttendance(false);
+    }
+  };
+
+  // User navigation functions
+  const goToPreviousUser = () => {
+    if (teamUsers.length > 0) {
+      setSelectedUserIndex((prev) => (prev > 0 ? prev - 1 : teamUsers.length - 1));
+    }
+  };
+
+  const goToNextUser = () => {
+    if (teamUsers.length > 0) {
+      setSelectedUserIndex((prev) => (prev < teamUsers.length - 1 ? prev + 1 : 0));
     }
   };
 
@@ -158,13 +281,17 @@ export default function AttendancePage() {
 
   // Handle successful edit submission
   const handleEditSuccess = () => {
-    fetchWeeklyAttendance();
+    if (activeTab === 'team' && teamUsers.length > 0) {
+      const selectedUser = teamUsers[selectedUserIndex];
+      if (selectedUser) {
+        fetchTeamAttendance(selectedUser.id);
+      }
+    } else {
+      fetchWeeklyAttendance();
+    }
     setEditModalOpen(false);
     setEditingAttendance(null);
   };
-
-  // Check if user is admin
-  const isAdmin = user?.role === 'admin';
 
   // Export attendance to Excel
   const handleExportExcel = () => {
@@ -209,6 +336,19 @@ export default function AttendancePage() {
             >
               Attendance Summary
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('team')}
+                className={`pb-3 px-1 border-b-2 font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
+                  activeTab === 'team'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-blue-600'
+                }`}
+                style={{ fontFamily: 'var(--font-geist-sans)' }}
+              >
+                Team Attendance
+              </button>
+            )}
           </div>
         </div>
 
@@ -439,7 +579,7 @@ export default function AttendancePage() {
                 </div>
               </div>
             </>
-          ) : (
+          ) : activeTab === 'summary' ? (
             /* Attendance Summary View */
             <div className="space-y-6">
               {/* Week Navigation Header - Same as Calendar */}
@@ -675,6 +815,217 @@ export default function AttendancePage() {
                   </table>
                 </div>
               </div>
+            </div>
+          ) : (
+            /* Team Attendance View - Admin Only */
+            <div className="space-y-6">
+              {/* User Navigation Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={goToPreviousUser}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
+                    title="Previous user"
+                    disabled={teamUsers.length === 0}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">
+                        {teamUsers[selectedUserIndex]?.employeeName?.[0] || teamUsers[selectedUserIndex]?.name?.[0] || '?'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                        {teamUsers[selectedUserIndex]?.employeeName || teamUsers[selectedUserIndex]?.name || 'No users'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {teamUsers[selectedUserIndex]?.position || teamUsers[selectedUserIndex]?.role || ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={goToNextUser}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
+                    title="Next user"
+                    disabled={teamUsers.length === 0}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  <span className="text-sm text-gray-500 ml-2">
+                    {teamUsers.length > 0 ? `${selectedUserIndex + 1} of ${teamUsers.length}` : '0 users'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Week Navigation */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={goToPreviousWeek}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
+                    title="Previous week"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="font-bold text-gray-900 uppercase tracking-wider" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+                      {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={goToNextWeek}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
+                    title="Next week"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+
+                <button
+                  onClick={goToCurrentWeek}
+                  className="px-4 py-2 text-sm font-bold uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300"
+                  style={{ fontFamily: 'var(--font-geist-sans)' }}
+                >
+                  Today
+                </button>
+              </div>
+
+              {/* Team Attendance Table */}
+              {isLoadingTeamAttendance ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : teamUsers.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No team members found</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h3 className="text-base font-semibold text-gray-800">Weekly Attendance</h3>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Viewing attendance for {teamUsers[selectedUserIndex]?.employeeName || teamUsers[selectedUserIndex]?.name}
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {teamWeeklyAttendance.map((attendance) => {
+                          const date = new Date(attendance.date);
+                          const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+                          const isSunday = date.getDay() === 0;
+                          const isToday = date.toDateString() === currentTime.toDateString();
+                          const hasAttendance = attendance.checkInTime;
+
+                          return (
+                            <tr key={attendance.date} className={`${isToday ? 'bg-blue-50' : ''} ${isSunday ? 'bg-gray-50' : ''}`}>
+                              <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {dayName}
+                                {isToday && <span className="ml-2 text-xs text-blue-600 font-semibold">(Today)</span>}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {isSunday ? (
+                                  <span className="text-gray-400">Rest Day</span>
+                                ) : hasAttendance ? (
+                                  formatPhilippineTime(attendance.checkInTime!)
+                                ) : (
+                                  <span className="text-gray-400">--</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {isSunday ? (
+                                  <span className="text-gray-400">Rest Day</span>
+                                ) : hasAttendance && attendance.checkOutTime ? (
+                                  formatPhilippineTime(attendance.checkOutTime)
+                                ) : hasAttendance && !attendance.checkOutTime ? (
+                                  <span className="text-green-600 font-medium">Working...</span>
+                                ) : (
+                                  <span className="text-gray-400">--</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                {isSunday ? (
+                                  <span className="text-gray-400 font-normal">--</span>
+                                ) : hasAttendance ? (
+                                  `${Math.round(attendance.totalHours * 10) / 10}h`
+                                ) : (
+                                  <span className="text-gray-400 font-normal">0h</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap">
+                                {isSunday ? (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
+                                    Rest Day
+                                  </span>
+                                ) : hasAttendance ? (
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    attendance.status === 'present'
+                                      ? 'bg-green-100 text-green-700'
+                                      : attendance.status === 'late'
+                                      ? 'bg-orange-100 text-orange-700'
+                                      : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {attendance.status === 'present' ? 'Present' : attendance.status === 'late' ? 'Late' : 'On Duty'}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                                    Absent
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap">
+                                {!isSunday && hasAttendance && attendance.id && (
+                                  <button
+                                    onClick={() => handleEditAttendance(attendance)}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Edit time directly"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
