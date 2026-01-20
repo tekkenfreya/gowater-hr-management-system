@@ -101,6 +101,9 @@ export default function Dashboard() {
   // Report copied confirmation modal state
   const [showReportCopiedModal, setShowReportCopiedModal] = useState(false);
 
+  // Home page copy report state
+  const [homeReportCopied, setHomeReportCopied] = useState(false);
+
   // Fetch announcements
   const fetchAnnouncements = async () => {
     setIsLoadingAnnouncements(true);
@@ -428,6 +431,85 @@ ${tasksSection}`;
   const handleDismissReportCopiedModal = () => {
     setShowReportCopiedModal(false);
     setShowCheckInModal(false);
+  };
+
+  // Copy report from home page (for users who lost clipboard content)
+  const handleCopyReportFromHome = async () => {
+    try {
+      // Fetch current active tasks
+      const response = await fetch('/api/tasks');
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks');
+      }
+      const data = await response.json();
+      const activeTasks = (data.tasks || []).filter((task: Task) =>
+        task.status !== 'archived' &&
+        task.status !== 'completed'
+      );
+
+      const now = new Date();
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      };
+      const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+
+      // Use actual check-in time from attendance context
+      const checkInTimeFormatted = checkInTime
+        ? new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+        : now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Format tasks section with sub-tasks
+      const tasksSection = activeTasks.length > 0
+        ? activeTasks.map((task: Task, index: number) => {
+            let taskText = `${index + 1}. ${task.title} [${task.status.toUpperCase()}]`;
+
+            // Add sub-tasks if available
+            if (task.subTasks && task.subTasks.length > 0) {
+              task.subTasks.forEach((subTask, subIndex) => {
+                const statusLabel = formatSubTaskStatus(subTask.status);
+                taskText += `\n   ${subTask.title} [${statusLabel}]`;
+                if (subTask.notes?.trim()) {
+                  taskText += `\n   [${subTask.notes.trim()}]`;
+                }
+                if (subIndex < task.subTasks!.length - 1) {
+                  taskText += `\n`;
+                }
+              });
+            }
+
+            return taskText;
+          }).join('\n\n')
+        : 'No tasks planned for today';
+
+      const report = `GoWater Start of Day Report
+
+Date: ${formattedDate}
+Employee: ${user?.employeeName || user?.name}
+Position: ${user?.position || user?.role}
+Work Arrangement: ${currentWorkArrangement || 'N/A'}
+Login Time: ${checkInTimeFormatted}
+Logout Time: N/A
+Hours Worked: ${(workDuration / 3600).toFixed(2)} hours
+Break Time: ${Math.floor(breakDuration / 60)}m
+
+Today's Planned Tasks:
+${tasksSection}`;
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(report);
+
+      // Show feedback
+      setHomeReportCopied(true);
+      setTimeout(() => setHomeReportCopied(false), 2000);
+
+      logger.info('Report copied from home page');
+    } catch (error) {
+      logger.error('Failed to copy report from home', error);
+      alert('Failed to copy report. Please try again.');
+    }
   };
 
   // Copy check-in report to clipboard
@@ -833,6 +915,24 @@ ${tasksSection}`;
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                     </svg>
                   </div>
+                  {/* Copy Report Button - only show when timed in */}
+                  {isTimedIn && (
+                    <button
+                      onClick={handleCopyReportFromHome}
+                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors group relative"
+                      title="Copy report to clipboard"
+                    >
+                      {homeReportCopied ? (
+                        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
                 </div>
                 <p className="text-sm font-medium text-gray-600 mb-2">Active Tasks</p>
                 <p className="text-4xl font-bold text-gray-900 mb-1">{todayStats.activeTasks}</p>
