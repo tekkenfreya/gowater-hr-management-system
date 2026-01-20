@@ -62,9 +62,11 @@ export class AuthService {
 
   private async createDefaultAdmin() {
     try {
+      // Check if admin already exists by role OR by email
       const existingAdmin = await this.db.get('users', { role: 'admin' });
+      const existingEmail = await this.db.get('users', { email: 'admin@gowater.com' });
 
-      if (!existingAdmin) {
+      if (!existingAdmin && !existingEmail) {
         // Security: Generate a secure random password instead of hardcoded default
         const crypto = await import('crypto');
         const randomPassword = crypto.randomBytes(16).toString('hex');
@@ -93,8 +95,14 @@ export class AuthService {
         logger.debug('⚠️  This password will NOT be shown again.');
         logger.debug('='.repeat(60) + '\n');
       }
-    } catch (error) {
-      logger.error('Error creating default admin', error);
+    } catch (error: unknown) {
+      // Ignore duplicate key error - admin already exists
+      const pgError = error as { code?: string };
+      if (pgError.code === '23505') {
+        logger.debug('Default admin already exists, skipping creation');
+      } else {
+        logger.error('Error creating default admin', error);
+      }
     }
   }
 
