@@ -41,7 +41,7 @@ export const registerSchema = z.object({
   employee_name: z.string()
     .max(255, 'Employee name must be less than 255 characters')
     .optional(),
-  role: z.enum(['admin', 'employee', 'manager']).default('employee'),
+  role: z.enum(['admin', 'employee', 'manager', 'intern']).default('employee'),
   department: z.string()
     .max(255, 'Department must be less than 255 characters')
     .optional(),
