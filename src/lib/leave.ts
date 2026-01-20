@@ -11,14 +11,8 @@ export interface LeaveRequest {
   leave_type: 'vacation' | 'sick' | 'absent' | 'offset';
   reason: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
-  days: number;
-  halfDay: boolean;
   approver_id?: number;
   approved_at?: Date;
-  applied_at: Date;
-  rejection_reason?: string;
-  attachments: string[];
-  emergency_contact?: string;
   comments?: string;
   created_at: Date;
   updated_at: Date;
@@ -27,10 +21,9 @@ export interface LeaveRequest {
 export interface LeaveRequestWithDetails extends LeaveRequest {
   employee_name: string;
   employee_email: string;
-  employee_department: string;
+  employee_department?: string;
   approver_name?: string;
   approver_email?: string;
-  total_days: number;
 }
 
 export interface CreateLeaveRequestData {
@@ -39,9 +32,6 @@ export interface CreateLeaveRequestData {
   end_date: string;
   leave_type: 'vacation' | 'sick' | 'absent' | 'offset';
   reason: string;
-  halfDay?: boolean;
-  attachments?: string[];
-  emergency_contact?: string;
 }
 
 export interface LeaveBalance {
@@ -95,10 +85,7 @@ export class LeaveService {
         return { success: false, error: 'User not found' };
       }
 
-      // Calculate days
-      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-      // Create leave request
+      // Create leave request (only use columns that exist in the database)
       const leaveRequest = await this.db.insert('leave_requests', {
         user_id: data.user_id,
         start_date: data.start_date,
@@ -106,18 +93,13 @@ export class LeaveService {
         leave_type: data.leave_type,
         reason: data.reason,
         status: 'pending',
-        days: data.halfDay ? days * 0.5 : days,
-        half_day: data.halfDay || false,
-        attachments: JSON.stringify(data.attachments || []),
-        emergency_contact: data.emergency_contact || null,
         approver_id: user.manager_id || null,
-        applied_at: new Date(),
         created_at: new Date(),
         updated_at: new Date()
       });
 
-      // Create notification for manager if exists
-      if (user.manager_id) {
+      // Create notification for manager if exists (and not self)
+      if (user.manager_id && user.manager_id !== data.user_id) {
         await this.notificationService.createNotification({
           user_id: user.manager_id,
           type: 'leave_request',
@@ -127,9 +109,12 @@ export class LeaveService {
         });
       }
 
-      // Also notify all admins
+      // Notify all admins (excluding the requesting user if they are admin)
       const admins = await this.db.all('users', { role: 'admin', status: 'active' });
       for (const admin of admins) {
+        // Skip if admin is the one filing the leave request
+        if (admin.id === data.user_id) continue;
+
         await this.notificationService.createNotification({
           user_id: admin.id,
           type: 'leave_request',
@@ -149,9 +134,17 @@ export class LeaveService {
   async getLeaveRequests(userId: number): Promise<LeaveRequestWithDetails[]> {
     try {
       const leaveRequests = await this.db.executeRawSQL<LeaveRequestWithDetails>(`
-        SELECT * FROM leave_requests_with_details
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT lr.*,
+               u.name as employee_name,
+               u.email as employee_email,
+               u.department as employee_department,
+               a.name as approver_name,
+               a.email as approver_email
+        FROM leave_requests lr
+        JOIN users u ON lr.user_id = u.id
+        LEFT JOIN users a ON lr.approver_id = a.id
+        WHERE lr.user_id = $1
+        ORDER BY lr.created_at DESC
       `, [userId]);
 
       return leaveRequests || [];
