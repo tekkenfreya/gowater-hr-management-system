@@ -26,14 +26,21 @@ interface LeaveRequest {
   total_days?: number;
 }
 
+interface TeamLeaveRequest extends LeaveRequest {
+  employee_name: string;
+  employee_email: string;
+  employee_department?: string;
+}
+
 export default function LeaveTracker() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'apply' | 'history'>('apply');
+  const [activeTab, setActiveTab] = useState<'apply' | 'history' | 'approvals'>('apply');
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [leaveBalance, setLeaveBalance] = useState({
     vacation: { used: 0, total: 20 },
     sick: { used: 0, total: 10 },
@@ -49,6 +56,18 @@ export default function LeaveTracker() {
     reason: ''
   });
 
+  // Admin approval state
+  const [teamLeaveRequests, setTeamLeaveRequests] = useState<TeamLeaveRequest[]>([]);
+  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [processingRequest, setProcessingRequest] = useState<number | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalAction, setModalAction] = useState<'approve' | 'reject'>('approve');
+  const [selectedRequest, setSelectedRequest] = useState<TeamLeaveRequest | null>(null);
+  const [comments, setComments] = useState('');
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+
   const fetchLeaveBalance = async () => {
     try {
       const response = await fetch('/api/leave/balance');
@@ -59,6 +78,75 @@ export default function LeaveTracker() {
       }
     } catch (error) {
       logger.error('Failed to fetch leave balance', error);
+    }
+  };
+
+  // Fetch team leave requests (admin/manager only)
+  const fetchTeamLeaveRequests = async () => {
+    try {
+      setApprovalLoading(true);
+      const statusParam = selectedStatus === 'all' ? '' : `?status=${selectedStatus}`;
+      const response = await fetch(`/api/leave/team${statusParam}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setTeamLeaveRequests(data.data || []);
+      }
+    } catch (error) {
+      logger.error('Failed to fetch team leave requests', error);
+    } finally {
+      setApprovalLoading(false);
+    }
+  };
+
+  // Handle approval action
+  const handleApprovalAction = (request: TeamLeaveRequest, action: 'approve' | 'reject') => {
+    setSelectedRequest(request);
+    setModalAction(action);
+    setComments('');
+    setShowModal(true);
+  };
+
+  // Process leave request approval/rejection
+  const processLeaveRequest = async () => {
+    if (!selectedRequest) return;
+    if (modalAction === 'reject' && !comments.trim()) {
+      setError('Comments are required when rejecting a leave request');
+      return;
+    }
+
+    try {
+      setProcessingRequest(selectedRequest.id);
+      setError('');
+
+      const response = await fetch('/api/leave/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leaveRequestId: selectedRequest.id,
+          action: modalAction,
+          comments: comments.trim() || undefined
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.error || `Failed to ${modalAction} leave request`);
+        return;
+      }
+
+      setSuccess(`Leave request ${modalAction}d successfully`);
+      setShowModal(false);
+      setComments('');
+      await fetchTeamLeaveRequests();
+
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      logger.error(`Failed to ${modalAction} leave request`, error);
+      setError(`Failed to ${modalAction} leave request. Please try again.`);
+    } finally {
+      setProcessingRequest(null);
     }
   };
 
@@ -75,6 +163,13 @@ export default function LeaveTracker() {
       fetchLeaveBalance();
     }
   }, [user]);
+
+  // Fetch team leave requests when approvals tab is active
+  useEffect(() => {
+    if (user && isAdmin && activeTab === 'approvals') {
+      fetchTeamLeaveRequests();
+    }
+  }, [user, isAdmin, activeTab, selectedStatus]);
 
   const fetchLeaveRequests = async () => {
     try {
@@ -145,24 +240,31 @@ export default function LeaveTracker() {
         reason: ''
       });
 
-      // Open email client with leave details (auto-filled like WhatsApp report)
-      const emailTo = 'mark.belen@nxtlvlwater.xyz,rubyanne.talosig@nxtlvlwater.xyz';
-      const emailSubject = encodeURIComponent(`Leave Request - ${newLeave.type.charAt(0).toUpperCase() + newLeave.type.slice(1)} Leave`);
-      const emailBody = encodeURIComponent(
-        `Dear Admin,\n\n` +
-        `I would like to request leave with the following details:\n\n` +
-        `Leave Type: ${newLeave.type.charAt(0).toUpperCase() + newLeave.type.slice(1)} Leave\n` +
-        `Start Date: ${newLeave.startDate}\n` +
-        `End Date: ${newLeave.endDate}\n` +
-        `Total Days: ${calculateDays(newLeave.startDate, newLeave.endDate)} day(s)\n` +
-        `Reason: ${newLeave.reason}\n\n` +
-        `Please review and approve my leave request.\n\n` +
-        `Best regards,\n` +
-        `${user?.name || 'Employee'}`
-      );
+      // Build email recipient list (exclude self if admin)
+      const adminEmails = ['mark.belen@nxtlvlwater.xyz', 'rubyanne.talosig@nxtlvlwater.xyz'];
+      const userEmail = user?.email?.toLowerCase();
+      const filteredEmails = adminEmails.filter(email => email.toLowerCase() !== userEmail);
 
-      // Open email client with recipients
-      window.location.href = `mailto:${emailTo}?subject=${emailSubject}&body=${emailBody}`;
+      // Only open email if there are recipients (skip if admin is the only one)
+      if (filteredEmails.length > 0) {
+        const emailTo = filteredEmails.join(',');
+        const emailSubject = encodeURIComponent(`Leave Request - ${newLeave.type.charAt(0).toUpperCase() + newLeave.type.slice(1)} Leave`);
+        const emailBody = encodeURIComponent(
+          `Dear Admin,\n\n` +
+          `I would like to request leave with the following details:\n\n` +
+          `Leave Type: ${newLeave.type.charAt(0).toUpperCase() + newLeave.type.slice(1)} Leave\n` +
+          `Start Date: ${newLeave.startDate}\n` +
+          `End Date: ${newLeave.endDate}\n` +
+          `Total Days: ${calculateDays(newLeave.startDate, newLeave.endDate)} day(s)\n` +
+          `Reason: ${newLeave.reason}\n\n` +
+          `Please review and approve my leave request.\n\n` +
+          `Best regards,\n` +
+          `${user?.name || 'Employee'}`
+        );
+
+        // Open email client with recipients
+        window.location.href = `mailto:${emailTo}?subject=${emailSubject}&body=${emailBody}`;
+      }
 
       // Refresh leave requests and balance
       await fetchLeaveRequests();
@@ -204,6 +306,9 @@ export default function LeaveTracker() {
       default: return type;
     }
   };
+
+  // Count pending requests for badge
+  const pendingCount = teamLeaveRequests.filter(r => r.status === 'pending').length;
 
   // Show loading while verifying authentication
   if (isLoading) {
@@ -332,6 +437,18 @@ export default function LeaveTracker() {
           </div>
         </div>
 
+        {/* Status Messages */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+            {success}
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="rounded-xl shadow-sm border border-gray-200">
           <div className="border-b border-gray-200">
@@ -356,6 +473,23 @@ export default function LeaveTracker() {
               >
                 Leave History
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveTab('approvals')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                    activeTab === 'approvals'
+                      ? 'border-p3-cyan text-p3-cyan'
+                      : 'border-transparent text-gray-800 hover:text-gray-900'
+                  }`}
+                >
+                  <span>Leave Approvals</span>
+                  {pendingCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      {pendingCount}
+                    </span>
+                  )}
+                </button>
+              )}
             </nav>
           </div>
 
@@ -363,14 +497,7 @@ export default function LeaveTracker() {
             {activeTab === 'apply' ? (
               <div className="max-w-2xl">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Apply for Leave</h3>
-                
-                {/* Error Display */}
-                {error && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-                
+
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">Leave Type</label>
@@ -438,7 +565,7 @@ export default function LeaveTracker() {
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'history' ? (
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Leave History</h3>
                 
@@ -497,10 +624,160 @@ export default function LeaveTracker() {
                   </div>
                 )}
               </div>
-            )}
+            ) : activeTab === 'approvals' && isAdmin ? (
+              /* Leave Approvals Tab (Admin Only) */
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-gray-900">Leave Approvals</h3>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-p3-cyan"
+                  >
+                    <option value="all">All Requests</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+
+                {approvalLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-800">Loading leave requests...</p>
+                  </div>
+                ) : teamLeaveRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-800">No leave requests found.</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {selectedStatus === 'pending' ? 'No pending requests to review.' : `No ${selectedStatus} requests.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {teamLeaveRequests.map((request) => (
+                      <div key={request.id} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <span className="font-semibold text-gray-900">{request.employee_name}</span>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLeaveTypeColor(request.leave_type)}`}>
+                                {getLeaveTypeLabel(request.leave_type)}
+                              </span>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(request.status)}`}>
+                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <p className="font-semibold text-gray-800">Duration</p>
+                                <p className="text-gray-800">{request.start_date} to {request.end_date}</p>
+                                <p className="text-gray-600">{calculateDays(request.start_date, request.end_date)} day(s)</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-800">Applied Date</p>
+                                <p className="text-gray-800">{new Date(request.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-800">Reason</p>
+                                <p className="text-gray-800">{request.reason}</p>
+                              </div>
+                            </div>
+                            {request.comments && (
+                              <div className="mt-3 p-3 rounded border border-gray-200 bg-white">
+                                <p className="text-sm font-semibold text-gray-800">Comments:</p>
+                                <p className="text-sm text-gray-800">{request.comments}</p>
+                              </div>
+                            )}
+                          </div>
+                          {request.status === 'pending' && (
+                            <div className="flex space-x-2 ml-4">
+                              <button
+                                onClick={() => handleApprovalAction(request, 'approve')}
+                                disabled={processingRequest === request.id}
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleApprovalAction(request, 'reject')}
+                                disabled={processingRequest === request.id}
+                                className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
+
+      {/* Approval/Rejection Modal */}
+      {showModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              {modalAction === 'approve' ? 'Approve' : 'Reject'} Leave Request
+            </h3>
+
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+              <p className="font-semibold text-gray-900">{selectedRequest.employee_name}</p>
+              <p className="text-sm text-gray-800">{getLeaveTypeLabel(selectedRequest.leave_type)}</p>
+              <p className="text-sm text-gray-800">
+                {selectedRequest.start_date} to {selectedRequest.end_date}
+              </p>
+              <p className="text-sm text-gray-600">
+                {calculateDays(selectedRequest.start_date, selectedRequest.end_date)} day(s)
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                Comments {modalAction === 'reject' && <span className="text-red-500">*</span>}
+              </label>
+              <textarea
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-p3-cyan"
+                placeholder={modalAction === 'approve' ? 'Optional comments...' : 'Please provide a reason for rejection...'}
+              />
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={processLeaveRequest}
+                disabled={processingRequest === selectedRequest.id}
+                className={`flex-1 px-4 py-2 text-white rounded-lg font-medium transition-colors ${
+                  modalAction === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-400'
+                    : 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
+                }`}
+              >
+                {processingRequest === selectedRequest.id ? 'Processing...' : modalAction === 'approve' ? 'Approve' : 'Reject'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setComments('');
+                  setError('');
+                }}
+                disabled={processingRequest === selectedRequest.id}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
