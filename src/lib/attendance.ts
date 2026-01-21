@@ -126,8 +126,9 @@ export class AttendanceService {
 
       return { success: true };
     } catch (error) {
-      logger.error('Check-in error', error);
-      return { success: false, error: 'Failed to check in' };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Check-in error', { error: errorMessage, userId, workLocation });
+      return { success: false, error: `Failed to check in: ${errorMessage}` };
     }
   }
 
