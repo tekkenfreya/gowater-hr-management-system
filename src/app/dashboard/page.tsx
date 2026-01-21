@@ -436,16 +436,24 @@ ${tasksSection}`;
   // Copy report from home page (for users who lost clipboard content)
   const handleCopyReportFromHome = async () => {
     try {
-      // Fetch current active tasks
-      const response = await fetch('/api/tasks');
-      if (!response.ok) {
+      // Fetch current active tasks and fresh attendance data in parallel
+      const [tasksResponse, attendanceResponse] = await Promise.all([
+        fetch('/api/tasks'),
+        fetch('/api/attendance')
+      ]);
+
+      if (!tasksResponse.ok) {
         throw new Error('Failed to fetch tasks');
       }
-      const data = await response.json();
-      const activeTasks = (data.tasks || []).filter((task: Task) =>
+      const tasksData = await tasksResponse.json();
+      const activeTasks = (tasksData.tasks || []).filter((task: Task) =>
         task.status !== 'archived' &&
         task.status !== 'completed'
       );
+
+      // Get fresh attendance data from database
+      const attendanceData = attendanceResponse.ok ? await attendanceResponse.json() : null;
+      const freshAttendance = attendanceData?.attendance;
 
       const now = new Date();
       const dateOptions: Intl.DateTimeFormatOptions = {
@@ -456,10 +464,27 @@ ${tasksSection}`;
       };
       const formattedDate = now.toLocaleDateString('en-US', dateOptions);
 
-      // Use actual check-in time from attendance context
-      const checkInTimeFormatted = checkInTime
-        ? new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      // Use fresh check-in time from database, fallback to context
+      const actualCheckInTime = freshAttendance?.checkInTime || checkInTime;
+      const checkInTimeFormatted = actualCheckInTime
+        ? new Date(actualCheckInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
         : now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Calculate hours worked from fresh database data
+      let hoursWorked: string;
+      if (actualCheckInTime) {
+        const checkIn = new Date(actualCheckInTime);
+        const totalSeconds = Math.floor((now.getTime() - checkIn.getTime()) / 1000);
+        const breakSeconds = freshAttendance?.breakDuration || 0;
+        const workSeconds = Math.max(0, totalSeconds - breakSeconds);
+        hoursWorked = (workSeconds / 3600).toFixed(2);
+      } else {
+        hoursWorked = (workDuration / 3600).toFixed(2);
+      }
+
+      // Get break time from database
+      const totalBreakSeconds = freshAttendance?.breakDuration || 0;
+      const breakMinutes = Math.floor(totalBreakSeconds / 60);
 
       // Format tasks section with sub-tasks
       const tasksSection = activeTasks.length > 0
@@ -489,11 +514,11 @@ ${tasksSection}`;
 Date: ${formattedDate}
 Employee: ${user?.employeeName || user?.name}
 Position: ${user?.position || user?.role}
-Work Arrangement: ${currentWorkArrangement || 'N/A'}
+Work Arrangement: ${currentWorkArrangement || freshAttendance?.workLocation || 'N/A'}
 Login Time: ${checkInTimeFormatted}
 Logout Time: N/A
-Hours Worked: ${(workDuration / 3600).toFixed(2)} hours
-Break Time: ${Math.floor(breakDuration / 60)}m
+Hours Worked: ${hoursWorked} hours
+Break Time: ${breakMinutes}m
 
 Today's Planned Tasks:
 ${tasksSection}`;
@@ -661,6 +686,12 @@ ${tasksSection}`;
     try {
       // Save subtask updates first
       await saveSubTaskUpdates();
+
+      // Fetch fresh attendance data from database to ensure accurate hours
+      const attendanceResponse = await fetch('/api/attendance');
+      const attendanceData = attendanceResponse.ok ? await attendanceResponse.json() : null;
+      const freshAttendance = attendanceData?.attendance;
+
       const now = new Date();
       const dateOptions: Intl.DateTimeFormatOptions = {
         weekday: 'long',
@@ -670,16 +701,28 @@ ${tasksSection}`;
       };
       const formattedDate = now.toLocaleDateString('en-US', dateOptions);
 
-      // Format check-in and check-out times
-      const checkInTimeFormatted = checkInTime
-        ? new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      // Use fresh check-in time from database, fallback to context
+      const actualCheckInTime = freshAttendance?.checkInTime || checkInTime;
+      const checkInTimeFormatted = actualCheckInTime
+        ? new Date(actualCheckInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
         : 'N/A';
       const checkOutTimeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-      // Calculate hours worked
-      const hoursWorked = (workDuration / 3600).toFixed(2);
+      // Calculate hours worked from fresh database data
+      // If we have fresh check-in time, calculate actual duration; otherwise use local state as fallback
+      let hoursWorked: string;
+      if (actualCheckInTime) {
+        const checkIn = new Date(actualCheckInTime);
+        const totalSeconds = Math.floor((now.getTime() - checkIn.getTime()) / 1000);
+        const breakSeconds = freshAttendance?.breakDuration || accumulatedBreakDuration || 0;
+        const workSeconds = Math.max(0, totalSeconds - breakSeconds);
+        hoursWorked = (workSeconds / 3600).toFixed(2);
+      } else {
+        hoursWorked = (workDuration / 3600).toFixed(2);
+      }
 
-      // Format break time
+      // Format break time - use fresh data from database
+      const totalBreakSeconds = freshAttendance?.breakDuration || accumulatedBreakDuration || 0;
       const formatBreakTime = (seconds: number): string => {
         if (seconds === 0) return '0m';
         const hours = Math.floor(seconds / 3600);
@@ -724,7 +767,7 @@ Work Arrangement: ${currentWorkArrangement || 'N/A'}
 Login Time: ${checkInTimeFormatted}
 Logout Time: ${checkOutTimeFormatted}
 Hours Worked: ${hoursWorked} hours
-Break Time: ${formatBreakTime(accumulatedBreakDuration + (isOnBreak ? breakDuration : 0))}
+Break Time: ${formatBreakTime(totalBreakSeconds + (isOnBreak ? breakDuration : 0))}
 
 Today's Task Updates:
 ${tasksSection}`;
