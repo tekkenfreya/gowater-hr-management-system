@@ -50,7 +50,7 @@ function formatSubTaskStatus(status: string): string {
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout, refetch } = useAuth();
-  const { isTimedIn, isOnBreak, workDuration, breakDuration, accumulatedBreakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak } = useAttendance();
+  const { isTimedIn, isOnBreak, workDuration, breakDuration, accumulatedBreakDuration, breakStartTime, checkInTime, handleTimeIn, handleTimeOut, handleStartBreak, handleEndBreak, fetchTodayAttendance } = useAttendance();
   // Announcements state
   const [announcements, setAnnouncements] = useState<Array<{
     id: number;
@@ -416,8 +416,22 @@ ${tasksSection}`;
       // Save work arrangement for EOD report
       setCurrentWorkArrangement(location);
 
-      // Complete check-in with selected location
-      await handleTimeIn(location);
+      // Complete check-in with selected location - call API directly to check response
+      const checkInResponse = await fetch('/api/attendance/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workLocation: location })
+      });
+
+      if (!checkInResponse.ok) {
+        const errorData = await checkInResponse.json();
+        logger.error('Check-in failed', errorData);
+        alert(errorData.error || 'Failed to check in. Please try again.');
+        return;
+      }
+
+      // Update attendance context state after successful check-in
+      await fetchTodayAttendance();
 
       // Close location modal and show confirmation modal
       setShowLocationModal(false);
