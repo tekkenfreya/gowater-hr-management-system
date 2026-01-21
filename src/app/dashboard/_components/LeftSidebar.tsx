@@ -50,7 +50,7 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        // Use new team members endpoint (accessible to all authenticated users)
+        // Use team members endpoint which now includes attendance status
         const response = await fetch('/api/team/members');
 
         if (!response.ok) {
@@ -62,44 +62,13 @@ export default function LeftSidebar({ user, isCollapsed, onToggle, onLogout }: L
         const data = await response.json();
         const users = data.users || [];
 
-        if (users.length === 0) {
-          setEmployees([]);
-          return;
-        }
-
-        // Get today's date for filtering
-        const today = new Date().toISOString().split('T')[0];
-
-        // Fetch attendance for all users
-        const usersWithStatus = await Promise.all(
-          users.map(async (u: User) => {
-            try {
-              // Use admin attendance endpoint with userId filter and today's date
-              const attendanceRes = await fetch(`/api/admin/attendance?userId=${u.id}&startDate=${today}&endDate=${today}&limit=1`);
-              if (attendanceRes.ok) {
-                const attendanceData = await attendanceRes.json();
-                const records = attendanceData.records || [];
-                const attendance = records.length > 0 ? records[0] : null;
-
-                // Determine work status based on attendance data (camelCase fields)
-                const hasCheckedIn = attendance && attendance.checkInTime;
-                const hasCheckedOut = attendance && attendance.checkOutTime;
-                const isOnBreak = attendance && attendance.breakStartTime && !attendance.breakEndTime;
-                const isWorking = hasCheckedIn && !hasCheckedOut && !isOnBreak;
-
-                return {
-                  ...u,
-                  isWorking: isWorking || false,
-                  isOnBreak: isOnBreak || false,
-                  checkInTime: attendance?.checkInTime
-                };
-              }
-            } catch (err) {
-              console.error(`Failed to fetch attendance for user ${u.id}:`, err);
-            }
-            return { ...u, isWorking: false, isOnBreak: false };
-          })
-        );
+        // Map users to EmployeeWithStatus format (attendance status is now included in response)
+        const usersWithStatus: EmployeeWithStatus[] = users.map((u: User & { isWorking?: boolean; isOnBreak?: boolean; checkInTime?: string }) => ({
+          ...u,
+          isWorking: u.isWorking || false,
+          isOnBreak: u.isOnBreak || false,
+          checkInTime: u.checkInTime
+        }));
 
         setEmployees(usersWithStatus);
       } catch (error) {
