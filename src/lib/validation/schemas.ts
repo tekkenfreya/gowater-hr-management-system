@@ -18,8 +18,8 @@ export const loginSchema = z.object({
     .trim(),
   password: z.string()
     .min(1, 'Password is required')
-    .min(8, 'Password must be at least 8 characters')
     .max(255, 'Password must be less than 255 characters'),
+  // Note: Password complexity is NOT validated here - only during registration/password change
 });
 
 export const registerSchema = z.object({
