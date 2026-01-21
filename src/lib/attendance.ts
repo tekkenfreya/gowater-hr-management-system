@@ -74,8 +74,17 @@ export class AttendanceService {
           sessions: JSON.stringify(sessions),
           updated_at: new Date()
         }, { id: existing.id });
+      } else if (existing && !existing.check_in_time) {
+        // Existing record with no check-in (admin pre-created record) - update it
+        await this.db.update('attendance', {
+          check_in_time: checkInTime,
+          status,
+          work_location: workLocation || existing.work_location || 'WFH',
+          notes: notes ? `${existing.notes || ''}\n${notes}` : existing.notes,
+          updated_at: new Date()
+        }, { id: existing.id });
       } else {
-        // First check-in of the day
+        // First check-in of the day - no existing record
         await this.db.insert('attendance', {
           user_id: userId,
           date: today,
