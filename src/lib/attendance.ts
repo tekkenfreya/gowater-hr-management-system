@@ -54,7 +54,9 @@ export class AttendanceService {
       const currentHour = getPhilippineHour(checkInTime);
       const status = currentHour >= 10 ? 'late' : 'present'; // 10 AM Philippine Time is the standard time
 
-      if (existing && existing.check_out_time) {
+      // IMPORTANT: Check for BOTH check_in_time AND check_out_time for completed session
+      // This prevents incorrectly treating records with only check_out_time as completed sessions
+      if (existing && existing.check_in_time && existing.check_out_time) {
         // Already checked out today - this is a new session
         // Add previous session to sessions array
         const sessions = existing.sessions ?
@@ -66,7 +68,7 @@ export class AttendanceService {
         });
 
         // Reset check_in_time for new session, but keep accumulated total_hours and sessions
-        await this.db.update('attendance', {
+        const result = await this.db.update('attendance', {
           check_in_time: checkInTime,
           check_out_time: null, // Clear checkout for new session
           work_location: workLocation || 'WFH',
@@ -74,18 +76,38 @@ export class AttendanceService {
           sessions: JSON.stringify(sessions),
           updated_at: new Date()
         }, { id: existing.id });
+
+        // Verify update was successful
+        if (!result || (Array.isArray(result) && result.length === 0)) {
+          logger.error('Check-in update failed - no rows affected', { userId, attendanceId: existing.id });
+          return { success: false, error: 'Failed to update attendance record' };
+        }
       } else if (existing && !existing.check_in_time) {
-        // Existing record with no check-in (admin pre-created record) - update it
-        await this.db.update('attendance', {
+        // Existing record with no check-in (admin pre-created record or blank record) - update it
+        // This also handles invalid records that have check_out_time but no check_in_time
+        logger.info('Updating existing record without check-in time', {
+          userId,
+          attendanceId: existing.id,
+          hasCheckOut: !!existing.check_out_time
+        });
+
+        const result = await this.db.update('attendance', {
           check_in_time: checkInTime,
+          check_out_time: null, // Clear any invalid check_out_time
           status,
           work_location: workLocation || existing.work_location || 'WFH',
           notes: notes ? `${existing.notes || ''}\n${notes}` : existing.notes,
           updated_at: new Date()
         }, { id: existing.id });
-      } else {
+
+        // Verify update was successful
+        if (!result || (Array.isArray(result) && result.length === 0)) {
+          logger.error('Check-in update failed - no rows affected', { userId, attendanceId: existing.id });
+          return { success: false, error: 'Failed to update attendance record' };
+        }
+      } else if (!existing) {
         // First check-in of the day - no existing record
-        await this.db.insert('attendance', {
+        const result = await this.db.insert('attendance', {
           user_id: userId,
           date: today,
           check_in_time: checkInTime,
@@ -94,6 +116,12 @@ export class AttendanceService {
           notes,
           total_hours: 0
         });
+
+        // Verify insert was successful
+        if (!result || !result.id) {
+          logger.error('Check-in insert failed', { userId, date: today });
+          return { success: false, error: 'Failed to create attendance record' };
+        }
       }
 
       return { success: true };
