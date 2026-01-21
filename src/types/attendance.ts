@@ -283,7 +283,7 @@ export interface AttendanceManagementFilters {
   startDate?: string;
   endDate?: string;
   status?: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
-  workLocation?: 'WFH' | 'Onsite';
+  workLocation?: 'WFH' | 'Onsite' | 'Field';
   page?: number;
   limit?: number;
 }
@@ -302,7 +302,7 @@ export interface AttendanceRecordWithUser {
   breakDuration?: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
-  workLocation?: 'WFH' | 'Onsite';
+  workLocation?: 'WFH' | 'Onsite' | 'Field';
   notes?: string;
   isAutomated?: boolean; // whether this was created by automation
 }
@@ -312,7 +312,7 @@ export interface BulkAttendanceOperation {
   attendanceIds: number[];
   updates?: Partial<{
     status: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
-    workLocation: 'WFH' | 'Onsite';
+    workLocation: 'WFH' | 'Onsite' | 'Field';
     notes: string;
   }>;
 }

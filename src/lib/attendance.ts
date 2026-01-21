@@ -24,7 +24,7 @@ export interface AttendanceRecord {
   breakDuration: number;
   totalHours: number;
   status: 'present' | 'absent' | 'late' | 'on_duty';
-  workLocation?: 'WFH' | 'Onsite';
+  workLocation?: 'WFH' | 'Onsite' | 'Field';
   notes?: string;
 }
 
@@ -39,7 +39,7 @@ export interface AttendanceSummary {
 export class AttendanceService {
   private db = getDb();
 
-  async checkIn(userId: number, notes?: string, workLocation?: 'WFH' | 'Onsite'): Promise<{ success: boolean; error?: string }> {
+  async checkIn(userId: number, notes?: string, workLocation?: 'WFH' | 'Onsite' | 'Field'): Promise<{ success: boolean; error?: string }> {
     try {
       const today = new Date().toISOString().split('T')[0];
 
@@ -190,7 +190,7 @@ export class AttendanceService {
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
-        workLocation: record.work_location as 'WFH' | 'Onsite',
+        workLocation: record.work_location as 'WFH' | 'Onsite' | 'Field',
         notes: record.notes
       };
     } catch (error) {
@@ -220,7 +220,7 @@ export class AttendanceService {
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
-        workLocation: record.work_location as 'WFH' | 'Onsite',
+        workLocation: record.work_location as 'WFH' | 'Onsite' | 'Field',
         notes: record.notes
       }));
     } catch (error) {
@@ -448,7 +448,7 @@ export class AttendanceService {
         break_duration?: number;
         total_hours: number;
         status: 'present' | 'absent' | 'late' | 'on_duty' | 'leave';
-        work_location?: 'WFH' | 'Onsite';
+        work_location?: 'WFH' | 'Onsite' | 'Field';
         notes?: string;
         is_automated: boolean;
       }) => ({
@@ -1126,7 +1126,7 @@ export class AttendanceService {
         breakDuration: record.break_duration || 0,
         totalHours: record.total_hours || 0,
         status: record.status,
-        workLocation: record.work_location as 'WFH' | 'Onsite',
+        workLocation: record.work_location as 'WFH' | 'Onsite' | 'Field',
         notes: record.notes
       };
     } catch (error) {
