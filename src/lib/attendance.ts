@@ -126,7 +126,16 @@ export class AttendanceService {
 
       return { success: true };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Handle Supabase error objects
+        const err = error as { message?: string; code?: string; details?: string; hint?: string };
+        errorMessage = err.message || err.details || err.hint || JSON.stringify(error);
+      } else {
+        errorMessage = String(error);
+      }
       logger.error('Check-in error', { error: errorMessage, userId, workLocation });
       return { success: false, error: `Failed to check in: ${errorMessage}` };
     }
